@@ -1,19 +1,29 @@
-# src/evaluate_model.py
+"""Utility to evaluate saved XGBoost models on pooled IV return data.
+
+This module is a cleaned up version of an earlier experimental script.  It
+loads a previously trained XGBoost model and evaluates it on the pooled data
+produced by :func:`build_pooled_iv_return_dataset_time_safe`.
+"""
+
 from __future__ import annotations
+
 import argparse
 import json
+import os
 from pathlib import Path
+
 import numpy as np
 import pandas as pd
-
-from sklearn.metrics import mean_squared_error, r2_score
+import xgboost as xgb
 from sklearn.inspection import permutation_importance
-import os 
+from sklearn.metrics import mean_squared_error, r2_score
+
 from feature_engineering import build_pooled_iv_return_dataset_time_safe
 
 
 def _ensure_numeric(df: pd.DataFrame) -> pd.DataFrame:
     """Drop any non-numeric features (xgboost requirement)."""
+
     non_num = df.select_dtypes(exclude=["number", "bool"]).columns.tolist()
     if non_num:
         print(f"[WARN] Dropping non-numeric columns: {non_num}")
@@ -22,25 +32,25 @@ def _ensure_numeric(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _align_columns_to_model(model: xgb.XGBRegressor, X: pd.DataFrame) -> pd.DataFrame:
-    """Align feature columns to what the model expects (by name)."""
+    """Align feature columns to those used by the model."""
+
     expected = getattr(model, "feature_names_in_", None)
     if expected is None:
         try:
             expected = model.get_booster().feature_names
         except Exception:
             expected = None
-
-    if expected.any():
-        # add any missing columns as 0, drop extras
+    if expected is not None and len(expected) > 0:
         for col in expected:
             if col not in X.columns:
                 X[col] = 0.0
-        X = X.reindex(columns=expected)
+        X = X.reindex(columns=list(expected))
     return X
 
 
 def _xgb_importances(model: xgb.XGBRegressor) -> pd.DataFrame:
     """Collect XGBoost gain/weight/cover importances."""
+
     bst = model.get_booster()
     types = ["gain", "weight", "cover", "total_gain", "total_cover"]
     imp = None
@@ -58,9 +68,23 @@ def _xgb_importances(model: xgb.XGBRegressor) -> pd.DataFrame:
     for t in types:
         if t not in imp.columns:
             imp[t] = 0.0
-    # Sort by gain as a sensible default
     imp = imp.fillna(0.0).sort_values("gain", ascending=False).reset_index(drop=True)
     return imp
+
+
+def _resolve_model_path(model_path: str | Path, fallback_dir: str | Path = "models") -> Path:
+    """Resolve ``model_path`` or fall back to the newest model in ``fallback_dir``."""
+
+    p = Path(model_path)
+    if p.exists():
+        return p
+    fb = Path(fallback_dir)
+    if fb.exists():
+        cand = sorted(fb.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True)
+        if cand:
+            print(f"[INFO] Model not found at {p}. Using latest in {fb}: {cand[0].name}")
+            return cand[0]
+    raise FileNotFoundError(f"Model not found at {p} and no JSON models in {fb}")
 
 
 def evaluate_pooled_model(
@@ -77,11 +101,13 @@ def evaluate_pooled_model(
     save_predictions: bool = True,
     perm_repeats: int = 5,
     perm_sample: int | None = 5000,
-):
+    db_path: str | Path = Path("data/iv_data_1m.db"),
+) -> None:
+    """Evaluate a saved XGBoost model on pooled IV return data."""
+
     metrics_dir = Path(metrics_dir)
     metrics_dir.mkdir(parents=True, exist_ok=True)
 
-    # ---- Build pooled dataset (target first: 'iv_ret_fwd') ----
     start_ts = pd.Timestamp(start, tz="UTC")
     end_ts = pd.Timestamp(end, tz="UTC")
     pooled = build_pooled_iv_return_dataset_time_safe(
@@ -91,22 +117,17 @@ def evaluate_pooled_model(
         r=r,
         forward_steps=forward_steps,
         tolerance=tolerance,
-        db_path = Path(args.db)
+        db_path=Path(db_path),
     )
     print(f"[DATA] pooled rows={len(pooled)}, features={pooled.shape[1]-1}")
-    # Debugging iv_clip creation
-
-    print(f"Pooled DataFrame columns: {pooled.columns}")
-    print(f"Pooled DataFrame shape: {pooled.shape}")
 
     if "iv_clip" not in pooled.columns:
         raise KeyError("'iv_clip' column is missing in the pooled DataFrame. Debug the dataset creation process.")
-        
+
     y = pooled["iv_clip"].astype(float)
     X = pooled.drop(columns=["iv_clip"])
     X = _ensure_numeric(X)
 
-    # ---- Chronological split (same as training) ----
     n = len(X)
     if n < 10:
         raise ValueError(f"Too few rows for evaluation: {n}")
@@ -114,8 +135,6 @@ def evaluate_pooled_model(
     X_tr, X_te = X.iloc[:split_idx].copy(), X.iloc[split_idx:].copy()
     y_tr, y_te = y.iloc[:split_idx].copy(), y.iloc[split_idx:].copy()
 
-    # ---- Load model & align columns ----
-# ---- Load model & align columns ----
     model_path = _resolve_model_path(model_path, fallback_dir="models")
     model = xgb.XGBRegressor()
     model.load_model(str(model_path))
@@ -123,7 +142,6 @@ def evaluate_pooled_model(
     X_tr = _align_columns_to_model(model, X_tr)
     X_te = _align_columns_to_model(model, X_te)
 
-    # ---- Predict & metrics ----
     y_pred = model.predict(X_te)
     metrics = {
         "RMSE": float(np.sqrt(mean_squared_error(y_te, y_pred))),
@@ -140,10 +158,8 @@ def evaluate_pooled_model(
     }
     print(f"[METRICS] RMSE={metrics['RMSE']:.6f}  R²={metrics['R2']:.3f}")
 
-    # ---- XGBoost importances ----
     xgb_imp = _xgb_importances(model)
 
-    # ---- Permutation importance (on a sample for speed, optional) ----
     perm_df = pd.DataFrame()
     if perm_repeats and perm_repeats > 0:
         if (perm_sample is not None) and (len(X_te) > perm_sample):
@@ -152,36 +168,41 @@ def evaluate_pooled_model(
         else:
             Xp, yp = X_te, y_te
         perm = permutation_importance(
-            model, Xp, yp,
+            model,
+            Xp,
+            yp,
             n_repeats=perm_repeats,
             random_state=42,
             n_jobs=-1,
             scoring="neg_root_mean_squared_error",
         )
-        perm_df = pd.DataFrame({
-            "feature": Xp.columns,
-            "perm_importance_mean": perm.importances_mean,
-            "perm_importance_std": perm.importances_std,
-        }).sort_values("perm_importance_mean", ascending=False).reset_index(drop=True)
+        perm_df = pd.DataFrame(
+            {
+                "feature": Xp.columns,
+                "perm_importance_mean": perm.importances_mean,
+                "perm_importance_std": perm.importances_std,
+            }
+        ).sort_values("perm_importance_mean", ascending=False).reset_index(drop=True)
 
-    # ---- Save artifacts ----
     metrics_path = metrics_dir / f"{outputs_prefix}_metrics.json"
     xgb_imp_path = metrics_dir / f"{outputs_prefix}_xgb_importances.csv"
     perm_imp_path = metrics_dir / f"{outputs_prefix}_perm_importances.csv"
-    preds_path   = metrics_dir / f"{outputs_prefix}_predictions.csv"
+    preds_path = metrics_dir / f"{outputs_prefix}_predictions.csv"
 
-    with open(metrics_path, "w") as f:
+    with open(metrics_path, "w", encoding="utf-8") as f:
         json.dump(metrics, f, indent=2)
     xgb_imp.to_csv(xgb_imp_path, index=False)
     if not perm_df.empty:
         perm_df.to_csv(perm_imp_path, index=False)
 
     if save_predictions:
-        pd.DataFrame({
-            "y_true": y_te.values,
-            "y_pred": y_pred,
-            "resid": y_te.values - y_pred,
-        }).to_csv(preds_path, index=False)
+        pd.DataFrame(
+            {
+                "y_true": y_te.values,
+                "y_pred": y_pred,
+                "resid": y_te.values - y_pred,
+            }
+        ).to_csv(preds_path, index=False)
 
     print(f"[SAVED] {metrics_path}")
     print(f"[SAVED] {xgb_imp_path}")
@@ -190,26 +211,13 @@ def evaluate_pooled_model(
     if save_predictions:
         print(f"[SAVED] {preds_path}")
 
-from pathlib import Path
 
-def _resolve_model_path(model_path: str | Path, fallback_dir: str | Path = "models") -> Path:
-    p = Path(model_path)
-    if p.exists():
-        return p
-    fb = Path(fallback_dir)
-    if fb.exists():
-        cand = sorted(fb.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True)
-        if cand:
-            print(f"[INFO] Model not found at {p}. Using latest in {fb}: {cand[0].name}")
-            return cand[0]
-    raise FileNotFoundError(f"Model not found at {p} and no JSON models in {fb}")
-
-def parse_args():
+def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Evaluate pooled IV-returns XGBoost model.")
     p.add_argument("--model", required=True, help="Path to saved XGBoost model (JSON).")
     p.add_argument("--tickers", nargs="+", default=["QBTS", "IONQ", "RGTI", "QUBT"])
     p.add_argument("--start", default="2025-01-02")
-    p.add_argument("--end",   default="2025-01-06")
+    p.add_argument("--end", default="2025-01-06")
     p.add_argument("--test-frac", type=float, default=0.2)
     p.add_argument("--forward-steps", type=int, default=1)
     p.add_argument("--tolerance", default="2s")
@@ -219,9 +227,12 @@ def parse_args():
     p.add_argument("--no-preds", action="store_true", help="Do not save per-row predictions.")
     p.add_argument("--perm-repeats", type=int, default=5, help="Permutation importance repeats (0 to disable).")
     p.add_argument("--perm-sample", type=int, default=5000, help="Cap permutation sample size for speed.")
-    p.add_argument("--db", type=str, default=os.getenv("IV_DB_PATH", "data/iv_data_1m.db"),
-                    help="Path to the SQLite DB to read from.")
-
+    p.add_argument(
+        "--db",
+        type=str,
+        default=os.getenv("IV_DB_PATH", "data/iv_data_1m.db"),
+        help="Path to the SQLite DB to read from.",
+    )
     return p.parse_args()
 
 
@@ -241,4 +252,6 @@ if __name__ == "__main__":
         save_predictions=not args.no_preds,
         perm_repeats=args.perm_repeats,
         perm_sample=args.perm_sample,
+        db_path=args.db,
     )
+
