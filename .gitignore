@@ -1,0 +1,24 @@
+# Python virtual environments
+venv/
+.env
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# SQLite databases
+*.db
+
+# VSCode settings
+.vscode/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+*.json
+
+*.parquet
