@@ -194,6 +194,7 @@ def evaluate_pooled_model(
     xgb_imp.to_csv(xgb_imp_path, index=False)
     if not perm_df.empty:
         perm_df.to_csv(perm_imp_path, index=False)
+    save_symbol_effects(model, X_test, y_test, metrics_dir=args.metrics_dir, prefix=args.prefix)
 
     if save_predictions:
         pd.DataFrame(
@@ -211,6 +212,40 @@ def evaluate_pooled_model(
     if save_predictions:
         print(f"[SAVED] {preds_path}")
 
+from pathlib import Path
+import numpy as np
+import pandas as pd
+from sklearn.inspection import permutation_importance
+import xgboost as xgb
+
+def save_symbol_effects(model, X_test, y_test, metrics_dir: str, prefix: str):
+    metrics_dir = Path(metrics_dir); metrics_dir.mkdir(parents=True, exist_ok=True)
+
+    # --- Permutation importance ---
+    pi = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42, n_jobs=-1)
+    pi_df = pd.DataFrame({
+        "feature": X_test.columns,
+        "perm_mean": pi.importances_mean,
+        "perm_std":  pi.importances_std,
+    }).sort_values("perm_mean", ascending=False)
+    pi_df.to_csv(metrics_dir / f"{prefix}_perm_importance.csv", index=False)
+
+    # --- SHAP (built-in XGBoost) ---
+    booster = model.get_booster()
+    dm = xgb.DMatrix(X_test, feature_names=X_test.columns.tolist())
+    contribs = booster.predict(dm, pred_contribs=True)  # SHAP + bias
+    contribs_df = pd.DataFrame(contribs, columns=list(X_test.columns) + ["bias"])
+
+    sym_cols = [c for c in X_test.columns if c.startswith("sym_")]
+    if sym_cols:
+        sym_avg = contribs_df[sym_cols].mean().sort_values(ascending=False)
+        sym_df = sym_avg.to_frame("avg_shap").reset_index().rename(columns={"index": "feature"})
+        sym_df["ticker"] = sym_df["feature"].str.replace("^sym_", "", regex=True)
+        sym_df["direction"] = np.where(sym_df["avg_shap"] >= 0, "↑", "↓")
+        sym_df.to_csv(metrics_dir / f"{prefix}_sym_shap_avg.csv", index=False)
+
+    # save full SHAP (optional; large)
+    # contribs_df.to_parquet(metrics_dir / f"{prefix}_shap_contribs.parquet", index=False)
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Evaluate pooled IV-returns XGBoost model.")
