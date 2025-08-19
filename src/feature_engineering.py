@@ -9,24 +9,12 @@ from scipy.stats import norm
 from scipy.optimize import brentq
 from sklearn.metrics import mean_squared_error, r2_score
 
+from greeks import bs_delta, bs_gamma, bs_vega
+
 DEFAULT_DB_PATH = Path(os.getenv("IV_DB_PATH", "data/iv_data_1m.db"))
 # --- add near top of file ---
 TRADING_MIN_PER_DAY = 390
 ANNUAL_MINUTES = 252 * TRADING_MIN_PER_DAY
-
-def _bs_delta(S, K, T, r, sigma, cp):
-    if not np.isfinite([S, K, T, r, sigma]).all() or S <= 0 or K <= 0 or T <= 0 or sigma <= 0:
-        return np.nan
-    sqrtT = np.sqrt(T)
-    d1 = (np.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * sqrtT)
-    return norm.cdf(d1) if cp == "C" else norm.cdf(d1) - 1.0
-
-def _bs_vega(S, K, T, r, sigma):
-    if not np.isfinite([S, K, T, r, sigma]).all() or S <= 0 or K <= 0 or T <= 0 or sigma <= 0:
-        return np.nan
-    sqrtT = np.sqrt(T)
-    d1 = (np.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * sqrtT)
-    return S * norm.pdf(d1) * sqrtT
 
 def _add_features(df: pd.DataFrame, peer_cols: list[str], target_ticker: str,
                   r: float = 0.045, target_mode: str = "iv_ret") -> pd.DataFrame:
@@ -84,19 +72,36 @@ def _add_features(df: pd.DataFrame, peer_cols: list[str], target_ticker: str,
 
     # --- Greeks (use current iv level; shift to be safe) ---
     def _safe_delta(row):
-        return _bs_delta(row.get("stock_close", np.nan),
-                         row.get("strike_price", np.nan),
-                         row.get("time_to_expiry", np.nan),
-                         r, row.get("iv_clip", np.nan),
-                         str(row.get("option_type", "C"))[:1].upper())
+        return bs_delta(
+            row.get("stock_close", np.nan),
+            row.get("strike_price", np.nan),
+            row.get("time_to_expiry", np.nan),
+            r,
+            row.get("iv_clip", np.nan),
+            str(row.get("option_type", "C"))[:1].upper(),
+        )
+
+    def _safe_gamma(row):
+        return bs_gamma(
+            row.get("stock_close", np.nan),
+            row.get("strike_price", np.nan),
+            row.get("time_to_expiry", np.nan),
+            r,
+            row.get("iv_clip", np.nan),
+        )
+
     def _safe_vega(row):
-        return _bs_vega(row.get("stock_close", np.nan),
-                        row.get("strike_price", np.nan),
-                        row.get("time_to_expiry", np.nan),
-                        r, row.get("iv_clip", np.nan))
+        return bs_vega(
+            row.get("stock_close", np.nan),
+            row.get("strike_price", np.nan),
+            row.get("time_to_expiry", np.nan),
+            r,
+            row.get("iv_clip", np.nan),
+        )
 
     X["delta"] = X.apply(_safe_delta, axis=1).shift(1)
-    X["vega"]  = X.apply(_safe_vega, axis=1).shift(1)
+    X["gamma"] = X.apply(_safe_gamma, axis=1).shift(1)
+    X["vega"] = X.apply(_safe_vega, axis=1).shift(1)
 
     # --- peer IV aggregates (only peers, not target column) ---
     peer_cols = [c for c in peer_cols if c in X.columns]
