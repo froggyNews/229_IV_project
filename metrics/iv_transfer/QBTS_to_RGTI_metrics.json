@@ -1,0 +1,11 @@
+{
+  "RMSE": 0.3553464072149531,
+  "R2": -0.1477647166230962,
+  "features": [
+    "QBTS_iv",
+    "QBTS_iv_lag1",
+    "QBTS_iv_lag5"
+  ],
+  "n_train": 1844,
+  "n_test": 461
+}
