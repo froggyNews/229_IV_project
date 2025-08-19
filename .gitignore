@@ -1,24 +1,21 @@
-# Python virtual environments
+@"
+# Python
+__pycache__/
+*.py[cod]
+.venv/
 venv/
 .env
 
-# Python bytecode
-__pycache__/
-*.py[cod]
-
-# Jupyter Notebook checkpoints
-.ipynb_checkpoints/
-
-# SQLite databases
+# Project artifacts
+data/
+features/
+metrics/
 *.db
-
-# VSCode settings
-.vscode/
-
-# OS-specific files
-.DS_Store
-Thumbs.db
-
-*.json
-
+*.sqlite
 *.parquet
+*.log
+
+# Models (keep json if you must; ignore big binaries)
+*.bst
+*.bin
+"@ | Out-File -Encoding UTF8 .gitignore
