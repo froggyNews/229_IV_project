@@ -325,3 +325,208 @@ def build_pooled_iv_return_dataset_time_safe(
 
 
     return pooled
+
+# -------------------------------------------------
+# Spillover dataset (time-safe) and metrics
+# -------------------------------------------------
+import xgboost as xgb
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+
+
+def build_spillover_dataset_time_safe(
+    tickers: List[str],
+    start=None, end=None, r: float = 0.045,
+    forward_steps: int = 1, tolerance: str = "2s",
+    db_path: Path | str | None = None,
+    target_mode: str = "iv_ret",   # "iv_ret" or "iv"
+) -> pd.DataFrame:
+    """
+    Build a pooled dataset for spillover measurement.
+    Uses _add_features() to create a 'target' column and engineered features, including peer IVs.
+    """
+    assert target_mode in {"iv_ret", "iv"}
+    dbp = Path(db_path) if db_path else DEFAULT_DB_PATH
+
+    # 1) per-ticker ATM cores
+    cores = {t: _atm_core(t, start=start, end=end, r=r, db_path=dbp) for t in tickers}
+
+    # 2) wide IV panel for peers (backward as-of to avoid lookahead)
+    iv_wide = None
+    for t, df in cores.items():
+        tmp = df[["ts_event", "iv"]].rename(columns={"iv": f"IV_{t}"}).sort_values("ts_event")
+        iv_wide = tmp if iv_wide is None else pd.merge_asof(
+            iv_wide, tmp, on="ts_event", direction="backward", tolerance=pd.Timedelta(tolerance)
+        )
+
+    # 3) build features per target, then pool
+    frames = []
+    for tgt, dft in cores.items():
+        feats = dft.copy()
+        # ensure iv_clip and fwd return (used inside _add_features)
+        feats["iv_clip"] = feats["iv"].clip(lower=1e-6)
+        if target_mode == "iv_ret":
+            feats["iv_ret_fwd"] = np.log(feats["iv_clip"].shift(-forward_steps)) - np.log(feats["iv_clip"])
+
+        panel = pd.merge_asof(
+            feats.sort_values("ts_event"),
+            iv_wide.sort_values("ts_event"),
+            on="ts_event", direction="backward",
+            tolerance=pd.Timedelta(tolerance),
+        )
+        # peer columns = other tickers' IVs
+        peer_cols = [c for c in panel.columns if c.startswith("IV_") and c != f"IV_{tgt}"]
+
+        X = _add_features(panel, peer_cols=peer_cols, target_ticker=tgt, r=r, target_mode=target_mode)
+        X["target_symbol"] = tgt
+        frames.append(X)
+
+    pooled = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+    # one-hot symbols if present (some flows add sym_ already; this is a safety net)
+    if "target_symbol" in pooled.columns and not any(c.startswith("sym_") for c in pooled.columns):
+        pooled = pd.get_dummies(pooled, columns=["target_symbol"], prefix="sym", dtype=float)
+    return pooled
+
+
+def _chrono_split(X: pd.DataFrame, y: np.ndarray, test_frac: float) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray, np.ndarray]:
+    n = len(X)
+    if n < 10:
+        raise ValueError(f"Too few rows: {n}")
+    split = int(n * (1 - test_frac))
+    return X.iloc[:split], X.iloc[split:], y[:split], y[split:]
+
+
+def _train_xgb(X_tr: pd.DataFrame, y_tr: np.ndarray, params: dict | None = None) -> xgb.XGBRegressor:
+    if params is None:
+        params = dict(
+            objective="reg:squarederror",
+            n_estimators=350,
+            learning_rate=0.05,
+            max_depth=6,
+            subsample=0.9,
+            colsample_bytree=0.9,
+            random_state=42,
+        )
+    model = xgb.XGBRegressor(**params)
+    model.fit(X_tr, y_tr)
+    return model
+
+
+def _ensure_numeric_all(df: pd.DataFrame) -> pd.DataFrame:
+    out = df.copy()
+    for c in out.columns:
+        out[c] = pd.to_numeric(out[c], errors="coerce")
+    out = out.dropna(axis=1, how="all")
+    return out
+
+
+def compute_iv_spillover_metrics(
+    pooled: pd.DataFrame,
+    test_frac: float = 0.2,
+    model_params: dict | None = None,
+    metrics_dir: Path | str | None = None,
+    prefix: str = "iv_spillover",
+) -> dict:
+    """
+    Quantifies IV spillover on a pooled dataset with column 'target':
+      - Train 'controls-only' (no peers) and 'full' (controls + peers) XGB on chrono split.
+      - Report R2/RMSE/MAE and ΔR2, ΔRMSE (spillover strength).
+      - Report peer contribution share using tree SHAP-like contributions.
+
+    Returns a dict with 'control', 'full', 'summary'. Optionally saves CSV/JSON artifacts.
+    """
+    if "target" not in pooled.columns:
+        raise KeyError("Expected 'target' column in pooled dataset. Build it with build_spillover_dataset_time_safe(...).")
+
+    pooled = pooled.reset_index(drop=True)
+    y = pooled["target"].astype(float).values
+    X = pooled.drop(columns=["target"]).copy()
+    X = _ensure_numeric_all(X)
+
+    # identify peer vs control features
+    peer_cols = [c for c in X.columns if c.startswith("IV_") or c.startswith("peer_")]
+    control_cols = [c for c in X.columns if c not in peer_cols]
+
+    # chronological split
+    Xtr_ctrl, Xte_ctrl, ytr, yte = _chrono_split(X[control_cols], y, test_frac)
+    Xtr_full, Xte_full, _,   _   = _chrono_split(X,               y, test_frac)
+
+    # train
+    m_ctrl = _train_xgb(Xtr_ctrl, ytr, model_params)
+    m_full = _train_xgb(Xtr_full, ytr, model_params)
+
+    # eval
+    pred_ctrl = m_ctrl.predict(Xte_ctrl)
+    pred_full = m_full.predict(Xte_full)
+
+    def _metrics(y_true, y_pred) -> dict:
+        rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
+        mae  = float(mean_absolute_error(y_true, y_pred))
+        r2   = float(r2_score(y_true, y_pred))
+        return {"RMSE": rmse, "MAE": mae, "R2": r2, "n": int(len(y_true))}
+
+    met_ctrl = _metrics(yte, pred_ctrl)
+    met_full = _metrics(yte, pred_full)
+
+    # SHAP-like contributions for full model
+    dtest = xgb.DMatrix(Xte_full, feature_names=Xte_full.columns.tolist())
+    contribs = m_full.get_booster().predict(dtest, pred_contribs=True)  # [n, n_features+1], last col = bias
+    contribs = np.asarray(contribs)
+
+    # peer contribution share per row
+    feat_names = Xte_full.columns.tolist()
+    peer_idx = [feat_names.index(c) for c in peer_cols if c in feat_names]
+    abs_sum   = np.abs(contribs[:, :-1]).sum(axis=1)  # exclude bias
+    peer_sum  = np.abs(contribs[:, peer_idx]).sum(axis=1) if peer_idx else np.zeros(len(Xte_full))
+    peer_share = np.divide(peer_sum, np.where(abs_sum == 0.0, 1.0, abs_sum))
+    peer_share = np.clip(peer_share, 0.0, 1.0)
+
+    summary = {
+        "spillover_R2_gain": float(met_full["R2"] - met_ctrl["R2"]),
+        "spillover_RMSE_drop": float(met_ctrl["RMSE"] - met_full["RMSE"]),
+        "peer_share_mean": float(np.mean(peer_share)),
+        "peer_share_median": float(np.median(peer_share)),
+        "peer_share_p90": float(np.quantile(peer_share, 0.90)),
+        "peer_share_p95": float(np.quantile(peer_share, 0.95)),
+        "n_test": met_full["n"],
+        "n_features_full": int(Xtr_full.shape[1]),
+        "n_features_control": int(Xtr_ctrl.shape[1]),
+        "n_peer_features": int(len(peer_cols)),
+    }
+
+    out = {"control": met_ctrl, "full": met_full, "summary": summary}
+
+    # optional: persist artifacts
+    if metrics_dir is not None:
+        mdir = Path(metrics_dir)
+        mdir.mkdir(parents=True, exist_ok=True)
+        # metrics JSON
+        with open(mdir / f"{prefix}_metrics.json", "w", encoding="utf-8") as f:
+            json.dump(out, f, indent=2)
+        # per-row peer share
+        pd.DataFrame({
+            "peer_share": peer_share,
+            "y_true": yte,
+            "yhat_full": pred_full,
+            "yhat_ctrl": pred_ctrl,
+            "resid_full": yte - pred_full,
+            "resid_ctrl": yte - pred_ctrl,
+        }).to_csv(mdir / f"{prefix}_peer_share.csv", index=False)
+        # importances
+        def _xgb_imp_df(model: xgb.XGBRegressor) -> pd.DataFrame:
+            bst = model.get_booster()
+            types = ["gain", "weight", "cover", "total_gain", "total_cover"]
+            frames = []
+            for t in types:
+                d = bst.get_score(importance_type=t)
+                if d:
+                    frames.append(pd.DataFrame({"feature": list(d.keys()), t: list(d.values())}))
+            if not frames:
+                return pd.DataFrame(columns=["feature"])
+            imp = frames[0]
+            for f in frames[1:]:
+                imp = imp.merge(f, on="feature", how="outer")
+            return imp.fillna(0.0).sort_values("gain", ascending=False)
+        _xgb_imp_df(m_ctrl).to_csv(mdir / f"{prefix}_importances_control.csv", index=False)
+        _xgb_imp_df(m_full).to_csv(mdir / f"{prefix}_importances_full.csv", index=False)
+
+    return out
