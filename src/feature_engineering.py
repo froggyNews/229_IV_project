@@ -8,7 +8,6 @@ import pandas as pd
 from scipy.stats import norm
 from scipy.optimize import brentq
 from sklearn.metrics import mean_squared_error, r2_score
-import xgboost as xgb
 
 DEFAULT_DB_PATH = Path(os.getenv("IV_DB_PATH", "data/iv_data_1m.db"))
 # --- add near top of file ---
@@ -278,25 +277,51 @@ def build_pooled_iv_return_dataset_time_safe(
         feats["minute"] = feats["ts_event"].dt.minute.astype("int16")
         feats["day_of_week"] = feats["ts_event"].dt.dayofweek.astype("int16")
         feats["days_to_expiry"] = (feats["time_to_expiry"] * 365.0).astype("float32")
-        feats["iv_clip"] = feats["iv"].clip(lower=1e-6)
+        
+        # Add iv_clip if not present
+        if "iv_clip" not in feats.columns:
+            feats["iv_clip"] = feats["iv"].clip(lower=1e-6)
+        
         feats["iv_ret_fwd"] = np.log(feats["iv_clip"].shift(-forward_steps)) - np.log(feats["iv_clip"])
         panel = pd.merge_asof(
             feats.sort_values("ts_event"), iv_wide.sort_values("ts_event"),
             on="ts_event", direction="backward", tolerance=pd.Timedelta(tolerance)
         )
-# inside the per-target loop after building `panel`:
+        
+        # Inside the per-target loop after building `panel`:
+        # ... inside the per-target loop after you build `panel` ...
         peer_cols = [c for c in panel.columns if c.startswith("IV_") and c != f"IV_{tgt}"]
-        ds = _add_features(panel, peer_cols=peer_cols, target_ticker=tgt,
-                   r=r, target_mode="iv_ret")   # or "iv"
-        cols = ["iv_ret_fwd","opt_volume","time_to_expiry","days_to_expiry","strike_price",
-                "option_type_enc","hour","minute","day_of_week"] + peer_cols + ["symbol"]
+
+        cols = [
+            "iv_ret_fwd",
+            "iv_clip",                    # <— add this so evaluation can use it
+            "opt_volume", "time_to_expiry", "days_to_expiry", "strike_price",
+            "option_type_enc", "hour", "minute", "day_of_week",
+        ] + peer_cols + ["symbol"]
+
+        # strong numeric hygiene
         for c in ["opt_volume","time_to_expiry","days_to_expiry","strike_price"] + peer_cols:
             if c in panel.columns:
                 panel[c] = pd.to_numeric(panel[c], errors="coerce").astype(np.float32)
+
         frames.append(panel[cols].dropna(subset=["iv_ret_fwd"]).reset_index(drop=True))
+
+        # after concatenating frames:
     pooled = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
     if not pooled.empty:
         pooled = pd.get_dummies(pooled, columns=["symbol"], prefix="sym", dtype=float)
+
+        # ensure one-hot columns exist for ALL tickers you passed in
+        for t in tickers:
+            col = f"sym_{t}"
+            if col not in pooled.columns:
+                pooled[col] = 0.0
+
+        # reorder (optional, but tidy)
+        front = ["iv_ret_fwd", "iv_clip"]
+        onehots = [f"sym_{t}" for t in tickers]
+        other = [c for c in pooled.columns if c not in front + onehots]
+        pooled = pooled[front + other + onehots]
+
+
     return pooled
-
-

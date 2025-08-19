@@ -5,16 +5,11 @@ import json
 from pathlib import Path
 import numpy as np
 import pandas as pd
-import xgboost as xgb
+
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.inspection import permutation_importance
 import os 
-
-# ---- try both module names, depending on your repo layout ----
-try:
-    from xgb_iv_transfer import build_pooled_iv_return_dataset_time_safe
-except Exception:
-    from xgb_iv import build_pooled_iv_return_dataset_time_safe  # fallback
+from feature_engineering import build_pooled_iv_return_dataset_time_safe
 
 
 def _ensure_numeric(df: pd.DataFrame) -> pd.DataFrame:
@@ -99,7 +94,14 @@ def evaluate_pooled_model(
         db_path = Path(args.db)
     )
     print(f"[DATA] pooled rows={len(pooled)}, features={pooled.shape[1]-1}")
+    # Debugging iv_clip creation
 
+    print(f"Pooled DataFrame columns: {pooled.columns}")
+    print(f"Pooled DataFrame shape: {pooled.shape}")
+
+    if "iv_clip" not in pooled.columns:
+        raise KeyError("'iv_clip' column is missing in the pooled DataFrame. Debug the dataset creation process.")
+        
     y = pooled["iv_clip"].astype(float)
     X = pooled.drop(columns=["iv_clip"])
     X = _ensure_numeric(X)
