@@ -246,8 +246,8 @@ def build_iv_return_dataset_time_safe(
         ds = _add_features(panel, peer_cols=peer_cols, target_ticker=tgt,
                    r=r, target_mode="iv_ret")   # or "iv"
 
-        num_cols = ["opt_volume","time_to_expiry","days_to_expiry","strike_price",
-                    "option_type_enc","hour","minute","day_of_week"] + peer_cols
+        num_cols = ["opt_volume","time_to_expiry","strike_price",
+                    "option_type_enc"] + peer_cols
         for c in num_cols:
             if c in panel.columns:
                 panel[c] = pd.to_numeric(panel[c], errors="coerce").astype(np.float32)
@@ -273,11 +273,7 @@ def build_pooled_iv_return_dataset_time_safe(
     for tgt, dft in cores.items():
         feats = dft.copy()
         feats["option_type_enc"] = _encode_option_type(feats["option_type"])
-        feats["hour"] = feats["ts_event"].dt.hour.astype("int16")
-        feats["minute"] = feats["ts_event"].dt.minute.astype("int16")
-        feats["day_of_week"] = feats["ts_event"].dt.dayofweek.astype("int16")
-        feats["days_to_expiry"] = (feats["time_to_expiry"] * 365.0).astype("float32")
-        
+
         # Add iv_clip if not present
         if "iv_clip" not in feats.columns:
             feats["iv_clip"] = feats["iv"].clip(lower=1e-6)
@@ -295,8 +291,8 @@ def build_pooled_iv_return_dataset_time_safe(
         cols = [
             "iv_ret_fwd",
             "iv_clip",                    # <— add this so evaluation can use it
-            "opt_volume", "time_to_expiry", "days_to_expiry", "strike_price",
-            "option_type_enc", "hour", "minute", "day_of_week",
+            "opt_volume", "time_to_expiry", "strike_price",
+            "option_type_enc"
         ] + peer_cols + ["symbol"]
 
         # strong numeric hygiene
