@@ -10,6 +10,26 @@ from sklearn.metrics import mean_squared_error, r2_score
 
 from feature_engineering import build_pooled_iv_return_dataset_time_safe
 
+
+def base_arguments() -> argparse.ArgumentParser:
+    """Define base arguments for the script."""
+    ap = argparse.ArgumentParser(description="Run models for iv_ret_fwd and iv_clip")
+    ap.add_argument("--db", required=True, type=Path, help="Path to the database file.")
+    ap.add_argument("--tickers", nargs="+", required=True, help="List of tickers.")
+    ap.add_argument("--start", required=True, help="Start date in YYYY-MM-DD format.")
+    ap.add_argument("--end", required=True, help="End date in YYYY-MM-DD format.")
+    ap.add_argument("--test-frac", type=float, default=0.2, help="Fraction of data for testing.")
+    ap.add_argument("--forward-steps", type=int, default=1, help="Number of forward steps.")
+    ap.add_argument("--tolerance", default="2s", help="Tolerance for time alignment.")
+    ap.add_argument(
+        "--metrics-path",
+        type=Path,
+        default=Path("metrics/iv_metrics.json"),
+        help="Path to save metrics JSON file.",
+    )
+    return ap
+
+
 def train_xgb(
     pooled: pd.DataFrame,
     target: str,
@@ -53,20 +73,9 @@ def train_xgb(
     )
     return model, metrics
 
+
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Run models for iv_ret_fwd and iv_clip")
-    ap.add_argument("--db", required=True, type=Path)
-    ap.add_argument("--tickers", nargs="+", required=True)
-    ap.add_argument("--start", required=True)
-    ap.add_argument("--end", required=True)
-    ap.add_argument("--test-frac", type=float, default=0.2)
-    ap.add_argument("--forward-steps", type=int, default=1)
-    ap.add_argument("--tolerance", default="2s")
-    ap.add_argument(
-        "--metrics-path",
-        type=Path,
-        default=Path("metrics/iv_metrics.json"),
-    )
+    ap = base_arguments()
     args = ap.parse_args()
 
     start = pd.Timestamp(args.start, tz="UTC")
@@ -106,5 +115,51 @@ def main() -> None:
     print(f"[iv_clip]    RMSE={m_clip['RMSE']:.6f}  R²={m_clip['R2']:.3f}")
     print(f"[SAVED] {args.metrics_path}")
 
+import argparse
+
+def parse_args():
+    """Parse command-line arguments."""
+    ap = argparse.ArgumentParser(description="Run main_runner for iv_ret_fwd and iv_clip")
+    ap.add_argument("--db", required=True, type=str, help="Path to the database file.")
+    ap.add_argument("--tickers", nargs="+", required=True, help="List of tickers.")
+    ap.add_argument("--start", required=True, help="Start date in YYYY-MM-DD format.")
+    ap.add_argument("--end", required=True, help="End date in YYYY-MM-DD format.")
+    ap.add_argument("--test-frac", type=float, default=0.2, help="Fraction of data for testing.")
+    ap.add_argument("--forward-steps", type=int, default=1, help="Number of forward steps.")
+    ap.add_argument("--tolerance", default="2s", help="Tolerance for time alignment.")
+    ap.add_argument(
+        "--metrics-path",
+        type=str,
+        default="metrics/iv_metrics.json",
+        help="Path to save metrics JSON file.",
+    )
+    return ap.parse_args()
+
+def main():
+    args = parse_args()
+    print(f"Arguments parsed: {args}")
+    # Add your main logic here
+
 if __name__ == "__main__":
     main()
+# if __name__ == "__main__":
+#     def main():
+#         args = parse_args()
+#         evaluate_pooled_model(
+#             model_path=args.model,
+#             tickers=args.tickers,
+#             start=args.start,
+#             end=args.end,
+#             test_frac=args.test_frac,
+#             forward_steps=args.forward_steps,
+#             tolerance=args.tolerance,
+#             r=args.r,
+#             metrics_dir=args.metrics_dir,
+#             outputs_prefix=args.prefix,
+#             save_predictions=not args.no_preds,
+#             perm_repeats=args.perm_repeats,
+#             perm_sample=args.perm_sample,
+#         )
+
+#     main()
+    
