@@ -371,18 +371,21 @@ def build_target_peer_dataset(
         on="ts_event", direction="backward", tolerance=pd.Timedelta(tolerance)
     )
     
-    # Set target variable (preserves original target_kind logic)
-    if target_kind == "iv_ret":
-        feats["y"] = feats["iv_ret_fwd"]
-        hide_key = "iv_ret_fwd"
+    # Set target column based on requested target_kind
+    if target_kind in ("iv_ret", "iv_ret_fwd"):
+        target_col = "iv_ret_fwd"
+    elif target_kind == "iv_ret_fwd_abs":
+        target_col = "iv_ret_fwd_abs"
     elif target_kind == "iv":
-        feats["y"] = feats["iv_clip"]
-        hide_key = "iv_clip"
+        target_col = "iv_clip"
     else:
-        raise ValueError("target_kind must be 'iv_ret' or 'iv'")
-    
-    # Finalize
-    return finalize_dataset(feats, "y", drop_symbol=True)
+        raise ValueError(
+            "target_kind must be one of 'iv_ret', 'iv_ret_fwd', 'iv_ret_fwd_abs', or 'iv'"
+        )
+
+    # Finalize dataset using the specific target column then rename to 'y'
+    feats = finalize_dataset(feats, target_col, drop_symbol=True)
+    return feats.rename(columns={target_col: "y"})
 
 def _normalize_numeric_features(
     df: pd.DataFrame,

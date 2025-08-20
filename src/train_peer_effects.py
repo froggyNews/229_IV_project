@@ -31,7 +31,9 @@ class PeerConfig:
     db_path: Optional[Path] = None       # Database path
     
     # Model settings
-    target_kind: str = "iv_ret"          # "iv_ret" (returns) or "iv" (levels)
+    # target_kind options: "iv_ret"/"iv_ret_fwd" (forward return),
+    # "iv_ret_fwd_abs" (absolute forward return), or "iv" (levels)
+    target_kind: str = "iv_ret"
     forward_steps: int = 15              # How many steps ahead to predict
     test_frac: float = 0.2               # Test set fraction
     tolerance: float = 1e-6              # Tolerance for numerical stability
