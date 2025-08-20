@@ -264,6 +264,19 @@ def run_peer_analysis(cfg: PeerConfig, cores: Dict[str, pd.DataFrame]) -> Dict[s
         if cfg.save_details:
             cfg.output_dir.mkdir(parents=True, exist_ok=True)
             output_file = cfg.output_dir / f"{cfg.target}_peer_effects.json"
+
+            # Avoid overwriting existing JSON files by finding a unique filename
+            if output_file.exists():
+                base = output_file.stem
+                suffix = output_file.suffix
+                counter = 1
+                while True:
+                    candidate = output_file.with_name(f"{base}_{counter}{suffix}")
+                    if not candidate.exists():
+                        output_file = candidate
+                        break
+                    counter += 1
+
             with open(output_file, "w") as f:
                 json.dump(results, f, indent=2)
             print(f"  Detailed results saved: {output_file}")
