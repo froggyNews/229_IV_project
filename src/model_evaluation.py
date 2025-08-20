@@ -157,6 +157,7 @@ def evaluate_pooled_model(
     if save_report and metrics_dir_path is not None:
         metrics_dir_path.mkdir(parents=True, exist_ok=True)
 
+
     start_ts = pd.Timestamp(start, tz="UTC")
     end_ts = pd.Timestamp(end, tz="UTC")
     pooled = build_pooled_iv_return_dataset_time_safe(
@@ -281,7 +282,6 @@ def evaluate_pooled_model(
     }
     if save_predictions:
         evaluation["predictions"] = preds_df.to_dict(orient="records")
-
     if save_report and metrics_dir_path is not None:
         eval_path = metrics_dir_path / f"{outputs_prefix}_evaluation.json"
         with open(eval_path, "w", encoding="utf-8") as f:

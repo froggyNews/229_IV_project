@@ -56,6 +56,7 @@ def train_peer_effects(cfg: PeerEffectsConfig) -> Dict[str, Any]:
     When ``cfg.save_report`` is true the evaluation is also written to
     ``cfg.metrics_dir`` using ``cfg.prefix`` and ``cfg.target`` to build the
     filename.
+
     """
     start_ts = pd.Timestamp(cfg.start, tz="UTC") if cfg.start else None
     end_ts   = pd.Timestamp(cfg.end,   tz="UTC") if cfg.end   else None
@@ -135,6 +136,7 @@ def train_peer_effects(cfg: PeerEffectsConfig) -> Dict[str, Any]:
     out_dir = Path(cfg.metrics_dir)
     if cfg.save_report:
         out_dir.mkdir(parents=True, exist_ok=True)
+
 
     # Metrics dictionary
     metrics = dict(
