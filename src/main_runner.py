@@ -25,6 +25,7 @@ from feature_engineering import (
 )
 from data_loader_coordinator import load_cores_with_auto_fetch
 from train_peer_effects import run_multi_target_analysis
+from model_evaluation import evaluate_pooled_model
 
 @dataclass
 class RunConfig:
@@ -201,10 +202,10 @@ def train_peer_effects(cfg: RunConfig, cores: Dict[str, pd.DataFrame]) -> Dict[s
     print(f"Analyzing {len(cfg.peer_target_kinds)} targets: {cfg.peer_targets}")
     
     all_results = {}
-    
+
     for target_kind in cfg.peer_target_kinds:
         print(f"\nAnalyzing target kind: {target_kind}")
-        
+
         # Use the updated run_multi_target_analysis function
         results = run_multi_target_analysis(
             targets=cfg.peer_targets,
@@ -221,17 +222,27 @@ def train_peer_effects(cfg: RunConfig, cores: Dict[str, pd.DataFrame]) -> Dict[s
             exclude_contemporaneous=True,
             save_details=True  # Don't save individual files, we'll aggregate
         )
-        
+
         # Store results by target_kind
         for target, result in results.items():
             key = f"{target}_{target_kind}"
             all_results[key] = result
-    
-    return results
+
+    return all_results
 
 
-def save_results(cfg: RunConfig, pooled_results: Dict, peer_results: Dict) -> Path:
+def save_results(
+    cfg: RunConfig,
+    pooled_results: Dict,
+    peer_results: Dict,
+    eval_results: Dict,
+) -> Path:
+    """Save all results to JSON file."""
+
+    # Create output directory
     cfg.output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Prepare metrics (exclude models from JSON)
 
     output = {
         "config": {
@@ -241,16 +252,24 @@ def save_results(cfg: RunConfig, pooled_results: Dict, peer_results: Dict) -> Pa
             "forward_steps": cfg.forward_steps,
             "test_frac": cfg.test_frac,
             "timestamp": cfg.timestamp,
+            "db_path": str(cfg.db_path),
+            "output_dir": str(cfg.output_dir),
+            "xgb_params": cfg.xgb_params if cfg.xgb_params is not None else get_default_xgb_params(),
+            "peer_targets": list(cfg.peer_targets),
+            "peer_target_kinds": list(cfg.peer_target_kinds),
+            "tolerance": cfg.tolerance,
+            "drop_zero_iv_ret": cfg.drop_zero_iv_ret,
         },
         "pooled_models": pooled_results.get("metrics", {}),
-        # analyzer returns "performance", not "metrics"
-        "peer_effects": {k: (v.get("performance", {}) if isinstance(v, dict) else {}) 
-                         for k, v in peer_results.items()},
+        "peer_effects": peer_results,
+        "evaluation": eval_results,
     }
 
+    # Save metrics
     metrics_path = cfg.output_dir / f"metrics_{cfg.timestamp}.json"
     with open(metrics_path, "w") as f:
         json.dump(output, f, indent=2)
+
     print(f"Results saved to: {metrics_path}")
     return metrics_path
 
@@ -289,18 +308,38 @@ def run_pipeline(cfg: RunConfig) -> Dict[str, Any]:
     # Train pooled models
     pooled_results = train_pooled_models(cfg)
     
-    # Train peer effects models  
+    # Train peer effects models
     peer_results = train_peer_effects(cfg, pooled_results["cores"])
-    
-    # Save results
-    metrics_path = save_results(cfg, pooled_results, peer_results)
+
+    # Save models first so evaluation can load them
     model_paths = save_models(cfg, pooled_results, peer_results)
-    
+
+    # Evaluate each saved pooled model
+    eval_results = {}
+    for name, path in model_paths.items():
+        eval_results[name] = evaluate_pooled_model(
+            model_path=path,
+            tickers=list(cfg.tickers),
+            start=cfg.start,
+            end=cfg.end,
+            test_frac=cfg.test_frac,
+            forward_steps=cfg.forward_steps,
+            tolerance=cfg.tolerance,
+            db_path=cfg.db_path,
+            metrics_dir=cfg.output_dir,
+            outputs_prefix=f"{path.stem}_eval",
+            save_predictions=False,
+        )
+
+    # Save aggregated results including evaluation
+    metrics_path = save_results(cfg, pooled_results, peer_results, eval_results)
+
     return {
         "pooled_results": pooled_results,
         "peer_results": peer_results,
+        "evaluation": eval_results,
         "metrics_path": metrics_path,
-        "model_paths": model_paths
+        "model_paths": model_paths,
     }
 
 
