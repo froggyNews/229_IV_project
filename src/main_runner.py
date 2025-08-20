@@ -1,7 +1,8 @@
-
-
+import argparse
 import json
 import os
+import sys
+from datetime import datetime
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Sequence, Dict, Any, Tuple
@@ -25,31 +26,45 @@ from feature_engineering import (
 )
 from data_loader_coordinator import load_cores_with_auto_fetch
 from train_peer_effects import run_multi_target_analysis
-from model_evaluation import evaluate_pooled_model
+
+# Try to import model evaluation
+try:
+    from model_evaluation import evaluate_pooled_model
+    MODEL_EVALUATION_AVAILABLE = True
+except ImportError:
+    print("Warning: model_evaluation module not found")
+    MODEL_EVALUATION_AVAILABLE = False
 
 @dataclass
 class RunConfig:
-    """Simplified configuration with sensible defaults."""
-    # Core data settings
-    tickers: Sequence[str] = field(default_factory=list)
-    start: str = "2025-01-02"
-    end: str = "2025-01-15"
-    db_path: Path = Path(os.getenv("IV_DB_PATH", "data/iv_data_1m.db"))
+    """Configuration for the main pipeline run."""
+    
+    # Core settings
+    tickers: Sequence[str] = field(default_factory=lambda: ["QUBT", "QBTS", "RGTI", "IONQ"])
+    start: str = "2025-06-02"
+    end: str = "2025-08-06"
     
     # Model settings
     forward_steps: int = 15
     test_frac: float = 0.2
     tolerance: str = "2s"
-
-    # Output settings
-    timestamp: str = field(default_factory=lambda: pd.Timestamp.now(tz="UTC").strftime("%Y%m%d_%H%M%S"))
-    output_dir: Path = Path("outputs")
-
+    r: float = 0.045
+    
+    # Peer effects settings
+    peer_targets: Sequence[str] = field(default_factory=lambda: ["QUBT", "QBTS"])
+    peer_target_kinds: Sequence[str] = field(default_factory=lambda: ["iv_ret", "iv"])
+    
+    # Paths
+    db_path: Path = field(default_factory=lambda: Path("data/iv_data_1m.db"))
+    output_dir: Path = field(default_factory=lambda: Path("outputs"))
+    
+    # Runtime settings
+    auto_fetch: bool = True
+    timestamp: str = field(default_factory=lambda: datetime.now().strftime("%Y%m%d_%H%M%S"))
+    debug: bool = False  # Add debug flag
+    
     # Optional settings
     xgb_params: Optional[Dict[str, Any]] = None
-    peer_targets: Sequence[str] = field(default_factory=list)
-    peer_target_kinds: Sequence[str] = field(default_factory=lambda: ["iv_ret"])
-    drop_zero_iv_ret: bool = False
 
 
 def get_default_xgb_params() -> Dict[str, Any]:
@@ -125,29 +140,23 @@ def train_model(data: pd.DataFrame, target: str, test_frac: float,
 
 
 def train_pooled_models(cfg: RunConfig) -> Dict[str, Any]:
-    """Train pooled models for all targets."""
+    """Train pooled models for IV returns and levels."""
     
-    print(f"Loading data for tickers: {cfg.tickers}")
+    print("\n=== Training Pooled Models ===")
     
-    # Use coordinator for clean data loading
-    cores = load_cores_with_auto_fetch(
-        tickers=cfg.tickers,
-        start=cfg.start,
-        end=cfg.end,
-        db_path=cfg.db_path,
-        auto_fetch=True,
-        drop_zero_iv_ret=cfg.drop_zero_iv_ret
-    )
+    if cfg.debug:
+        print("DEBUG: Debug mode enabled - will save data snapshots")
     
-    # Build pooled dataset
+    # Load pooled dataset
     pooled = build_pooled_iv_return_dataset_time_safe(
-        tickers=list(cores.keys()),
-        start=cfg.start,
-        end=cfg.end,
+        tickers=list(cfg.tickers),
+        start=pd.Timestamp(cfg.start, tz="UTC"),
+        end=pd.Timestamp(cfg.end, tz="UTC"),
+        r=cfg.r,
         forward_steps=cfg.forward_steps,
         tolerance=cfg.tolerance,
         db_path=cfg.db_path,
-        cores=cores
+        debug=cfg.debug,  # Pass debug flag
     )
     
     if pooled.empty:
@@ -155,41 +164,96 @@ def train_pooled_models(cfg: RunConfig) -> Dict[str, Any]:
     
     print(f"Pooled dataset: {len(pooled):,} rows, {pooled.shape[1]} columns")
     
-    # Train models for different targets
-    results = {}
     models = {}
+    metrics = {}
+    evaluations = {}  # Store detailed evaluations
     
-    # IV return model
-    if "iv_ret_fwd" in pooled.columns:
-        print("Training IV return model...")
-        model, metrics = train_model(
-            pooled, "iv_ret_fwd", cfg.test_frac, 
-            drop_cols=["iv_ret_fwd_abs"], params=cfg.xgb_params
-        )
-        results["iv_ret_fwd"] = metrics
-        models["iv_ret_fwd"] = model
+    # Train IV return model
+    print("Training IV return model...")
+    model_ret, metrics_ret = train_model(
+        data=pooled,
+        target="iv_ret_fwd",
+        test_frac=cfg.test_frac,
+        drop_cols=["iv_ret_fwd_abs", "iv_clip"],  # Avoid leakage
+        params=get_default_xgb_params()
+    )
+    models["iv_ret_fwd"] = model_ret
+    metrics["iv_ret_fwd"] = metrics_ret
     
-    # Absolute IV return model  
-    if "iv_ret_fwd_abs" in pooled.columns:
-        print("Training absolute IV return model...")
-        model, metrics = train_model(
-            pooled, "iv_ret_fwd_abs", cfg.test_frac,
-            drop_cols=["iv_ret_fwd"], params=cfg.xgb_params
-        )
-        results["iv_ret_fwd_abs"] = metrics
-        models["iv_ret_fwd_abs"] = model
-    
-    # IV level model
+    # Train IV level model if available
     if "iv_clip" in pooled.columns:
         print("Training IV level model...")
-        model, metrics = train_model(
-            pooled, "iv_clip", cfg.test_frac,
-            drop_cols=["iv_ret_fwd", "iv_ret_fwd_abs"], params=cfg.xgb_params
+        model_level, metrics_level = train_model(
+            data=pooled,
+            target="iv_clip",
+            test_frac=cfg.test_frac,
+            drop_cols=["iv_ret_fwd", "iv_ret_fwd_abs"],  # Avoid leakage
+            params=get_default_xgb_params()
         )
-        results["iv_clip"] = metrics  
-        models["iv_clip"] = model
+        models["iv_clip"] = model_level
+        metrics["iv_clip"] = metrics_level
     
-    return {"metrics": results, "models": models, "cores": cores}
+    # Apply model evaluation if available
+    if MODEL_EVALUATION_AVAILABLE:
+        print("\n=== Model Evaluation (NIDEL-style) ===")
+        
+        # We need to save models temporarily to evaluate them
+        temp_models_dir = cfg.output_dir / "temp_models"
+        temp_models_dir.mkdir(parents=True, exist_ok=True)
+        
+        for model_name, model in models.items():
+            try:
+                # Save model temporarily
+                temp_model_path = temp_models_dir / f"temp_{model_name}_{cfg.timestamp}.json"
+                model.save_model(str(temp_model_path))
+                
+                print(f"Evaluating {model_name} model...")
+                evaluation = evaluate_pooled_model(
+                    model_path=temp_model_path,
+                    tickers=list(cfg.tickers),
+                    start=cfg.start,
+                    end=cfg.end,
+                    test_frac=cfg.test_frac,
+                    forward_steps=cfg.forward_steps,
+                    tolerance=cfg.tolerance,
+                    r=cfg.r,
+                    metrics_dir=cfg.output_dir / "evaluations",
+                    outputs_prefix=f"pooled_{model_name}_{cfg.timestamp}",
+                    save_predictions=True,
+                    perm_repeats=5,
+                    perm_sample=5000,
+                    db_path=cfg.db_path,
+                    target_col=model_name,  # Explicitly specify target
+                    save_report=True,
+                )
+                
+                evaluations[model_name] = evaluation
+                print(f"  ✓ {model_name}: RMSE={evaluation['metrics']['RMSE']:.6f}, R²={evaluation['metrics']['R2']:.3f}")
+                
+                # Clean up temp file
+                temp_model_path.unlink()
+                
+            except Exception as e:
+                print(f"  ✗ Failed to evaluate {model_name}: {e}")
+                evaluations[model_name] = {"error": str(e)}
+        
+        # Clean up temp directory
+        try:
+            temp_models_dir.rmdir()
+        except:
+            pass
+    
+    return {
+        "models": models,
+        "metrics": metrics,
+        "evaluations": evaluations,  # Include detailed evaluations
+        "dataset_info": {
+            "n_rows": len(pooled),
+            "n_features": pooled.shape[1],
+            "tickers": list(cfg.tickers),
+            "date_range": f"{cfg.start} to {cfg.end}"
+        }
+    }
 
 
 def train_peer_effects(cfg: RunConfig, cores: Dict[str, pd.DataFrame]) -> Dict[str, Any]:
@@ -200,6 +264,9 @@ def train_peer_effects(cfg: RunConfig, cores: Dict[str, pd.DataFrame]) -> Dict[s
     
     print(f"\n=== Peer Effects Analysis ===") 
     print(f"Analyzing {len(cfg.peer_target_kinds)} targets: {cfg.peer_targets}")
+    
+    if cfg.debug:
+        print("DEBUG: Debug mode enabled for peer effects")
     
     all_results = {}
 
@@ -220,7 +287,8 @@ def train_peer_effects(cfg: RunConfig, cores: Dict[str, pd.DataFrame]) -> Dict[s
             db_path=cfg.db_path,
             include_self_lag=True,
             exclude_contemporaneous=True,
-            save_details=True  # Don't save individual files, we'll aggregate
+            save_details=False,  # Don't save individual files, we'll aggregate
+            debug=cfg.debug,  # Pass debug flag
         )
 
         # Store results by target_kind
@@ -343,6 +411,61 @@ def run_pipeline(cfg: RunConfig) -> Dict[str, Any]:
     }
 
 
+def parse_arguments() -> RunConfig:
+    """Parse command line arguments and return configuration."""
+    parser = argparse.ArgumentParser(description="Run IV return forecasting pipeline")
+    
+    # Data settings
+    parser.add_argument("--tickers", nargs="+", default=["QUBT", "QBTS", "RGTI", "IONQ"],
+                        help="List of tickers to analyze")
+    parser.add_argument("--start", default="2025-06-02", help="Start date (YYYY-MM-DD)")
+    parser.add_argument("--end", default="2025-08-06", help="End date (YYYY-MM-DD)")
+    
+    # Model settings
+    parser.add_argument("--forward-steps", type=int, default=15, 
+                        help="Number of forward steps for prediction")
+    parser.add_argument("--test-frac", type=float, default=0.2, 
+                        help="Fraction of data to use for testing")
+    parser.add_argument("--tolerance", default="2s", help="Time tolerance for merging")
+    parser.add_argument("--r", type=float, default=0.045, help="Risk-free rate")
+    
+    # Peer effects settings
+    parser.add_argument("--peer-targets", nargs="+", default=["QUBT", "QBTS"],
+                        help="Target tickers for peer effects analysis")
+    parser.add_argument("--peer-target-kinds", nargs="+", default=["iv_ret", "iv"],
+                        help="Types of targets for peer effects")
+    
+    # Paths
+    parser.add_argument("--db-path", type=Path, default=Path("data/iv_data_1m.db"),
+                        help="Path to database file")
+    parser.add_argument("--output-dir", type=Path, default=Path("outputs"),
+                        help="Output directory for results")
+    
+    # Runtime settings
+    parser.add_argument("--no-auto-fetch", action="store_true", 
+                        help="Disable automatic data fetching")
+    parser.add_argument("--debug", action="store_true", 
+                        help="Enable debug mode with data snapshots")
+    
+    args = parser.parse_args()
+    
+    return RunConfig(
+        tickers=args.tickers,
+        start=args.start,
+        end=args.end,
+        forward_steps=args.forward_steps,
+        test_frac=args.test_frac,
+        tolerance=args.tolerance,
+        r=args.r,
+        peer_targets=args.peer_targets,
+        peer_target_kinds=args.peer_target_kinds,
+        db_path=args.db_path,
+        output_dir=args.output_dir,
+        auto_fetch=not args.no_auto_fetch,
+        debug=args.debug,
+    )
+
+
 # Example usage
 if __name__ == "__main__":
     
@@ -361,9 +484,15 @@ if __name__ == "__main__":
     # Run pipeline
     try:
         results = run_pipeline(config)
-        print("\nPipeline completed successfully!")
-        print(f"Models trained: {len(results['model_paths'])}")
+        print(f"\nPipeline completed successfully!")
         
+        if config.debug:
+            print(f"\nDEBUG: Check debug_snapshots/ directory for data snapshots")
+            
     except Exception as e:
         print(f"Pipeline failed: {e}")
-        raise
+        if config.debug:
+            import traceback
+            print("\nDEBUG: Full traceback:")
+            traceback.print_exc()
+        sys.exit(1)

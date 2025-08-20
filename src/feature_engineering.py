@@ -144,7 +144,7 @@ def add_all_features(df: pd.DataFrame, forward_steps: int = 1, r: float = 0.045)
     # df["hour"] = df["ts_event"].dt.hour.astype("int16")
     # df["minute"] = df["ts_event"].dt.minute.astype("int16") 
     # df["day_of_week"] = df["ts_event"].dt.dayofweek.astype("int16")
-    # df["days_to_expiry"] = (df["time_to_expiry"] * 365.0).astype("float32")
+    df["days_to_expiry"] = (df["time_to_expiry"] * 365.0).astype("float32")
     df["option_type_enc"] = (df["option_type"].astype(str).str.upper().str[0]
                             .map({"P": 0, "C": 1}).astype("float32"))
     
@@ -193,38 +193,84 @@ def build_iv_panel(cores: Dict[str, pd.DataFrame], tolerance: str = "2s") -> pd.
     return iv_wide if iv_wide is not None else pd.DataFrame(columns=["ts_event"])
 
 
-def finalize_dataset(df: pd.DataFrame, target_col: str, drop_symbol: bool = True) -> pd.DataFrame:
+def finalize_dataset(df: pd.DataFrame, target_col: str, drop_symbol: bool = True, debug: bool = False) -> pd.DataFrame:
     """Centralized dataset finalization (preserves original cleanup logic)."""
     # Convert to numeric (preserves original approach)
     out = df.copy()
+    
+    # Save raw data snapshot if debug mode
+    if debug:
+        debug_dir = Path("debug_snapshots")
+        debug_dir.mkdir(exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        raw_snapshot_path = debug_dir / f"raw_data_{target_col}_{timestamp}.csv"
+        out.to_csv(raw_snapshot_path, index=False)
+        print(f"DEBUG: Saved raw data snapshot to {raw_snapshot_path}")
+    
     for c in out.columns:
         if c != "ts_event":
             out[c] = pd.to_numeric(out[c], errors="coerce")
     
     # Drop missing targets
+    initial_rows = len(out)
     out = out.dropna(subset=[target_col])
+    dropped_target = initial_rows - len(out)
+    
+    if debug and dropped_target > 0:
+        print(f"DEBUG: Dropped {dropped_target} rows with missing {target_col}")
     
     # Hide leaky columns (preserves original hide logic)
+    hidden_cols = []
     for col in HIDE_COLUMNS.get(target_col, []):
         if col in out.columns:
             out = out.drop(columns=col)
+            hidden_cols.append(col)
+    
+    if debug and hidden_cols:
+        print(f"DEBUG: Hidden leaky columns for {target_col}: {hidden_cols}")
 
     # Remove raw stock and IV information entirely
     leak_cols = [c for c in out.columns if c in {"stock_close", "iv_clip"} or c.startswith("IV_") or c.startswith("IVRET_")]
     if leak_cols:
         out = out.drop(columns=leak_cols)
+        if debug:
+            print(f"DEBUG: Removed leak columns: {leak_cols}")
     
     # Drop symbol if requested (for per-ticker datasets)
     if drop_symbol and "symbol" in out.columns:
         out = out.drop(columns=["symbol"])
+        if debug:
+            print(f"DEBUG: Dropped symbol column")
     
     out = out.reset_index(drop=True)
     out = _normalize_numeric_features(out, target_col=target_col)
 
+    if debug:
+        print(f"DEBUG: Final dataset shape: {out.shape}")
+        print(f"DEBUG: Final columns: {list(out.columns)}")
+        
+        # Save final processed data snapshot
+        final_snapshot_path = debug_dir / f"final_data_{target_col}_{timestamp}.csv"
+        out.to_csv(final_snapshot_path, index=False)
+        print(f"DEBUG: Saved final data snapshot to {final_snapshot_path}")
+        
+        # Save column info
+        info_path = debug_dir / f"column_info_{target_col}_{timestamp}.json"
+        column_info = {
+            "target_column": target_col,
+            "final_columns": list(out.columns),
+            "hidden_columns": hidden_cols,
+            "leak_columns": leak_cols,
+            "initial_rows": initial_rows,
+            "final_rows": len(out),
+            "dropped_rows": dropped_target,
+        }
+        with open(info_path, 'w') as f:
+            json.dump(column_info, f, indent=2, default=str)
+        print(f"DEBUG: Saved column info to {info_path}")
     
     # log final set of columns for inspection
     logging.getLogger(__name__).info("Final dataset columns: %s", list(out.columns))
-
 
     return out
 
@@ -243,24 +289,52 @@ def build_pooled_iv_return_dataset_time_safe(
     tolerance: str = "2s",
     db_path: Path | str | None = None,
     cores: Optional[Dict[str, pd.DataFrame]] = None,
+    debug: bool = False,
 ) -> pd.DataFrame:
     """Build pooled dataset for forecasting forward IV return."""
+    
+    if debug:
+        print(f"DEBUG: Building pooled dataset for {len(tickers)} tickers")
+        print(f"DEBUG: Parameters - forward_steps: {forward_steps}, tolerance: {tolerance}")
     
     # If cores not provided, need to load them (fallback for backward compatibility)
     if cores is None:
         from data_loader_coordinator import load_cores_with_auto_fetch
         cores = load_cores_with_auto_fetch(tickers, start, end, db_path)
     
+    if debug:
+        print(f"DEBUG: Cores loaded for tickers: {list(cores.keys())}")
+        for ticker, core in cores.items():
+            print(f"DEBUG: {ticker} core shape: {core.shape if core is not None else 'None'}")
+    
     # Build panel
     panel = build_iv_panel(cores, tolerance=tolerance)
+    
+    if debug:
+        print(f"DEBUG: IV panel shape: {panel.shape}")
+        if not panel.empty:
+            debug_dir = Path("debug_snapshots")
+            debug_dir.mkdir(exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            panel_path = debug_dir / f"iv_panel_{timestamp}.csv"
+            panel.to_csv(panel_path, index=False)
+            print(f"DEBUG: Saved IV panel to {panel_path}")
     
     frames = []
     for ticker in tickers:
         if ticker not in cores:
+            if debug:
+                print(f"DEBUG: Skipping {ticker} - not in cores")
             continue
+            
+        if debug:
+            print(f"DEBUG: Processing {ticker}")
             
         # Add features
         feats = add_all_features(cores[ticker], forward_steps=forward_steps, r=r)
+        
+        if debug:
+            print(f"DEBUG: {ticker} after add_all_features: {feats.shape}")
         
         # Merge with panel
         feats = pd.merge_asof(
@@ -268,16 +342,30 @@ def build_pooled_iv_return_dataset_time_safe(
             on="ts_event", direction="backward", tolerance=pd.Timedelta(tolerance)
         )
         
+        if debug:
+            print(f"DEBUG: {ticker} after panel merge: {feats.shape}")
+        
         # Finalize (keeps symbol column for pooled analysis)
-        clean = finalize_dataset(feats, "iv_ret_fwd", drop_symbol=False)
+        clean = finalize_dataset(feats, "iv_ret_fwd", drop_symbol=False, debug=debug)
+        
+        if debug:
+            print(f"DEBUG: {ticker} after finalization: {clean.shape}")
+        
         frames.append(clean)
     
     if not frames:
+        if debug:
+            print("DEBUG: No frames to concatenate - returning empty DataFrame")
         return pd.DataFrame()
         
     pooled = pd.concat(frames, ignore_index=True)
     if pooled.empty:
+        if debug:
+            print("DEBUG: Pooled dataset is empty after concatenation")
         return pooled
+    
+    if debug:
+        print(f"DEBUG: Pooled dataset after concatenation: {pooled.shape}")
     
     # One-hot encode symbol (preserves original logic)
     pooled = pd.get_dummies(pooled, columns=["symbol"], prefix="sym", dtype=float)
@@ -297,7 +385,18 @@ def build_pooled_iv_return_dataset_time_safe(
     onehots = [f"sym_{t}" for t in tickers]
     other = [c for c in pooled.columns if c not in front + onehots]
     
-    return pooled[front + other + onehots]
+    final_pooled = pooled[front + other + onehots]
+    
+    if debug:
+        print(f"DEBUG: Final pooled dataset shape: {final_pooled.shape}")
+        debug_dir = Path("debug_snapshots")
+        debug_dir.mkdir(exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        pooled_path = debug_dir / f"pooled_final_{timestamp}.csv"
+        final_pooled.to_csv(pooled_path, index=False)
+        print(f"DEBUG: Saved final pooled dataset to {pooled_path}")
+    
+    return final_pooled
 
 
 def build_iv_return_dataset_time_safe(
@@ -309,8 +408,12 @@ def build_iv_return_dataset_time_safe(
     tolerance: str = "2s",
     db_path: Path | str | None = None,
     cores: Optional[Dict[str, pd.DataFrame]] = None,
+    debug: bool = False,
 ) -> Dict[str, pd.DataFrame]:
     """Build per‑ticker datasets for forecasting forward IV return."""
+    
+    if debug:
+        print(f"DEBUG: Building per-ticker datasets for {len(tickers)} tickers")
     
     # If cores not provided, need to load them (fallback for backward compatibility)
     if cores is None:
@@ -323,7 +426,12 @@ def build_iv_return_dataset_time_safe(
     datasets = {}
     for ticker in tickers:
         if ticker not in cores:
+            if debug:
+                print(f"DEBUG: Skipping {ticker} - not in cores")
             continue
+            
+        if debug:
+            print(f"DEBUG: Processing per-ticker dataset for {ticker}")
             
         # Add features
         feats = add_all_features(cores[ticker], forward_steps=forward_steps, r=r)
@@ -335,7 +443,10 @@ def build_iv_return_dataset_time_safe(
         )
         
         # Finalize (removes symbol column for per-ticker analysis)
-        datasets[ticker] = finalize_dataset(feats, "iv_ret_fwd", drop_symbol=True)
+        datasets[ticker] = finalize_dataset(feats, "iv_ret_fwd", drop_symbol=True, debug=debug)
+        
+    if debug:
+        print(f"DEBUG: Built {len(datasets)} per-ticker datasets")
         
     return datasets
 
@@ -351,8 +462,13 @@ def build_target_peer_dataset(
     db_path: Path | str | None = None,
     target_kind: str = "iv_ret",
     cores: Optional[Dict[str, pd.DataFrame]] = None,
+    debug: bool = False,
 ) -> pd.DataFrame:
     """Build dataset for single target vs peers."""
+    
+    if debug:
+        print(f"DEBUG: Building target-peer dataset for {target} vs {len(tickers)} tickers")
+        print(f"DEBUG: target_kind: {target_kind}")
     
     if target not in tickers:
         raise AssertionError("target must be included in tickers")
@@ -387,9 +503,24 @@ def build_target_peer_dataset(
             "target_kind must be one of 'iv_ret', 'iv_ret_fwd', 'iv_ret_fwd_abs', or 'iv'"
         )
 
+    if debug:
+        print(f"DEBUG: Using target column: {target_col}")
+        print(f"DEBUG: Dataset shape before finalization: {feats.shape}")
+
     # Finalize dataset using the specific target column then rename to 'y'
-    feats = finalize_dataset(feats, target_col, drop_symbol=True)
-    return feats.rename(columns={target_col: "y"})
+    feats = finalize_dataset(feats, target_col, drop_symbol=True, debug=debug)
+    final_dataset = feats.rename(columns={target_col: "y"})
+    
+    if debug:
+        print(f"DEBUG: Final target-peer dataset shape: {final_dataset.shape}")
+        debug_dir = Path("debug_snapshots")
+        debug_dir.mkdir(exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        target_peer_path = debug_dir / f"target_peer_{target}_{target_kind}_{timestamp}.csv"
+        final_dataset.to_csv(target_peer_path, index=False)
+        print(f"DEBUG: Saved target-peer dataset to {target_peer_path}")
+    
+    return final_dataset
 
 from pandas.api.types import is_numeric_dtype
 
