@@ -143,18 +143,13 @@ def evaluate_pooled_model(
     perm_repeats: int = 5,
     perm_sample: int | None = 5000,
     db_path: str | Path = Path("data/iv_data_1m.db"),
+    target_col: str | None = None,               # <-- NEW
 ) -> None:
-    """Evaluate a saved XGBoost model on pooled IV return data."""
-
-    if not (0.0 < test_frac < 1.0):
-        raise ValueError(f"test_frac must be in (0,1), got {test_frac}")
-
     metrics_dir = Path(metrics_dir)
     metrics_dir.mkdir(parents=True, exist_ok=True)
 
     start_ts = pd.Timestamp(start, tz="UTC")
     end_ts = pd.Timestamp(end, tz="UTC")
-
     pooled = build_pooled_iv_return_dataset_time_safe(
         tickers=tickers,
         start=start_ts,
@@ -164,16 +159,27 @@ def evaluate_pooled_model(
         tolerance=tolerance,
         db_path=Path(db_path),
     )
-    print(f"[DATA] pooled rows={len(pooled)}, features={pooled.shape[1]-1}")
+    # --- choose the right target ---
+    if target_col is None:
+        name = Path(model_path).name.lower()
+        if "ret" in name:
+            target_col = "iv_ret_fwd"
+        elif "clip" in name or "level" in name:
+            target_col = "iv_clip"
+        else:
+            raise ValueError("target_col not set and cannot infer from model name.")
 
-    if "iv_clip" not in pooled.columns:
-        raise KeyError("'iv_clip' column is missing in the pooled DataFrame. "
-                       "Debug the dataset creation process.")
+    if target_col not in pooled.columns:
+        raise KeyError(f"Target column '{target_col}' not in pooled columns.")
 
-    # y then X
-    y = pooled["iv_clip"].astype(float)
-    X = pooled.drop(columns=["iv_clip"])
-    X = _ensure_numeric(X)
+    # y and X (drop the other target to avoid leakage)
+    y = pooled[target_col].astype(float)
+    drop_cols = [target_col]
+    if target_col == "iv_clip" and "iv_ret_fwd" in pooled.columns:
+        drop_cols.append("iv_ret_fwd")   # prevent peeking at t+1 if someone left it in X
+    X = pooled.drop(columns=[c for c in drop_cols if c in pooled.columns])
+    X = _ensure_numeric(X)               # your existing helper
+
 
     n = len(X)
     if n < 10:

@@ -1,10 +1,11 @@
-# main_runner.py
+# main_runner.py — no-CLI, programmatic runner with optional peer-effects
 from __future__ import annotations
 
-import argparse
 import json
 import os
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Optional, Sequence, Tuple, Dict, Any
 
 import numpy as np
 import pandas as pd
@@ -20,54 +21,51 @@ except Exception:
 
 from feature_engineering import build_pooled_iv_return_dataset_time_safe
 from model_evaluation import evaluate_pooled_model
+from train_peer_effects import PeerEffectsConfig, train_peer_effects
 
 
-# ---------------------------
-# CLI
-# ---------------------------
-def parse_args() -> argparse.Namespace:
-    ap = argparse.ArgumentParser(description="Train & evaluate pooled IV models (returns + level).")
-    ap.add_argument("--db", type=Path,
-                    default=Path(os.getenv("IV_DB_PATH", "data/iv_data_1m.db")),
-                    help="Path to SQLite DB (defaults to IV_DB_PATH or data/iv_data_1m.db).")
-    ap.add_argument("--tickers", nargs="+", required=True, help="Tickers to include.")
-    ap.add_argument("--start", required=True, help="YYYY-MM-DD (UTC).")
-    ap.add_argument("--end", required=True, help="YYYY-MM-DD (UTC).")
-    ap.add_argument("--test-frac", type=float, default=0.2, help="Test fraction (chronological split).")
-    ap.add_argument("--forward-steps", type=int, default=1, help="Forward steps for iv_ret_fwd target.")
-    ap.add_argument("--tolerance", default="2s", help="As-of merge tolerance (e.g. '0s','2s').")
-    ap.add_argument("--metrics-path", type=Path, default=Path("metrics/iv_metrics.json"),
-                    help="Path to write combined metrics JSON.")
-    ap.add_argument("--models-dir", type=Path, default=Path("models"), help="Directory to save models.")
-    ap.add_argument("--prefix", type=str, default="iv_returns_pooled",
-                    help="Filename prefix for saved models/outputs.")
-    ap.add_argument("--evaluate-model", type=Path, default=None,
-                    help="Optional path to a pre-trained model to evaluate instead of newly trained ones.")
-    return ap.parse_args()
+@dataclass
+class RunConfig:
+    # data
+    db: Path = Path(os.getenv("IV_DB_PATH", "data/iv_data_1m.db"))
+    tickers: Sequence[str] = field(default_factory=list)  # required non-empty
+    start: str = "2025-01-02"  # UTC date string or ISO timestamp string
+    end: str = "2025-01-06"    # UTC date string or ISO timestamp string
+    forward_steps: int = 1
+    tolerance: str = "2s"
+    test_frac: float = 0.2
 
+    # outputs
+    metrics_path: Path = Path("metrics/iv_metrics.json")
+    models_dir: Path = Path("models")
+    prefix: str = "iv_returns_pooled"
 
-# ---------------------------
-# Training
-# ---------------------------
-def train_xgb(
+    # training
+    xgb_params: Optional[Dict[str, Any]] = None
+
+    # evaluation
+    evaluate_trained: bool = True                # evaluate models we train below
+    evaluate_model_path: Optional[Path] = None   # or evaluate a pre-trained single model
+
+    # --- NEW: peer-effects training ---
+    peer_targets: Sequence[str] = field(default_factory=list)  # e.g., ["AAPL", "MSFT"]; empty -> skip
+    peer_target_kind: str = "iv_ret"                           # "iv_ret" or "iv"
+    peer_prefix: str = "peer_effects"                          # file prefix for peer-effects artifacts
+    peer_target_kinds: Optional[Sequence[str]] = None
+
+def _train_xgb(
     pooled: pd.DataFrame,
     target: str,
     test_frac: float = 0.2,
-    drop_cols: list[str] | None = None,
+    drop_cols: Sequence[str] | None = None,
     params: dict | None = None,
-) -> tuple[xgb.XGBRegressor, dict]:
-    """
-    Train XGBRegressor on pooled dataset, return (model, metrics).
-    - pooled: DataFrame containing target + numeric features
-    - target: 'iv_ret_fwd' or 'iv_clip'
-    """
-    drop_cols = drop_cols or []
+) -> Tuple[xgb.XGBRegressor, Dict[str, Any]]:
+    """Train XGBRegressor on pooled dataset, return (model, metrics)."""
+    drop_cols = list(drop_cols or [])
     if target not in pooled.columns:
-        raise KeyError(f"Target '{target}' not found in columns: {list(pooled.columns)}")
+        raise KeyError(f"Target '{target}' not in columns: {list(pooled.columns)}")
 
     pooled = pooled.sort_index().reset_index(drop=True)
-
-    # target/feature split
     y = pooled[target].astype(float).values
     feat_cols = [c for c in pooled.columns if c not in [target] + drop_cols]
     X = pooled[feat_cols].astype(float)
@@ -89,7 +87,7 @@ def train_xgb(
             subsample=0.9,
             colsample_bytree=0.9,
             random_state=42,
-            n_jobs=0,
+            n_jobs=-1,
             tree_method="hist",
         )
 
@@ -107,77 +105,122 @@ def train_xgb(
     return model, metrics
 
 
-# ---------------------------
-# Orchestration
-# ---------------------------
-def main() -> None:
-    args = parse_args()
-    start = pd.Timestamp(args.start, tz="UTC")
-    end = pd.Timestamp(args.end, tz="UTC")
+def run(cfg: RunConfig) -> Dict[str, Any]:
+    """Build pooled dataset, train/evaluate models, and optionally run peer-effects for targets."""
+    if not cfg.tickers:
+        raise ValueError("RunConfig.tickers must be non-empty.")
+
+    start = pd.Timestamp(cfg.start, tz="UTC")
+    end = pd.Timestamp(cfg.end, tz="UTC")
 
     # Build pooled dataset once
     pooled = build_pooled_iv_return_dataset_time_safe(
-        tickers=args.tickers,
+        tickers=list(cfg.tickers),
         start=start,
         end=end,
-        forward_steps=args.forward_steps,
-        tolerance=args.tolerance,
-        db_path=args.db,
+        forward_steps=cfg.forward_steps,
+        tolerance=cfg.tolerance,
+        db_path=cfg.db,
     )
     if pooled.empty:
         raise RuntimeError("Pooled dataset is empty.")
     print(f"[POOLED] rows={len(pooled):,}, columns={pooled.shape[1]}")
 
     # Train iv_ret_fwd
-    ret_model, m_ret = train_xgb(
-        pooled, target="iv_ret_fwd", test_frac=args.test_frac
+    ret_model, m_ret = _train_xgb(
+        pooled, target="iv_ret_fwd", test_frac=cfg.test_frac, params=cfg.xgb_params
     )
 
     # Train iv_clip (drop iv_ret_fwd to avoid any leakage)
-    clip_model, m_clip = train_xgb(
-        pooled, target="iv_clip", test_frac=args.test_frac, drop_cols=["iv_ret_fwd"]
+    clip_model, m_clip = _train_xgb(
+        pooled, target="iv_clip", test_frac=cfg.test_frac, drop_cols=["iv_ret_fwd"], params=cfg.xgb_params
     )
 
-    # Save metrics
-    args.metrics_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(args.metrics_path, "w", encoding="utf-8") as f:
-        json.dump({"iv_ret_fwd": m_ret, "iv_clip": m_clip}, f, indent=2)
-    print(f"[METRICS] saved → {args.metrics_path}")
+    # Save aggregate metrics for pooled models
+    cfg.metrics_path.parent.mkdir(parents=True, exist_ok=True)
+    all_metrics = {"iv_ret_fwd": m_ret, "iv_clip": m_clip}
+    with open(cfg.metrics_path, "w", encoding="utf-8") as f:
+        json.dump(all_metrics, f, indent=2)
+    print(f"[METRICS] saved → {cfg.metrics_path}")
 
     # Save models
-    args.models_dir.mkdir(parents=True, exist_ok=True)
-    ret_path = args.models_dir / f"{args.prefix}_ret.json"
-    clip_path = args.models_dir / f"{args.prefix}_clip.json"
+    cfg.models_dir.mkdir(parents=True, exist_ok=True)
+    ret_path = cfg.models_dir / f"{cfg.prefix}_ret.json"
+    clip_path = cfg.models_dir / f"{cfg.prefix}_clip.json"
     ret_model.save_model(ret_path.as_posix())
     clip_model.save_model(clip_path.as_posix())
     print(f"[SAVE] iv_ret_fwd model → {ret_path}")
     print(f"[SAVE] iv_clip    model → {clip_path}")
 
-    # Evaluate
+    # Evaluate pooled models (and/or a provided model path)
     eval_targets: list[tuple[str, Path]] = []
-    if args.evaluate_model is not None:
-        eval_targets.append(("custom", args.evaluate_model))
-    else:
+    if cfg.evaluate_trained:
         eval_targets.append(("iv_ret_fwd", ret_path))
         eval_targets.append(("iv_clip", clip_path))
-
+    if cfg.evaluate_model_path is not None:
+        eval_targets.append(("custom", cfg.evaluate_model_path))
+    
     for tag, model_path in eval_targets:
         evaluate_pooled_model(
             model_path=model_path,
-            tickers=args.tickers,
-            start=args.start,
-            end=args.end,
-            test_frac=args.test_frac,
-            forward_steps=args.forward_steps,
-            tolerance=args.tolerance,
-            metrics_dir=args.metrics_path.parent,
-            outputs_prefix=f"{args.prefix}_{tag}",
+            tickers=list(cfg.tickers),
+            start=cfg.start,
+            end=cfg.end,
+            test_frac=cfg.test_frac,
+            forward_steps=cfg.forward_steps,
+            tolerance=cfg.tolerance,
+            metrics_dir=cfg.metrics_path.parent,
+            outputs_prefix=f"{cfg.prefix}_{tag}",
             save_predictions=False,
             perm_repeats=0,
-            db_path=args.db,
+            db_path=cfg.db,
+            target_col=("iv_ret_fwd" if tag == "iv_ret_fwd" or "ret" in str(model_path).lower() else "iv_clip"),
         )
+
         print(f"[EVAL] done → {tag} ({model_path})")
 
+    # --- Peer-effects per target (optional) ---
+    if cfg.peer_targets:
+        kinds = list(cfg.peer_target_kinds) if cfg.peer_target_kinds else [cfg.peer_target_kind]
+        for tgt in cfg.peer_targets:
+            for kind in kinds:
+                pe_cfg = PeerEffectsConfig(
+                    target=tgt,
+                    tickers=list(cfg.tickers),
+                    start=cfg.start,
+                    end=cfg.end,
+                    db_path=str(cfg.db),
+                    target_kind=kind,                         # <-- run both
+                    test_frac=cfg.test_frac,
+                    forward_steps=cfg.forward_steps,
+                    tolerance=cfg.tolerance,
+                    metrics_dir=cfg.metrics_path.parent,
+                    prefix=f"{cfg.peer_prefix}_{kind}",       # separate outputs
+                    xgb_params=cfg.xgb_params,
+                )
+                res = train_peer_effects(pe_cfg)
+                print(f"[PEER] {tgt}:{kind} → {res.get('status','ok')}")
 
+    return all_metrics
+
+
+# Example programmatic usage
 if __name__ == "__main__":
-    main()
+    timestamp = pd.Timestamp.now(tz="UTC").strftime("%Y%m%d_%H%M%S")
+    tickers = ["QUBT", "QBTS", "RGTI", "IONQ"]
+
+    CFG = RunConfig(
+        tickers=tickers,
+        start="2025-08-02",
+        end="2025-08-06",
+        db=Path(os.getenv("IV_DB_PATH", "data/iv_data_1m.db")),
+        prefix=f"iv_{timestamp}_pooled",              # fixed f-string
+        evaluate_trained=True,
+        evaluate_model_path=None,
+
+        # run peer effects for ALL tickers, for BOTH iv_ret and iv (level)
+        peer_targets=tickers,                          # fixed undefined name
+        peer_target_kinds=("iv_ret", "iv"),            # ← both kinds in one pass
+        peer_prefix=f"peer_effects_{timestamp}",
+    )
+    run(CFG)
