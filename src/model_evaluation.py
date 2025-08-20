@@ -172,7 +172,9 @@ def evaluate_pooled_model(
     # --- choose the right target ---
     if target_col is None:
         name = Path(model_path).name.lower()
-        if "ret" in name:
+        if "abs" in name and "ret" in name:
+            target_col = "iv_ret_fwd_abs"
+        elif "ret" in name:
             target_col = "iv_ret_fwd"
         elif "clip" in name or "level" in name:
             target_col = "iv_clip"
@@ -185,8 +187,15 @@ def evaluate_pooled_model(
     # y and X (drop the other target to avoid leakage)
     y = pooled[target_col].astype(float)
     drop_cols = [target_col]
-    if target_col == "iv_clip" and "iv_ret_fwd" in pooled.columns:
-        drop_cols.append("iv_ret_fwd")   # prevent peeking at t+1 if someone left it in X
+    if target_col == "iv_clip":
+        if "iv_ret_fwd" in pooled.columns:
+            drop_cols.append("iv_ret_fwd")
+        if "iv_ret_fwd_abs" in pooled.columns:
+            drop_cols.append("iv_ret_fwd_abs")
+    elif target_col == "iv_ret_fwd" and "iv_ret_fwd_abs" in pooled.columns:
+        drop_cols.append("iv_ret_fwd_abs")
+    elif target_col == "iv_ret_fwd_abs" and "iv_ret_fwd" in pooled.columns:
+        drop_cols.append("iv_ret_fwd")
     X = pooled.drop(columns=[c for c in drop_cols if c in pooled.columns])
     X = _ensure_numeric(X)               # your existing helper
 

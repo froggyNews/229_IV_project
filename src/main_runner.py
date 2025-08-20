@@ -129,36 +129,56 @@ def run(cfg: RunConfig) -> Dict[str, Any]:
 
     # Train iv_ret_fwd
     ret_model, m_ret = _train_xgb(
-        pooled, target="iv_ret_fwd", test_frac=cfg.test_frac, params=cfg.xgb_params
+        pooled, target="iv_ret_fwd", test_frac=cfg.test_frac,
+        drop_cols=["iv_ret_fwd_abs"], params=cfg.xgb_params
     )
 
-    # Train iv_clip (drop iv_ret_fwd to avoid any leakage)
+    # Train absolute iv_ret_fwd (drop signed return to avoid leakage)
+    abs_model, m_abs = _train_xgb(
+        pooled, target="iv_ret_fwd_abs", test_frac=cfg.test_frac,
+        drop_cols=["iv_ret_fwd"], params=cfg.xgb_params
+    )
+
+    # Train iv_clip (drop forward returns to avoid any leakage)
     clip_model, m_clip = _train_xgb(
-        pooled, target="iv_clip", test_frac=cfg.test_frac, drop_cols=["iv_ret_fwd"], params=cfg.xgb_params
+        pooled, target="iv_clip", test_frac=cfg.test_frac,
+        drop_cols=["iv_ret_fwd", "iv_ret_fwd_abs"], params=cfg.xgb_params
     )
 
     # Collect training metrics for pooled models
-    all_metrics = {"iv_ret_fwd": m_ret, "iv_clip": m_clip}
+    all_metrics = {"iv_ret_fwd": m_ret, "iv_ret_fwd_abs": m_abs, "iv_clip": m_clip}
 
     # Save models
     cfg.models_dir.mkdir(parents=True, exist_ok=True)
     ret_path = cfg.models_dir / f"{cfg.prefix}_ret.json"
+    abs_path = cfg.models_dir / f"{cfg.prefix}_absret.json"
     clip_path = cfg.models_dir / f"{cfg.prefix}_clip.json"
     ret_model.save_model(ret_path.as_posix())
+    abs_model.save_model(abs_path.as_posix())
     clip_model.save_model(clip_path.as_posix())
-    print(f"[SAVE] iv_ret_fwd model → {ret_path}")
-    print(f"[SAVE] iv_clip    model → {clip_path}")
+    print(f"[SAVE] iv_ret_fwd     model → {ret_path}")
+    print(f"[SAVE] iv_ret_fwd_abs model → {abs_path}")
+    print(f"[SAVE] iv_clip        model → {clip_path}")
 
     # Evaluate pooled models (and/or a provided model path)
     eval_targets: list[tuple[str, Path]] = []
     if cfg.evaluate_trained:
         eval_targets.append(("iv_ret_fwd", ret_path))
+        eval_targets.append(("iv_ret_fwd_abs", abs_path))
         eval_targets.append(("iv_clip", clip_path))
     if cfg.evaluate_model_path is not None:
         eval_targets.append(("custom", cfg.evaluate_model_path))
     
     eval_results: Dict[str, Any] = {}
     for tag, model_path in eval_targets:
+        name_lower = str(model_path).lower()
+        if tag == "iv_ret_fwd" or ("ret" in name_lower and "abs" not in name_lower):
+            tgt_col = "iv_ret_fwd"
+        elif tag == "iv_ret_fwd_abs" or "abs" in name_lower:
+            tgt_col = "iv_ret_fwd_abs"
+        else:
+            tgt_col = "iv_clip"
+
         ev = evaluate_pooled_model(
             model_path=model_path,
             tickers=list(cfg.tickers),
@@ -172,7 +192,7 @@ def run(cfg: RunConfig) -> Dict[str, Any]:
             save_predictions=False,
             perm_repeats=0,
             db_path=cfg.db,
-            target_col=("iv_ret_fwd" if tag == "iv_ret_fwd" or "ret" in str(model_path).lower() else "iv_clip"),
+            target_col=tgt_col,
             save_report=False,
         )
 
