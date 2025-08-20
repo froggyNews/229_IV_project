@@ -145,6 +145,12 @@ def evaluate_pooled_model(
     db_path: str | Path = Path("data/iv_data_1m.db"),
     target_col: str | None = None,               # <-- NEW
 ) -> None:
+    """Evaluate a saved model and write a single JSON report.
+
+    The report consolidates metrics, feature importances, optional
+    permutation importances, SHAP summaries and predictions into one file
+    under ``metrics_dir`` with ``outputs_prefix``.
+    """
     metrics_dir = Path(metrics_dir)
     metrics_dir.mkdir(parents=True, exist_ok=True)
 
@@ -248,79 +254,80 @@ def evaluate_pooled_model(
             }
         ).sort_values("perm_importance_mean", ascending=False).reset_index(drop=True)
 
-    # Outputs
-    metrics_path = metrics_dir / f"{outputs_prefix}_metrics.json"
-    xgb_imp_path = metrics_dir / f"{outputs_prefix}_xgb_importances.csv"
-    perm_imp_path = metrics_dir / f"{outputs_prefix}_perm_importances.csv"
-    preds_path = metrics_dir / f"{outputs_prefix}_predictions.csv"
-
-    with open(metrics_path, "w", encoding="utf-8") as f:
-        json.dump(metrics, f, indent=2)
-    xgb_imp.to_csv(xgb_imp_path, index=False)
-    if not perm_df.empty:
-        perm_df.to_csv(perm_imp_path, index=False)
-
     # Per-symbol effects via SHAP-like contributions
-    save_symbol_effects(
-        model=model,
-        X_test=X_te,
-        metrics_dir=metrics_dir,
-        prefix=outputs_prefix,
-    )
+    feat_avg_df, sym_df = compute_symbol_effects(model=model, X_test=X_te)
 
+    # Optional prediction details
+    preds_df = pd.DataFrame()
     if save_predictions:
-        pd.DataFrame(
+        preds_df = pd.DataFrame(
             {
                 "y_true": y_te.values,
                 "y_pred": y_pred,
                 "resid": y_te.values - y_pred,
             }
-        ).to_csv(preds_path, index=False)
+        )
 
-    print(f"[SAVED] {metrics_path}")
-    print(f"[SAVED] {xgb_imp_path}")
-    if not perm_df.empty:
-        print(f"[SAVED] {perm_imp_path}")
+    # Consolidate all evaluation artefacts into one JSON
+    evaluation = {
+        "metrics": metrics,
+        "xgb_importances": xgb_imp.to_dict(orient="records"),
+        "permutation_importances": perm_df.to_dict(orient="records"),
+        "feature_shap_avg": feat_avg_df.to_dict(orient="records"),
+        "sym_shap_avg": sym_df.to_dict(orient="records"),
+    }
     if save_predictions:
-        print(f"[SAVED] {preds_path}")
+        evaluation["predictions"] = preds_df.to_dict(orient="records")
+
+    eval_path = metrics_dir / f"{outputs_prefix}_evaluation.json"
+    with open(eval_path, "w", encoding="utf-8") as f:
+        json.dump(evaluation, f, indent=2)
+
+    print(f"[SAVED] {eval_path}")
 
 
 # -----------------------------
 # Symbol effects & SHAP-ish saves
 # -----------------------------
 
-def save_symbol_effects(
+def compute_symbol_effects(
     model: xgb.XGBRegressor,
     X_test: pd.DataFrame,
-    metrics_dir: str | Path,
-    prefix: str,
-) -> None:
-    """
-    Save per-feature SHAP-like average contributions and a sym_* summary.
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Return average SHAP-like contributions for features and symbols.
 
-    Uses XGBoost's pred_contribs=True to get SHAP + bias.
+    Uses XGBoost's ``pred_contribs=True`` to obtain SHAP values (plus bias).
+    Returns two DataFrames: overall feature averages and symbol-only rollups.
     """
-    metrics_dir = Path(metrics_dir)
-    metrics_dir.mkdir(parents=True, exist_ok=True)
-
     booster = model.get_booster()
     dm = xgb.DMatrix(X_test, feature_names=X_test.columns.tolist())
-    contribs = booster.predict(dm, pred_contribs=True)  # SHAP + bias col
+    contribs = booster.predict(dm, pred_contribs=True)
     contribs_df = pd.DataFrame(contribs, columns=list(X_test.columns) + ["bias"])
 
-    # Average contribution per feature (sorted)
-    feat_avg = contribs_df.drop(columns=["bias"], errors="ignore").mean().sort_values(ascending=False)
-    feat_avg_df = feat_avg.to_frame("avg_contrib").reset_index().rename(columns={"index": "feature"})
-    feat_avg_df.to_csv(metrics_dir / f"{prefix}_feature_shap_avg.csv", index=False)
+    feat_avg = (
+        contribs_df.drop(columns=["bias"], errors="ignore")
+        .mean()
+        .sort_values(ascending=False)
+    )
+    feat_avg_df = (
+        feat_avg.to_frame("avg_contrib")
+        .reset_index()
+        .rename(columns={"index": "feature"})
+    )
 
-    # Roll-up: symbol one-hots "sym_*"
     sym_cols = [c for c in X_test.columns if c.startswith("sym_")]
+    sym_df = pd.DataFrame()
     if sym_cols:
         sym_avg = contribs_df[sym_cols].mean().sort_values(ascending=False)
-        sym_df = sym_avg.to_frame("avg_shap").reset_index().rename(columns={"index": "feature"})
+        sym_df = (
+            sym_avg.to_frame("avg_shap")
+            .reset_index()
+            .rename(columns={"index": "feature"})
+        )
         sym_df["ticker"] = sym_df["feature"].str.replace(r"^sym_", "", regex=True)
         sym_df["direction"] = np.where(sym_df["avg_shap"] >= 0, "↑", "↓")
-        sym_df.to_csv(metrics_dir / f"{prefix}_sym_shap_avg.csv", index=False)
+
+    return feat_avg_df, sym_df
 
 
 # -----------------------------
