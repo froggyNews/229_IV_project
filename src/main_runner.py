@@ -30,8 +30,8 @@ class RunConfig:
     db: Path = Path(os.getenv("IV_DB_PATH", "data/iv_data_1m.db"))
     tickers: Sequence[str] = field(default_factory=list)  # required non-empty
     start: str = "2025-01-02"  # UTC date string or ISO timestamp string
-    end: str = "2025-01-06"    # UTC date string or ISO timestamp string
-    forward_steps: int = 1
+    end: str = "2025-01-15"    # UTC date string or ISO timestamp string
+    forward_steps: int = 15
     tolerance: str = "2s"
     test_frac: float = 0.2
 
