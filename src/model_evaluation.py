@@ -1,8 +1,8 @@
-"""Utility to evaluate saved XGBoost models on pooled IV return data.
+"""
+Utility to evaluate saved XGBoost models on pooled IV return data.
 
-This module is a cleaned up version of an earlier experimental script.  It
-loads a previously trained XGBoost model and evaluates it on the pooled data
-produced by :func:`build_pooled_iv_return_dataset_time_safe`.
+Loads a previously trained XGBoost model and evaluates it on the pooled data
+produced by `build_pooled_iv_return_dataset_time_safe`.
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+from typing import Iterable, List
 
 import numpy as np
 import pandas as pd
@@ -21,36 +22,73 @@ from sklearn.metrics import mean_squared_error, r2_score
 from feature_engineering import build_pooled_iv_return_dataset_time_safe
 
 
-def _ensure_numeric(df: pd.DataFrame) -> pd.DataFrame:
-    """Drop any non-numeric features (xgboost requirement)."""
+# -----------------------------
+# Utilities
+# -----------------------------
 
+def _ensure_numeric(df: pd.DataFrame) -> pd.DataFrame:
+    """Drop non-numeric columns; cast bool -> float. (XGBoost wants numeric)."""
+    # Drop truly non-numeric (object, category, etc.)
     non_num = df.select_dtypes(exclude=["number", "bool"]).columns.tolist()
     if non_num:
         print(f"[WARN] Dropping non-numeric columns: {non_num}")
         df = df.drop(columns=non_num)
+
+    # Cast bool -> float for safety
+    bool_cols = df.select_dtypes(include=["bool"]).columns.tolist()
+    if bool_cols:
+        df[bool_cols] = df[bool_cols].astype(float)
+
     return df
 
 
-def _align_columns_to_model(model: xgb.XGBRegressor, X: pd.DataFrame) -> pd.DataFrame:
-    """Align feature columns to those used by the model."""
+def _expected_feature_names(model):
+    """Retrieve the expected feature names from the model."""
+    names = getattr(model, "feature_names_in_", None)
+    if names is None:
+        return []
+    return list(names)
 
-    expected = getattr(model, "feature_names_in_", None)
-    if expected is None:
-        try:
-            expected = model.get_booster().feature_names
-        except Exception:
-            expected = None
-    if expected is not None and len(expected) > 0:
-        for col in expected:
-            if col not in X.columns:
-                X[col] = 0.0
-        X = X.reindex(columns=list(expected))
+
+def _looks_like_generic_xgb_names(names: Iterable[str]) -> bool:
+    """True if names are like ['f0', 'f1', ...]."""
+    names = list(names)
+    if not names:
+        return False
+    return all(n.startswith("f") and n[1:].isdigit() for n in names)
+
+
+def _align_columns_to_model(model: xgb.XGBRegressor, X: pd.DataFrame) -> pd.DataFrame:
+    """
+    Align feature columns to those used by the model.
+    - If the model has meaningful feature names, add any missing columns (0.0) and reorder.
+    - If the model only has generic 'f0' names, DO NOT reindex (we would
+      likely break alignment). In that case we leave X as-is and print a note.
+    """
+    expected = _expected_feature_names(model)
+    if not expected:
+        # Nothing to align to
+        return X
+
+    if _looks_like_generic_xgb_names(expected):
+        print("[WARN] Model feature names look generic (f0,f1,...). "
+              "Skipping strict reindex to avoid misalignment.")
+        return X
+
+    # Add missing columns with zeros
+    missing = [c for c in expected if c not in X.columns]
+    if missing:
+        print(f"[INFO] Adding {len(missing)} missing columns present in model but not in data.")
+        for col in missing:
+            X[col] = 0.0
+
+    # Reindex to model order; silently drop extras not in the model
+    X = X.reindex(columns=list(expected))
     return X
 
 
 def _xgb_importances(model: xgb.XGBRegressor) -> pd.DataFrame:
     """Collect XGBoost gain/weight/cover importances."""
-
     bst = model.get_booster()
     types = ["gain", "weight", "cover", "total_gain", "total_cover"]
     imp = None
@@ -73,8 +111,7 @@ def _xgb_importances(model: xgb.XGBRegressor) -> pd.DataFrame:
 
 
 def _resolve_model_path(model_path: str | Path, fallback_dir: str | Path = "models") -> Path:
-    """Resolve ``model_path`` or fall back to the newest model in ``fallback_dir``."""
-
+    """Resolve `model_path` or fall back to the newest model in `fallback_dir`."""
     p = Path(model_path)
     if p.exists():
         return p
@@ -86,6 +123,10 @@ def _resolve_model_path(model_path: str | Path, fallback_dir: str | Path = "mode
             return cand[0]
     raise FileNotFoundError(f"Model not found at {p} and no JSON models in {fb}")
 
+
+# -----------------------------
+# Core evaluation
+# -----------------------------
 
 def evaluate_pooled_model(
     model_path: str | Path,
@@ -105,11 +146,15 @@ def evaluate_pooled_model(
 ) -> None:
     """Evaluate a saved XGBoost model on pooled IV return data."""
 
+    if not (0.0 < test_frac < 1.0):
+        raise ValueError(f"test_frac must be in (0,1), got {test_frac}")
+
     metrics_dir = Path(metrics_dir)
     metrics_dir.mkdir(parents=True, exist_ok=True)
 
     start_ts = pd.Timestamp(start, tz="UTC")
     end_ts = pd.Timestamp(end, tz="UTC")
+
     pooled = build_pooled_iv_return_dataset_time_safe(
         tickers=tickers,
         start=start_ts,
@@ -122,8 +167,10 @@ def evaluate_pooled_model(
     print(f"[DATA] pooled rows={len(pooled)}, features={pooled.shape[1]-1}")
 
     if "iv_clip" not in pooled.columns:
-        raise KeyError("'iv_clip' column is missing in the pooled DataFrame. Debug the dataset creation process.")
+        raise KeyError("'iv_clip' column is missing in the pooled DataFrame. "
+                       "Debug the dataset creation process.")
 
+    # y then X
     y = pooled["iv_clip"].astype(float)
     X = pooled.drop(columns=["iv_clip"])
     X = _ensure_numeric(X)
@@ -131,35 +178,46 @@ def evaluate_pooled_model(
     n = len(X)
     if n < 10:
         raise ValueError(f"Too few rows for evaluation: {n}")
+
+    # Time-respecting split (assumes pooled is time-ordered)
     split_idx = int(n * (1 - test_frac))
     X_tr, X_te = X.iloc[:split_idx].copy(), X.iloc[split_idx:].copy()
     y_tr, y_te = y.iloc[:split_idx].copy(), y.iloc[split_idx:].copy()
 
+    # Load model
     model_path = _resolve_model_path(model_path, fallback_dir="models")
     model = xgb.XGBRegressor()
     model.load_model(str(model_path))
 
+    # Align columns to model expectations
     X_tr = _align_columns_to_model(model, X_tr)
     X_te = _align_columns_to_model(model, X_te)
 
+    # Predict and score
     y_pred = model.predict(X_te)
+    rmse = float(np.sqrt(mean_squared_error(y_te, y_pred)))
+    r2 = float(r2_score(y_te, y_pred))
+
     metrics = {
-        "RMSE": float(np.sqrt(mean_squared_error(y_te, y_pred))),
-        "R2": float(r2_score(y_te, y_pred)),
+        "RMSE": rmse,
+        "R2": r2,
         "n_train": int(len(X_tr)),
         "n_test": int(len(X_te)),
         "n_features": int(X_tr.shape[1]),
-        "tickers": tickers,
+        "tickers": list(tickers),
         "start": start_ts.isoformat(),
         "end": end_ts.isoformat(),
         "forward_steps": forward_steps,
         "tolerance": tolerance,
         "test_frac": test_frac,
+        "model_path": str(model_path),
     }
-    print(f"[METRICS] RMSE={metrics['RMSE']:.6f}  R²={metrics['R2']:.3f}")
+    print(f"[METRICS] RMSE={rmse:.6f}  R²={r2:.3f}")
 
+    # Importances: built-in XGB
     xgb_imp = _xgb_importances(model)
 
+    # Permutation importance on (optionally) a sample of test set
     perm_df = pd.DataFrame()
     if perm_repeats and perm_repeats > 0:
         if (perm_sample is not None) and (len(X_te) > perm_sample):
@@ -184,6 +242,7 @@ def evaluate_pooled_model(
             }
         ).sort_values("perm_importance_mean", ascending=False).reset_index(drop=True)
 
+    # Outputs
     metrics_path = metrics_dir / f"{outputs_prefix}_metrics.json"
     xgb_imp_path = metrics_dir / f"{outputs_prefix}_xgb_importances.csv"
     perm_imp_path = metrics_dir / f"{outputs_prefix}_perm_importances.csv"
@@ -194,7 +253,14 @@ def evaluate_pooled_model(
     xgb_imp.to_csv(xgb_imp_path, index=False)
     if not perm_df.empty:
         perm_df.to_csv(perm_imp_path, index=False)
-    save_symbol_effects(model, X_test, y_test, metrics_dir=args.metrics_dir, prefix=args.prefix)
+
+    # Per-symbol effects via SHAP-like contributions
+    save_symbol_effects(
+        model=model,
+        X_test=X_te,
+        metrics_dir=metrics_dir,
+        prefix=outputs_prefix,
+    )
 
     if save_predictions:
         pd.DataFrame(
@@ -212,40 +278,48 @@ def evaluate_pooled_model(
     if save_predictions:
         print(f"[SAVED] {preds_path}")
 
-from pathlib import Path
-import numpy as np
-import pandas as pd
-from sklearn.inspection import permutation_importance
-import xgboost as xgb
 
-def save_symbol_effects(model, X_test, y_test, metrics_dir: str, prefix: str):
-    metrics_dir = Path(metrics_dir); metrics_dir.mkdir(parents=True, exist_ok=True)
+# -----------------------------
+# Symbol effects & SHAP-ish saves
+# -----------------------------
 
-    # --- Permutation importance ---
-    pi = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42, n_jobs=-1)
-    pi_df = pd.DataFrame({
-        "feature": X_test.columns,
-        "perm_mean": pi.importances_mean,
-        "perm_std":  pi.importances_std,
-    }).sort_values("perm_mean", ascending=False)
-    pi_df.to_csv(metrics_dir / f"{prefix}_perm_importance.csv", index=False)
+def save_symbol_effects(
+    model: xgb.XGBRegressor,
+    X_test: pd.DataFrame,
+    metrics_dir: str | Path,
+    prefix: str,
+) -> None:
+    """
+    Save per-feature SHAP-like average contributions and a sym_* summary.
 
-    # --- SHAP (built-in XGBoost) ---
+    Uses XGBoost's pred_contribs=True to get SHAP + bias.
+    """
+    metrics_dir = Path(metrics_dir)
+    metrics_dir.mkdir(parents=True, exist_ok=True)
+
     booster = model.get_booster()
     dm = xgb.DMatrix(X_test, feature_names=X_test.columns.tolist())
-    contribs = booster.predict(dm, pred_contribs=True)  # SHAP + bias
+    contribs = booster.predict(dm, pred_contribs=True)  # SHAP + bias col
     contribs_df = pd.DataFrame(contribs, columns=list(X_test.columns) + ["bias"])
 
+    # Average contribution per feature (sorted)
+    feat_avg = contribs_df.drop(columns=["bias"], errors="ignore").mean().sort_values(ascending=False)
+    feat_avg_df = feat_avg.to_frame("avg_contrib").reset_index().rename(columns={"index": "feature"})
+    feat_avg_df.to_csv(metrics_dir / f"{prefix}_feature_shap_avg.csv", index=False)
+
+    # Roll-up: symbol one-hots "sym_*"
     sym_cols = [c for c in X_test.columns if c.startswith("sym_")]
     if sym_cols:
         sym_avg = contribs_df[sym_cols].mean().sort_values(ascending=False)
         sym_df = sym_avg.to_frame("avg_shap").reset_index().rename(columns={"index": "feature"})
-        sym_df["ticker"] = sym_df["feature"].str.replace("^sym_", "", regex=True)
+        sym_df["ticker"] = sym_df["feature"].str.replace(r"^sym_", "", regex=True)
         sym_df["direction"] = np.where(sym_df["avg_shap"] >= 0, "↑", "↓")
         sym_df.to_csv(metrics_dir / f"{prefix}_sym_shap_avg.csv", index=False)
 
-    # save full SHAP (optional; large)
-    # contribs_df.to_parquet(metrics_dir / f"{prefix}_shap_contribs.parquet", index=False)
+
+# -----------------------------
+# CLI
+# -----------------------------
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Evaluate pooled IV-returns XGBoost model.")
@@ -289,4 +363,3 @@ if __name__ == "__main__":
         perm_sample=args.perm_sample,
         db_path=args.db,
     )
-

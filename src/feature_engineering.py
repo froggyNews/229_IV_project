@@ -69,7 +69,16 @@ def _add_features(df: pd.DataFrame, peer_cols: list[str], target_ticker: str,
         mu60 = X["opt_volume"].rolling(60).mean()
         sd60 = X["opt_volume"].rolling(60).std()
         X["opt_vol_z_60m"] = ((X["opt_volume"] - mu60) / (sd60 + 1e-9)).shift(1)
+    # target’s own past IV return (strictly lagged to avoid leakage)
+    X["iv_ret_1m"] = (np.log(X["iv_clip"]) - np.log(X["iv_clip"].shift(1))).shift(1)
 
+    # --- peer IV-RET aggregates (optional) ---
+    if peer_ret_cols:
+        peer_ret_cols = [c for c in peer_ret_cols if c in X.columns]
+        if peer_ret_cols:
+            pr_mean = X[peer_ret_cols].mean(axis=1)
+            X["peer_ivret_mean"] = pr_mean
+            X["peer_ivret_std"]  = X[peer_ret_cols].std(axis=1)
     # --- Greeks (use current iv level; shift to be safe) ---
     def _safe_delta(row):
         return bs_delta(
@@ -227,11 +236,17 @@ def build_iv_return_dataset_time_safe(
     dbp = Path(db_path) if db_path else DEFAULT_DB_PATH
     cores = {t: _atm_core(t, start=start, end=end, r=r, db_path=dbp) for t in tickers}
     iv_wide = None
+    tol = pd.Timedelta(tolerance)
     for t, df in cores.items():
-        tmp = df[["ts_event","iv"]].rename(columns={"iv": f"IV_{t}"}).sort_values("ts_event")
+        tmp = df[["ts_event", "iv"]].sort_values("ts_event").copy()
+        tmp["iv_clip_tmp"] = tmp["iv"].clip(lower=1e-6)
+        tmp[f"IV_{t}"] = tmp["iv_clip_tmp"]
+        tmp[f"IVRET_{t}"] = np.log(tmp["iv_clip_tmp"]) - np.log(tmp["iv_clip_tmp"].shift(1))
+        tmp = tmp[["ts_event", f"IV_{t}", f"IVRET_{t}"]]
         iv_wide = tmp if iv_wide is None else pd.merge_asof(
-            iv_wide, tmp, on="ts_event", direction="backward", tolerance=pd.Timedelta(tolerance)
+            iv_wide, tmp, on="ts_event", direction="backward", tolerance=tol
         )
+
     out: Dict[str, pd.DataFrame] = {}
     for tgt, dft in cores.items():
         feats = dft.copy()
@@ -247,16 +262,26 @@ def build_iv_return_dataset_time_safe(
             on="ts_event", direction="backward", tolerance=pd.Timedelta(tolerance)
         )
         # inside the per-target loop after building `panel`:
-        peer_cols = [c for c in panel.columns if c.startswith("IV_") and c != f"IV_{tgt}"]
-        ds = _add_features(panel, peer_cols=peer_cols, target_ticker=tgt,
-                   r=r, target_mode="iv_ret")   # or "iv"
+    # rename target’s own columns
+    if f"IV_{tgt}" in panel.columns:
+        panel = panel.rename(columns={f"IV_{tgt}": "IV_SELF"})
+    if f"IVRET_{tgt}" in panel.columns:
+        panel = panel.rename(columns={f"IVRET_{tgt}": "IVRET_SELF"})
 
-        num_cols = ["opt_volume","time_to_expiry","strike_price",
-                    "option_type_enc"] + peer_cols
-        for c in num_cols:
-            if c in panel.columns:
-                panel[c] = pd.to_numeric(panel[c], errors="coerce").astype(np.float32)
-        out[tgt] = panel[["iv_ret_fwd"] + num_cols].dropna(subset=["iv_ret_fwd"]).reset_index(drop=True)
+    peer_cols = [c for c in panel.columns if c.startswith("IV_") and c != "IV_SELF"]
+    peer_ret_cols = [c for c in panel.columns if c.startswith("IVRET_") and c != "IVRET_SELF"]
+
+    # numeric hygiene (now includes IVRET)
+    num_cols = ["opt_volume","time_to_expiry","strike_price","option_type_enc","IV_SELF","IVRET_SELF"] \
+            + peer_cols + peer_ret_cols
+    for c in num_cols:
+        if c in panel.columns:
+            panel[c] = pd.to_numeric(panel[c], errors="coerce").astype(np.float32)
+
+    out[tgt] = panel[["iv_ret_fwd"] + [c for c in num_cols if c in panel.columns]] \
+                .dropna(subset=["iv_ret_fwd"]).reset_index(drop=True)
+
+            
     return out
 
 def build_pooled_iv_return_dataset_time_safe(
@@ -269,11 +294,17 @@ def build_pooled_iv_return_dataset_time_safe(
     dbp = Path(db_path) if db_path else DEFAULT_DB_PATH
     cores = {t: _atm_core(t, start=start, end=end, r=r, db_path=dbp) for t in tickers}
     iv_wide = None
+    tol = pd.Timedelta(tolerance)
     for t, df in cores.items():
-        tmp = df[["ts_event","iv"]].rename(columns={"iv": f"IV_{t}"}).sort_values("ts_event")
+        tmp = df[["ts_event", "iv"]].sort_values("ts_event").copy()
+        tmp["iv_clip_tmp"] = tmp["iv"].clip(lower=1e-6)
+        tmp[f"IV_{t}"] = tmp["iv_clip_tmp"]
+        tmp[f"IVRET_{t}"] = np.log(tmp["iv_clip_tmp"]) - np.log(tmp["iv_clip_tmp"].shift(1))
+        tmp = tmp[["ts_event", f"IV_{t}", f"IVRET_{t}"]]
         iv_wide = tmp if iv_wide is None else pd.merge_asof(
-            iv_wide, tmp, on="ts_event", direction="backward", tolerance=pd.Timedelta(tolerance)
+            iv_wide, tmp, on="ts_event", direction="backward", tolerance=tol
         )
+
     frames = []
     for tgt, dft in cores.items():
         feats = dft.copy()
@@ -353,11 +384,17 @@ def build_spillover_dataset_time_safe(
 
     # 2) wide IV panel for peers (backward as-of to avoid lookahead)
     iv_wide = None
+    tol = pd.Timedelta(tolerance)
     for t, df in cores.items():
-        tmp = df[["ts_event", "iv"]].rename(columns={"iv": f"IV_{t}"}).sort_values("ts_event")
+        tmp = df[["ts_event", "iv"]].sort_values("ts_event").copy()
+        tmp["iv_clip_tmp"] = tmp["iv"].clip(lower=1e-6)
+        tmp[f"IV_{t}"] = tmp["iv_clip_tmp"]
+        tmp[f"IVRET_{t}"] = np.log(tmp["iv_clip_tmp"]) - np.log(tmp["iv_clip_tmp"].shift(1))
+        tmp = tmp[["ts_event", f"IV_{t}", f"IVRET_{t}"]]
         iv_wide = tmp if iv_wide is None else pd.merge_asof(
-            iv_wide, tmp, on="ts_event", direction="backward", tolerance=pd.Timedelta(tolerance)
+            iv_wide, tmp, on="ts_event", direction="backward", tolerance=tol
         )
+
 
     # 3) build features per target, then pool
     frames = []
@@ -376,8 +413,15 @@ def build_spillover_dataset_time_safe(
         )
         # peer columns = other tickers' IVs
         peer_cols = [c for c in panel.columns if c.startswith("IV_") and c != f"IV_{tgt}"]
+        peer_ret_cols = [c for c in panel.columns if c.startswith("IVRET_") and c != f"IVRET_{tgt}"]
 
-        X = _add_features(panel, peer_cols=peer_cols, target_ticker=tgt, r=r, target_mode=target_mode)
+        X = _add_features(panel,
+                        peer_cols=peer_cols,
+                        target_ticker=tgt,
+                        r=r,
+                        target_mode=target_mode,
+                        peer_ret_cols=peer_ret_cols)
+
         X["target_symbol"] = tgt
         frames.append(X)
 
@@ -531,3 +575,103 @@ def compute_iv_spillover_metrics(
         _xgb_imp_df(m_full).to_csv(mdir / f"{prefix}_importances_full.csv", index=False)
 
     return out
+
+
+def build_target_peer_dataset(
+    target: str,
+    tickers: List[str],
+    start: pd.Timestamp | None = None,
+    end: pd.Timestamp | None = None,
+    r: float = 0.045,
+    forward_steps: int = 1,
+    tolerance: str = "2s",
+    db_path: Path | str | None = None,
+    target_kind: str = "iv_ret",   # "iv_ret" (default) or "iv"
+) -> pd.DataFrame:
+    """
+    Build a single-target dataset to study the effect of all peer IVs on the target.
+
+    Rows are aligned to the target's timestamps; peer IVs are merged 'as of' (backward)
+    within the provided tolerance.
+
+    Returns columns:
+      - y                      (iv_ret_fwd or iv for the target)
+      - IV_SELF                (target IV at t)
+      - IV_<peer>              (peer IVs at t, as-of backward merge)
+      - opt_volume, time_to_expiry, days_to_expiry, strike_price
+      - option_type_enc, hour, minute, day_of_week
+      - iv_clip                (safeguarded target IV at t)
+    """
+    assert target in tickers, "target must be included in tickers"
+    dbp = Path(db_path) if db_path else DEFAULT_DB_PATH
+
+    # 1) Load per-ticker ATM cores (these must include 'ts_event' and 'iv' at minimum)
+    cores: Dict[str, pd.DataFrame] = {
+        t: _atm_core(t, start=start, end=end, r=r, db_path=dbp) for t in tickers
+    }
+
+    # 2) Start from target rows (carry option/control fields) and add basic features
+    feats = cores[target].copy().sort_values("ts_event").reset_index(drop=True)
+    feats["option_type_enc"] = _encode_option_type(feats["option_type"])
+    feats["hour"] = feats["ts_event"].dt.hour.astype("int16")
+    feats["minute"] = feats["ts_event"].dt.minute.astype("int16")
+    feats["day_of_week"] = feats["ts_event"].dt.dayofweek.astype("int16")
+    feats["days_to_expiry"] = (feats["time_to_expiry"] * 365.0).astype("float32")
+    feats["iv_clip"] = feats["iv"].clip(lower=1e-6)
+
+    if target_kind == "iv_ret":
+        feats["y"] = (
+            np.log(feats["iv_clip"].shift(-forward_steps)) - np.log(feats["iv_clip"])
+        )
+    elif target_kind == "iv":
+        feats["y"] = feats["iv"]
+    else:
+        raise ValueError("target_kind must be 'iv_ret' or 'iv'")
+
+    # 3) Merge peers' IVs onto the target timeline (as-of backward within tolerance)
+    panel = feats.sort_values("ts_event")
+    tol = pd.Timedelta(tolerance)
+
+    for t, df in cores.items():
+        tmp = (
+            df[["ts_event", "iv"]]
+            .rename(columns={"iv": f"IV_{t}"})
+            .sort_values("ts_event")
+        )
+        panel = pd.merge_asof(
+            panel, tmp, on="ts_event", direction="backward", tolerance=tol
+        )
+
+    for t, df in cores.items():
+        tmp = (
+            df[["ts_event", "iv"]].sort_values("ts_event").copy()
+        )
+        tmp["iv_clip_tmp"] = tmp["iv"].clip(lower=1e-6)
+        tmp[f"IV_{t}"] = tmp["iv_clip_tmp"]
+        tmp[f"IVRET_{t}"] = np.log(tmp["iv_clip_tmp"]) - np.log(tmp["iv_clip_tmp"].shift(1))
+        tmp = tmp[["ts_event", f"IV_{t}", f"IVRET_{t}"]]
+        panel = pd.merge_asof(panel, tmp, on="ts_event", direction="backward", tolerance=tol)
+
+    # rename target’s own
+    if f"IV_{target}" in panel.columns:
+        panel = panel.rename(columns={f"IV_{target}": "IV_SELF"})
+    if f"IVRET_{target}" in panel.columns:
+        panel = panel.rename(columns={f"IVRET_{target}": "IVRET_SELF"})
+
+    peer_cols = [c for c in panel.columns if c.startswith("IV_") and c != "IV_SELF"]
+    peer_ret_cols = [c for c in panel.columns if c.startswith("IVRET_") and c != "IVRET_SELF"]
+
+    numeric_cols = ["opt_volume","time_to_expiry","days_to_expiry","strike_price","IV_SELF","IVRET_SELF"] \
+                + peer_cols + peer_ret_cols
+    for c in numeric_cols:
+        if c in panel.columns:
+            panel[c] = pd.to_numeric(panel[c], errors="coerce").astype(np.float32)
+
+    final_cols = (
+        ["y", "IV_SELF", "IVRET_SELF"]
+        + peer_cols + peer_ret_cols
+        + ["opt_volume","time_to_expiry","days_to_expiry","strike_price",
+        "option_type_enc","hour","minute","day_of_week","iv_clip"]
+    )
+    ds = panel[[c for c in final_cols if c in panel.columns]].dropna(subset=["y"]).reset_index(drop=True)
+    return ds
