@@ -1,12 +1,18 @@
 import os
 import sqlite3
+import json
+import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
 import numpy as np
 import pandas as pd
+from pandas.api.types import is_numeric_dtype
 from scipy.stats import norm
 from scipy.optimize import brentq
+
+logging.basicConfig(level=logging.INFO)
 
 # Config
 DEFAULT_DB_PATH = Path(os.getenv("IV_DB_PATH", "data/iv_data_1m.db"))
@@ -124,6 +130,9 @@ def finalize_dataset(df: pd.DataFrame, target_col: str, drop_symbol: bool = True
         out = out.drop(columns=["symbol"])
     
     out = _normalize_numeric_features(out, target_col=target_col, exclude_prefixes=("sym_",), keep_cols=("ts_event",))
+
+    # log final set of columns for inspection
+    logging.getLogger(__name__).info("Final dataset columns: %s", list(out.columns))
 
     return out.reset_index(drop=True)
 
@@ -286,10 +295,6 @@ def build_target_peer_dataset(
     # Finalize
     return finalize_dataset(feats, "y", drop_symbol=True)
 
-# add near the imports
-from pandas.api.types import is_numeric_dtype
-
-# --- NEW ---
 def _normalize_numeric_features(
     df: pd.DataFrame,
     target_col: str,
@@ -316,9 +321,29 @@ def _normalize_numeric_features(
         means = out[num_cols].mean(axis=0)
         stds = out[num_cols].std(axis=0).replace(0.0, 1.0).fillna(1.0)
         out[num_cols] = (out[num_cols] - means) / stds
-        # optional: keep stats for inspection
-        out.attrs["norm_means"] = {c: float(means[c]) for c in num_cols}
-        out.attrs["norm_stds"]  = {c: float(stds[c])  for c in num_cols}
+
+        stats = {
+            "columns": list(num_cols),
+            "means": {c: float(means[c]) for c in num_cols},
+            "stds": {c: float(stds[c]) for c in num_cols},
+        }
+
+        # keep stats for inspection on the dataframe
+        out.attrs["norm_means"] = stats["means"]
+        out.attrs["norm_stds"] = stats["stds"]
+
+        # log and snapshot to disk for external inspection
+        logger = logging.getLogger(__name__)
+        logger.info("Normalizing columns: %s", num_cols)
+        logger.debug("Normalization stats: %s", stats)
+        try:
+            out_dir = Path("outputs")
+            out_dir.mkdir(exist_ok=True)
+            ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            with open(out_dir / f"feature_snapshot_{ts}.json", "w") as fh:
+                json.dump(stats, fh, indent=2)
+        except Exception:
+            logger.exception("Failed to write feature snapshot")
     return out
 
 
