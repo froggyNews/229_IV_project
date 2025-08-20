@@ -39,15 +39,16 @@ class RunConfig:
     forward_steps: int = 15
     test_frac: float = 0.2
     tolerance: str = "2s"
-    
+
     # Output settings
     timestamp: str = field(default_factory=lambda: pd.Timestamp.now(tz="UTC").strftime("%Y%m%d_%H%M%S"))
     output_dir: Path = Path("outputs")
-    
+
     # Optional settings
     xgb_params: Optional[Dict[str, Any]] = None
     peer_targets: Sequence[str] = field(default_factory=list)
     peer_target_kinds: Sequence[str] = field(default_factory=lambda: ["iv_ret"])
+    drop_zero_iv_ret: bool = False
 
 
 def get_default_xgb_params() -> Dict[str, Any]:
@@ -130,10 +131,11 @@ def train_pooled_models(cfg: RunConfig) -> Dict[str, Any]:
     # Use coordinator for clean data loading
     cores = load_cores_with_auto_fetch(
         tickers=cfg.tickers,
-        start=cfg.start, 
+        start=cfg.start,
         end=cfg.end,
         db_path=cfg.db_path,
-        auto_fetch=True
+        auto_fetch=True,
+        drop_zero_iv_ret=cfg.drop_zero_iv_ret
     )
     
     # Build pooled dataset
@@ -249,6 +251,7 @@ def save_results(cfg: RunConfig, pooled_results: Dict, peer_results: Dict) -> Pa
             "peer_targets": list(cfg.peer_targets),
             "peer_target_kinds": list(cfg.peer_target_kinds),
             "tolerance": cfg.tolerance,
+            "drop_zero_iv_ret": cfg.drop_zero_iv_ret,
         },
         "pooled_models": pooled_results[1],
         "peer_effects": peer_results,
@@ -322,7 +325,8 @@ if __name__ == "__main__":
         forward_steps=15,
         test_frac=0.2,
         peer_targets=["QUBT", "QBTS", "RGTI", "IONQ"],  # Subset for peer effects
-        peer_target_kinds=["iv_ret","iv_ret_fwd""iv_ret_fwd_abs", "iv"]  # Both return and level
+        peer_target_kinds=["iv_ret", "iv_ret_fwd", "iv_ret_fwd_abs", "iv"],  # Both return and level
+        drop_zero_iv_ret=True,
     )
     
     # Run pipeline
