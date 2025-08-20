@@ -307,14 +307,22 @@ class DataCoordinator:
             print(f"Error populating ATM slices: {e}")
     
     def load_cores_with_fetch(
-        self, 
-        tickers: Sequence[str], 
-        start: str, 
+        self,
+        tickers: Sequence[str],
+        start: str,
         end: str,
-        auto_fetch: bool = True
+        auto_fetch: bool = True,
+        drop_zero_iv_ret: bool = False,
     ) -> Dict[str, pd.DataFrame]:
         """
         Load ticker cores, automatically fetching missing data if possible.
+
+        Parameters
+        ----------
+        drop_zero_iv_ret: bool, optional
+            If True, rows where the instantaneous IV return is exactly zero
+            are removed from each core. The return is computed as the first
+            difference of log(iv_clip).
         """
         cores = {}
         missing_tickers = []
@@ -331,6 +339,13 @@ class DataCoordinator:
                 # Call the module-level function
                 core = load_ticker_core(ticker, start=start, end=end, db_path=self.db_path)
                 if not core.empty:
+                    if drop_zero_iv_ret and "iv_clip" in core.columns:
+                        iv_ret = np.log(core["iv_clip"].astype(float)).diff()
+                        mask = (iv_ret != 0) & (~iv_ret.isna())
+                        dropped = int(len(core) - mask.sum())
+                        core = core[mask].copy()
+                        if dropped:
+                            print(f"    • {ticker}: dropped {dropped} rows with iv_ret=0")
                     cores[ticker] = core
                     print(f"  ✓ {ticker}: {len(core):,} rows")
                 else:
@@ -355,6 +370,13 @@ class DataCoordinator:
                     try:
                         core = load_ticker_core(ticker, start=start, end=end, db_path=self.db_path)
                         if not core.empty:
+                            if drop_zero_iv_ret and "iv_clip" in core.columns:
+                                iv_ret = np.log(core["iv_clip"].astype(float)).diff()
+                                mask = (iv_ret != 0) & (~iv_ret.isna())
+                                dropped = int(len(core) - mask.sum())
+                                core = core[mask].copy()
+                                if dropped:
+                                    print(f"      • {ticker}: dropped {dropped} rows with iv_ret=0")
                             cores[ticker] = core
                             print(f"    ✓ Fetched {ticker}: {len(core):,} rows")
                         else:
@@ -371,13 +393,14 @@ class DataCoordinator:
         return cores
 
     def validate_cores_for_analysis(
-        self, 
-        cores: Dict[str, pd.DataFrame], 
-        analysis_type: str = "general"
+        self,
+        cores: Dict[str, pd.DataFrame],
+        analysis_type: str = "general",
+        drop_zero_iv_ret: bool = False,
     ) -> Dict[str, pd.DataFrame]:
         """Validate cores are suitable for specific analysis types."""
         valid_cores = {}
-        
+
         for ticker, core in cores.items():
             # Basic validation
             if core is None or core.empty:
@@ -389,6 +412,14 @@ class DataCoordinator:
                 continue
                 
             # Analysis-specific validation
+            if drop_zero_iv_ret and "iv_clip" in core.columns:
+                iv_ret = np.log(core["iv_clip"].astype(float)).diff()
+                mask = (iv_ret != 0) & (~iv_ret.isna())
+                dropped = int(len(core) - mask.sum())
+                core = core[mask].copy()
+                if dropped:
+                    print(f"  • {ticker}: dropped {dropped} rows with iv_ret=0")
+
             if analysis_type == "peer_effects":
                 if len(core) < 100:
                     print(f"Skipping {ticker}: insufficient data for peer effects ({len(core)} rows)")
@@ -400,7 +431,7 @@ class DataCoordinator:
                     continue
             
             valid_cores[ticker] = core
-            
+
         return valid_cores
     
     def get_analysis_summary(self, cores: Dict[str, pd.DataFrame]) -> Dict:
@@ -431,21 +462,23 @@ class DataCoordinator:
 
 # Convenience functions for backward compatibility
 def load_cores_with_auto_fetch(
-    tickers: Sequence[str], 
-    start: str, 
-    end: str, 
+    tickers: Sequence[str],
+    start: str,
+    end: str,
     db_path: Optional[Path] = None,
-    auto_fetch: bool = True
+    auto_fetch: bool = True,
+    drop_zero_iv_ret: bool = False,
 ) -> Dict[str, pd.DataFrame]:
     """Convenience function that wraps DataCoordinator for simple usage."""
     coordinator = DataCoordinator(db_path)
-    return coordinator.load_cores_with_fetch(tickers, start, end, auto_fetch)
+    return coordinator.load_cores_with_fetch(tickers, start, end, auto_fetch, drop_zero_iv_ret)
 
 
 def validate_cores(
-    cores: Dict[str, pd.DataFrame], 
-    analysis_type: str = "general"
+    cores: Dict[str, pd.DataFrame],
+    analysis_type: str = "general",
+    drop_zero_iv_ret: bool = False,
 ) -> Dict[str, pd.DataFrame]:
     """Convenience function for core validation."""
     coordinator = DataCoordinator()
-    return coordinator.validate_cores_for_analysis(cores, analysis_type)
+    return coordinator.validate_cores_for_analysis(cores, analysis_type, drop_zero_iv_ret)
