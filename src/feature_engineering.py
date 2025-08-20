@@ -54,10 +54,10 @@ def add_all_features(df: pd.DataFrame, forward_steps: int = 1, r: float = 0.045)
     df["vega"] = S * pdf * sqrtT
     
     # Time features (preserves original dtypes)
-    df["hour"] = df["ts_event"].dt.hour.astype("int16")
-    df["minute"] = df["ts_event"].dt.minute.astype("int16") 
-    df["day_of_week"] = df["ts_event"].dt.dayofweek.astype("int16")
-    df["days_to_expiry"] = (df["time_to_expiry"] * 365.0).astype("float32")
+    # df["hour"] = df["ts_event"].dt.hour.astype("int16")
+    # df["minute"] = df["ts_event"].dt.minute.astype("int16") 
+    # df["day_of_week"] = df["ts_event"].dt.dayofweek.astype("int16")
+    # df["days_to_expiry"] = (df["time_to_expiry"] * 365.0).astype("float32")
     df["option_type_enc"] = (df["option_type"].astype(str).str.upper().str[0]
                             .map({"P": 0, "C": 1}).astype("float32"))
     
@@ -122,7 +122,9 @@ def finalize_dataset(df: pd.DataFrame, target_col: str, drop_symbol: bool = True
     # Drop symbol if requested (for per-ticker datasets)
     if drop_symbol and "symbol" in out.columns:
         out = out.drop(columns=["symbol"])
-        
+    
+    out = _normalize_numeric_features(out, target_col=target_col, exclude_prefixes=("sym_",), keep_cols=("ts_event",))
+
     return out.reset_index(drop=True)
 
 
@@ -232,7 +234,7 @@ def build_iv_return_dataset_time_safe(
         
         # Finalize (removes symbol column for per-ticker analysis)
         datasets[ticker] = finalize_dataset(feats, "iv_ret_fwd", drop_symbol=True)
-    
+        
     return datasets
 
 
@@ -283,6 +285,41 @@ def build_target_peer_dataset(
     
     # Finalize
     return finalize_dataset(feats, "y", drop_symbol=True)
+
+# add near the imports
+from pandas.api.types import is_numeric_dtype
+
+# --- NEW ---
+def _normalize_numeric_features(
+    df: pd.DataFrame,
+    target_col: str,
+    exclude_prefixes: Sequence[str] = ("sym_",),
+    keep_cols: Sequence[str] = ("ts_event",),
+) -> pd.DataFrame:
+    """
+    Z-score normalize numeric feature columns:
+      x_norm = (x - mean) / std
+    Skips the target column, time index, and any columns starting with prefixes in exclude_prefixes.
+    """
+    out = df.copy()
+    # pick numeric feature columns
+    num_cols: list[str] = []
+    for c in out.columns:
+        if c == target_col or c in keep_cols:
+            continue
+        if any(c.startswith(p) for p in exclude_prefixes):
+            continue
+        if is_numeric_dtype(out[c]):
+            num_cols.append(c)
+
+    if num_cols:
+        means = out[num_cols].mean(axis=0)
+        stds = out[num_cols].std(axis=0).replace(0.0, 1.0).fillna(1.0)
+        out[num_cols] = (out[num_cols] - means) / stds
+        # optional: keep stats for inspection
+        out.attrs["norm_means"] = {c: float(means[c]) for c in num_cols}
+        out.attrs["norm_stds"]  = {c: float(stds[c])  for c in num_cols}
+    return out
 
 
 # Export original names for backward compatibility

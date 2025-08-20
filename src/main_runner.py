@@ -217,7 +217,7 @@ def train_peer_effects(cfg: RunConfig, cores: Dict[str, pd.DataFrame]) -> Dict[s
             db_path=cfg.db_path,
             include_self_lag=True,
             exclude_contemporaneous=True,
-            save_details=False  # Don't save individual files, we'll aggregate
+            save_details=True  # Don't save individual files, we'll aggregate
         )
         
         # Store results by target_kind
@@ -225,7 +225,7 @@ def train_peer_effects(cfg: RunConfig, cores: Dict[str, pd.DataFrame]) -> Dict[s
             key = f"{target}_{target_kind}"
             all_results[key] = result
     
-    return all_results
+    return results
 
 
 def save_results(cfg: RunConfig, pooled_results: Dict, peer_results: Dict) -> Path:
@@ -242,12 +242,16 @@ def save_results(cfg: RunConfig, pooled_results: Dict, peer_results: Dict) -> Pa
             "end": cfg.end,
             "forward_steps": cfg.forward_steps,
             "test_frac": cfg.test_frac,
-            "timestamp": cfg.timestamp
+            "timestamp": cfg.timestamp,
+            "db_path": str(cfg.db_path),
+            "output_dir": str(cfg.output_dir),
+            "xgb_params": cfg.xgb_params if cfg.xgb_params is not None else get_default_xgb_params(),
+            "peer_targets": list(cfg.peer_targets),
+            "peer_target_kinds": list(cfg.peer_target_kinds),
+            "tolerance": cfg.tolerance,
         },
-        "pooled_models": pooled_results.get("metrics", {}),
-        "peer_effects": {
-            k: v.get("metrics", {}) for k, v in peer_results.items()
-        }
+        "pooled_models": pooled_results[1],
+        "peer_effects": peer_results,
     }
     
     # Save metrics
@@ -313,12 +317,12 @@ if __name__ == "__main__":
     # Simple configuration
     config = RunConfig(
         tickers=["QUBT", "QBTS", "RGTI", "IONQ"],
-        start="2025-08-02",
+        start="2025-06-02",
         end="2025-08-06",
         forward_steps=15,
         test_frac=0.2,
-        peer_targets=["QUBT", "QBTS"],  # Subset for peer effects
-        peer_target_kinds=["iv_ret", "iv"]  # Both return and level
+        peer_targets=["QUBT", "QBTS", "RGTI", "IONQ"],  # Subset for peer effects
+        peer_target_kinds=["iv_ret","iv_ret_fwd""iv_ret_fwd_abs", "iv"]  # Both return and level
     )
     
     # Run pipeline

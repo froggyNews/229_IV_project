@@ -62,149 +62,142 @@ def prepare_peer_dataset(cfg: PeerConfig, cores: Dict[str, pd.DataFrame]) -> pd.
     )
     
     if dataset.empty:
-        raise ValueError(f"No data for target {cfg.target}")
+        raise ValueError(f"No data found for target {cfg.target}")
     
     print(f"  Base dataset: {len(dataset):,} rows, {dataset.shape[1]} columns")
     
-    # Identify column types for clarity
+    # Only drop rows where target is missing - be less aggressive
     target_col = "y"
+    if target_col in dataset.columns:
+        initial_rows = len(dataset)
+        dataset = dataset.dropna(subset=[target_col])
+        dropped = initial_rows - len(dataset)
+        if dropped > 0:
+            print(f"  Dropped {dropped} rows with missing target")
+        
+        # If still empty, check why
+        if len(dataset) == 0:
+            print("  ERROR: All target values are NaN!")
+            print(f"  Target column '{target_col}' statistics:")
+            print(f"  - Total values: {len(dataset)}")
+            return pd.DataFrame()
     
-    # Self features (target's own IV data)
-    self_iv_cols = [c for c in dataset.columns if c == f"IV_{cfg.target}"]
-    self_ret_cols = [c for c in dataset.columns if c == f"IVRET_{cfg.target}"]
+    # Don't be too aggressive with other cleaning
+    print(f"  Final dataset: {len(dataset):,} rows, {dataset.shape[1]} features")
     
-    # Peer features (other tickers' IV data) 
-    peer_iv_cols = [c for c in dataset.columns 
-                    if c.startswith("IV_") and c != f"IV_{cfg.target}"]
-    peer_ret_cols = [c for c in dataset.columns 
-                     if c.startswith("IVRET_") and c != f"IVRET_{cfg.target}"]
-    
-    # Control features (time, Greeks, etc.)
-    control_cols = [c for c in dataset.columns 
-                    if not c.startswith(("IV_", "IVRET_")) and c != target_col]
-    
-    print(f"  Self IV features: {len(self_iv_cols)}")
-    print(f"  Self return features: {len(self_ret_cols)}")  
-    print(f"  Peer IV features: {len(peer_iv_cols)}")
-    print(f"  Peer return features: {len(peer_ret_cols)}")
-    print(f"  Control features: {len(control_cols)}")
-    
-    # Handle self-features to avoid leakage
-    feature_cols = peer_iv_cols + peer_ret_cols + control_cols
-    
+    # Add lagged features if requested
+    if cfg.include_self_lag and len(dataset) > 0:
+        # Include target's own lagged features
+        if "ts_event" in dataset.columns:
+            dataset = dataset.sort_values("ts_event").reset_index(drop=True)
+        
+        # Create lag feature safely
+        if "ticker" in dataset.columns:
+            dataset["y_lag1"] = dataset.groupby("ticker")[target_col].shift(1)
+        else:
+            dataset["y_lag1"] = dataset[target_col].shift(15)
+            
+        # Only drop if we still have sufficient data
+        before_lag = len(dataset)
+        dataset = dataset.dropna(subset=["y_lag1"])
+        after_lag = len(dataset)
+        print(f"  Added self-lag feature: {after_lag:,} rows (dropped {before_lag - after_lag} for lag)")
     if cfg.exclude_contemporaneous:
-        # Don't use target's current IV/returns (would be leakage)
-        print("  Excluding contemporaneous self features (avoiding leakage)")
-    else:
-        # Include current self features (may be leaky but sometimes useful)
-        feature_cols.extend(self_iv_cols + self_ret_cols)
-        print("  Including contemporaneous self features")
-    
-    if cfg.include_self_lag:
-        # Add lagged self features (safe from leakage)
-        for col in self_iv_cols + self_ret_cols:
-            lag_col = f"{col}_lag1"
-            dataset[lag_col] = dataset[col].shift(1)
-            feature_cols.append(lag_col)
-        print("  Added lagged self features")
-    
-    # Select final columns
-    final_cols = [target_col] + feature_cols
-    clean_dataset = dataset[final_cols].dropna()
-    
-    print(f"  Final dataset: {len(clean_dataset):,} rows, {len(feature_cols)} features")
-    
-    return clean_dataset
+        for c in ("IV_SELF", "IVRET_SELF", "iv_clip"):
+            if c in dataset.columns:
+                dataset.drop(columns=c, inplace=True)
+        return dataset
+# before: def train_peer_model(dataset: pd.DataFrame, test_frac: float) -> Tuple[xgb.XGBRegressor, Dict[str, Any]]:
+from typing import List, Tuple, Dict, Any
+from pandas.api.types import is_datetime64_any_dtype
 
+def train_peer_model(dataset: pd.DataFrame, test_frac: float) -> Tuple[xgb.XGBRegressor, Dict[str, Any], List[str]]:
+    if len(dataset) == 0:
+        raise ValueError("Dataset is empty - cannot train model")
 
-def train_peer_model(dataset: pd.DataFrame, test_frac: float) -> Tuple[xgb.XGBRegressor, Dict[str, Any]]:
-    """Train XGBoost model for peer effects."""
-    
-    # Prepare data
-    y = dataset["y"].astype(float)
-    X = dataset.drop(columns=["y", "ts_event"]).astype(float)
-    
-    # Chronological split (important for time series)
-    n = len(dataset)
-    split_idx = int(n * (1 - test_frac))
-    
+    # Build feature matrix from non-datetime columns only
+    # (don’t guess later—lock the list now and reuse it for analysis)
+    feature_cols = [c for c in dataset.columns if c != "y" and not is_datetime64_any_dtype(dataset[c])]
+    X = dataset[feature_cols].copy()
+    y = pd.to_numeric(dataset["y"], errors="coerce")
+
+    # numeric coercion
+    X = X.apply(pd.to_numeric, errors="coerce")
+
+    # keep rows with valid y AND at least one non-NaN feature
+    valid_idx = y.notna() & X.notna().any(axis=1)
+    X = X.loc[valid_idx].reset_index(drop=True)
+    y = y.loc[valid_idx].reset_index(drop=True)
+
+    # final safety
+    n = len(X)
+    if n < 10:
+        raise ValueError(f"Insufficient data: only {n} samples available")
+
+    split_idx = max(1, int(n * (1 - test_frac)))
     X_train, X_test = X.iloc[:split_idx], X.iloc[split_idx:]
     y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
-    
-    print(f"  Training: {len(X_train):,} samples")
-    print(f"  Testing: {len(X_test):,} samples")
-    
-    # Train model with sensible defaults
+
     model = xgb.XGBRegressor(
         objective="reg:squarederror",
-        n_estimators=300,
+        n_estimators=min(300, max(50, len(X_train))),
         learning_rate=0.1,
-        max_depth=6,
+        max_depth=min(6, max(3, int(np.log2(len(X_train))))),
         subsample=0.8,
         colsample_bytree=0.8,
         random_state=42,
-        n_jobs=-1
+        n_jobs=-1,
     )
-    
     model.fit(X_train, y_train)
-    
-    # Evaluate
+
     y_pred = model.predict(X_test)
-    rmse = np.sqrt(np.mean((y_pred - y_test.values) ** 2))
-    r2 = 1 - np.sum((y_pred - y_test.values) ** 2) / np.sum((y_test.values - y_test.mean()) ** 2)
-    
+    m = min(len(y_pred), len(y_test))
+    y_pred, y_test_vals = y_pred[:m], y_test.iloc[:m].values
+
+    rmse = float(np.sqrt(np.mean((y_pred - y_test_vals) ** 2))) if m else float("nan")
+    ss_tot = float(np.sum((y_test_vals - float(np.mean(y_test_vals))) ** 2)) if m else 0.0
+    r2 = float(1 - np.sum((y_pred - y_test_vals) ** 2) / ss_tot) if ss_tot > 0 else 0.0
+
     metrics = {
-        "rmse": float(rmse),
-        "r2": float(r2),
+        "rmse": None if np.isnan(rmse) else rmse,
+        "r2": r2 if m else None,
         "n_train": len(X_train),
         "n_test": len(X_test),
-        "n_features": len(X.columns)
+        "n_features": len(feature_cols),
     }
-    
-    return model, metrics
-
+    # return the exact feature order used to train
+    return model, metrics, feature_cols
 
 def analyze_peer_effects(model: xgb.XGBRegressor, feature_names: Sequence[str]) -> Dict[str, Any]:
-    """Analyze which peers have the strongest effects."""
-    
-    # Get feature importance
-    importance = model.feature_importances_
-    feature_imp = pd.DataFrame({
-        "feature": feature_names,
-        "importance": importance
-    }).sort_values("importance", ascending=False)
-    
-    # Categorize features for analysis
-    peer_effects = {}
-    control_effects = {}
-    self_effects = {}
-    
+    importances = np.asarray(model.feature_importances_)
+    names = list(feature_names)
+
+    # harden against any mismatch
+    k = min(len(importances), len(names))
+    importances = importances[:k]
+    names = names[:k]
+
+    feature_imp = pd.DataFrame({"feature": names, "importance": importances}) \
+                    .sort_values("importance", ascending=False)
+
+    peer_effects, control_effects, self_effects = {}, {}, {}
     for _, row in feature_imp.iterrows():
-        feat = row["feature"]
-        imp = row["importance"]
-        
-        if feat.startswith("IV_") or feat.startswith("IVRET_"):
-            if "lag1" in feat:
-                self_effects[feat] = imp
-            else:
-                # Extract ticker name from feature
-                ticker = feat.split("_", 1)[1]
-                if ticker not in peer_effects:
-                    peer_effects[ticker] = 0
-                peer_effects[ticker] += imp
+        feat = row["feature"]; imp = float(row["importance"])
+        if feat in ("IV_SELF", "IVRET_SELF", "IV_SELF_L1", "IVRET_SELF_L1", "y_lag1"):
+            self_effects[feat] = self_effects.get(feat, 0.0) + imp
+        elif feat.startswith(("IV_", "IVRET_")):
+            ticker = feat.split("_", 1)[1]
+            peer_effects[ticker] = peer_effects.get(ticker, 0.0) + imp
         else:
-            control_effects[feat] = imp
-    
-    # Sort by total effect
+            control_effects[feat] = control_effects.get(feat, 0.0) + imp
+
     peer_effects = dict(sorted(peer_effects.items(), key=lambda x: x[1], reverse=True))
-    
     return {
         "peer_rankings": peer_effects,
         "self_lag_effects": self_effects,
         "control_effects": control_effects,
-        "detailed_features": feature_imp.head(20).to_dict("records")
+        "detailed_features": feature_imp.head(20).to_dict("records"),
     }
-
 
 def run_peer_analysis(cfg: PeerConfig, cores: Dict[str, pd.DataFrame]) -> Dict[str, Any]:
     """Complete peer effects analysis for one target."""
@@ -215,8 +208,33 @@ def run_peer_analysis(cfg: PeerConfig, cores: Dict[str, pd.DataFrame]) -> Dict[s
         # 1. Prepare dataset
         dataset = prepare_peer_dataset(cfg, cores)
         
+        # Check if dataset is empty
+        if dataset.empty:
+            print(f"  No valid data available for {cfg.target}")
+            return {
+                "target": cfg.target,
+                "target_kind": cfg.target_kind,
+                "status": "no_data",
+                "error": "Empty dataset after cleaning"
+            }
+        
         # 2. Train model
-        model, metrics = train_peer_model(dataset, cfg.test_frac)
+        # in run_peer_analysis(...)
+        model, metrics, feat_cols_used = train_peer_model(dataset, cfg.test_frac)
+
+        print(f"  Model Performance: R² = {metrics['r2']:.3f}, RMSE = {metrics['rmse']:.4f}")
+
+        analysis = analyze_peer_effects(model, feat_cols_used)
+
+        # Check if model training was successful
+        if metrics.get('r2') is None or metrics.get('rmse') is None:
+            print(f"  Model training failed for {cfg.target}")
+            return {
+                "target": cfg.target,
+                "target_kind": cfg.target_kind,
+                "status": "training_failed",
+                "error": "Model metrics are None"
+            }
         
         print(f"  Model Performance: R² = {metrics['r2']:.3f}, RMSE = {metrics['rmse']:.4f}")
         
@@ -311,7 +329,7 @@ def run_multi_target_analysis(
 # Example usage function
 def example_peer_analysis():
     """Example of how to run peer effects analysis."""
-    from feature_engineering import load_ticker_core
+    from data_loader_coordinator import load_ticker_core
     
     # Configuration
     tickers = ["AAPL", "MSFT", "GOOGL", "TSLA"]
