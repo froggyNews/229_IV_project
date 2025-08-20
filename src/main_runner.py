@@ -1,4 +1,5 @@
 
+
 import json
 import os
 from dataclasses import dataclass, field
@@ -22,9 +23,8 @@ from feature_engineering import (
     build_pooled_iv_return_dataset_time_safe,
     build_target_peer_dataset,
 )
-from data_loader_coordinator import AnalysisConfig, load_cores_with_auto_fetch
-from train_peer_effects import PeerEffectsConfig, run_peer_effects
-
+from data_loader_coordinator import load_cores_with_auto_fetch
+from train_peer_effects import run_multi_target_analysis
 
 @dataclass
 class RunConfig:
@@ -125,11 +125,11 @@ def train_model(data: pd.DataFrame, target: str, test_frac: float,
 def train_pooled_models(cfg: RunConfig) -> Dict[str, Any]:
     """Train pooled models for all targets."""
     
-    print(f"Loading data for tickers: {cfg.peer_targets}")
+    print(f"Loading data for tickers: {cfg.tickers}")
     
     # Use coordinator for clean data loading
     cores = load_cores_with_auto_fetch(
-        tickers=cfg.peer_targets,
+        tickers=cfg.tickers,
         start=cfg.start, 
         end=cfg.end,
         db_path=cfg.db_path,
@@ -190,74 +190,42 @@ def train_pooled_models(cfg: RunConfig) -> Dict[str, Any]:
 
 
 def train_peer_effects(cfg: RunConfig, cores: Dict[str, pd.DataFrame]) -> Dict[str, Any]:
-    """Train peer effects models using existing train_peer_effects module."""
+    """Train peer effects models using updated train_peer_effects module."""
     
     if not cfg.peer_targets:
         return {}
     
     print(f"\n=== Peer Effects Analysis ===") 
-    results = {}
+    print(f"Analyzing {len(cfg.peer_target_kinds)} targets: {cfg.peer_targets}")
     
-    for target in cfg.peer_targets:
-        if target not in cores:
-            print(f"Skipping {target}: no core data")
-            continue
-            
-        for target_kind in cfg.peer_target_kinds:
-            print(f"Training peer effects for {target} ({target_kind})...")
-            
-            try:
-                # Use existing PeerEffectsConfig
-                peer_config = PeerEffectsConfig(
-                    target=target,
-                    peer_targets=list(cores.keys()),  # Use all available tickers
-                    start=cfg.start,
-                    end=cfg.end,
-                    db_path=str(cfg.db_path),
-                    target_kind=target_kind,
-                    test_frac=cfg.test_frac,
-                    forward_steps=cfg.forward_steps,
-                    tolerance=cfg.tolerance,
-                    xgb_params=cfg.xgb_params,
-                    save_report=False
-                )
-                
-                # Build dataset using existing function with cores
-                dataset = build_target_peer_dataset(
-                    target=target,
-                    tickers=list(cores.keys()),
-                    start=cfg.start,
-                    end=cfg.end,
-                    forward_steps=cfg.forward_steps,
-                    tolerance=cfg.tolerance,
-                    db_path=cfg.db_path,
-                    target_kind=target_kind,
-                    cores=cores  # Pass pre-loaded cores
-                )
-                
-                if dataset.empty:
-                    print(f"  Empty dataset for {target} ({target_kind})")
-                    continue
-
-                # Use existing run_peer_effects function
-                result = train_peer_effects(peer_config, dataset)
-
-                key = f"{target}_{target_kind}"
-                results[key] = result.get("evaluation", {})
-                
-                status = result.get("status", "unknown")
-                if status == "ok":
-                    metrics = result.get("evaluation", {}).get("metrics", {})
-                    r2 = metrics.get("r2", 0)
-                    print(f"  Success: R² = {r2:.3f}")
-                else:
-                    print(f"  Status: {status}")
-                
-            except Exception as e:
-                print(f"  Error: {e}")
-                continue
+    all_results = {}
     
-    return results
+    for target_kind in cfg.peer_target_kinds:
+        print(f"\nAnalyzing target kind: {target_kind}")
+        
+        # Use the updated run_multi_target_analysis function
+        results = run_multi_target_analysis(
+            targets=cfg.peer_targets,
+            tickers=list(cfg.tickers),  # Use all configured tickers
+            start=cfg.start,
+            end=cfg.end,
+            cores=cores,
+            target_kind=target_kind,
+            forward_steps=cfg.forward_steps,
+            test_frac=cfg.test_frac,
+            tolerance=cfg.tolerance,
+            db_path=cfg.db_path,
+            include_self_lag=True,
+            exclude_contemporaneous=True,
+            save_details=False  # Don't save individual files, we'll aggregate
+        )
+        
+        # Store results by target_kind
+        for target, result in results.items():
+            key = f"{target}_{target_kind}"
+            all_results[key] = result
+    
+    return all_results
 
 
 def save_results(cfg: RunConfig, pooled_results: Dict, peer_results: Dict) -> Path:
@@ -269,7 +237,7 @@ def save_results(cfg: RunConfig, pooled_results: Dict, peer_results: Dict) -> Pa
     # Prepare metrics (exclude models from JSON)
     output = {
         "config": {
-            "tickers": list(cfg.peer_targets),
+            "tickers": list(cfg.tickers),
             "start": cfg.start,
             "end": cfg.end,
             "forward_steps": cfg.forward_steps,
@@ -306,13 +274,8 @@ def save_models(cfg: RunConfig, pooled_results: Dict, peer_results: Dict) -> Dic
         saved_paths[f"pooled_{name}"] = path
         print(f"Saved pooled model: {path}")
     
-    # Save peer effects models
-    for name, result in peer_results.items():
-        if "model" in result:
-            path = models_dir / f"peer_{name}_{cfg.timestamp}.json"
-            result["model"].save_model(str(path))
-            saved_paths[f"peer_{name}"] = path
-            print(f"Saved peer model: {path}")
+    # Note: The updated train_peer_effects module focuses on analysis rather than model persistence
+    # Peer effects models are not saved in the updated version as they are used for analysis only
     
     return saved_paths
 
@@ -320,18 +283,18 @@ def save_models(cfg: RunConfig, pooled_results: Dict, peer_results: Dict) -> Dic
 def run_pipeline(cfg: RunConfig) -> Dict[str, Any]:
     """Run complete training pipeline."""
     
-    if not cfg.peer_targets:
+    if not cfg.tickers:
         raise ValueError("No tickers specified")
     
-    print(f"Starting pipeline with {len(cfg.peer_targets)} tickers")
+    print(f"Starting pipeline with {len(cfg.tickers)} tickers")
     print(f"Date range: {cfg.start} to {cfg.end}")
     
     # Train pooled models
     pooled_results = train_pooled_models(cfg)
-
-    # Train peer effects models
+    
+    # Train peer effects models  
     peer_results = train_peer_effects(cfg, pooled_results["cores"])
-
+    
     # Save results
     metrics_path = save_results(cfg, pooled_results, peer_results)
     model_paths = save_models(cfg, pooled_results, peer_results)
@@ -354,7 +317,7 @@ if __name__ == "__main__":
         end="2025-08-06",
         forward_steps=15,
         test_frac=0.2,
-        peer_targets=["QUBT", "RGTI"],  # Subset for peer effects
+        peer_targets=["QUBT", "QBTS"],  # Subset for peer effects
         peer_target_kinds=["iv_ret", "iv"]  # Both return and level
     )
     

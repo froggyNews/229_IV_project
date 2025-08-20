@@ -7,14 +7,97 @@ train_peer_effects.py.
 """
 
 import os
+import sqlite3
 from pathlib import Path
 from typing import Dict, Sequence, Optional
 
+import numpy as np
 import pandas as pd
+from scipy.stats import norm
+from scipy.optimize import brentq
 
 # Import existing functions
 from fetch_data_sqlite import fetch_and_save
-from feature_engineering import load_ticker_core
+
+
+def _calculate_iv(price: float, S: float, K: float, T: float, cp: str, r: float) -> float:
+    """IV calculation (moved here to avoid circular imports)."""
+    if not np.isfinite([price, S, K, T, r]).all() or price <= 0 or S <= 0 or K <= 0 or T <= 0:
+        return np.nan
+    
+    intrinsic = max(S - K, 0.0) if cp.upper().startswith('C') else max(K - S, 0.0)
+    if price <= intrinsic + 1e-10:
+        return 1e-6
+        
+    def bs_price(sigma):
+        if T <= 0 or sigma <= 0 or S <= 0 or K <= 0:
+            return intrinsic
+        sqrtT = np.sqrt(T)
+        d1 = (np.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * sqrtT)
+        d2 = d1 - sigma * sqrtT
+        if cp.upper().startswith('C'):
+            return S * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
+        else:
+            return K * np.exp(-r * T) * norm.cdf(-d2) - S * norm.cdf(-d1)
+    
+    try:
+        return brentq(lambda sig: bs_price(sig) - price, 1e-6, 5.0, maxiter=100, xtol=1e-8)
+    except:
+        return np.nan
+
+
+def load_ticker_core(ticker: str, start=None, end=None, r=0.045, db_path=None) -> pd.DataFrame:
+    """Load ticker core data with IV calculation."""
+    
+    if db_path is None:
+        db_path = Path(os.getenv("IV_DB_PATH", "data/iv_data_1m.db"))
+    
+    with sqlite3.connect(str(db_path)) as conn:
+        # Table selection logic (preserves original)
+        table = "atm_slices_1m"
+        if not conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone():
+            table = "processed_merged_1m" 
+            if not conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone():
+                table = "processed_merged"
+        
+        where_clauses, params = ["ticker=?"], [ticker]
+        if start:
+            where_clauses.append("ts_event >= ?")
+            params.append(pd.to_datetime(start).strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
+        if end:
+            where_clauses.append("ts_event <= ?")
+            params.append(pd.to_datetime(end).strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
+            
+        query = f"""
+        SELECT ts_event, expiry_date, opt_symbol, stock_symbol,
+               opt_close, stock_close, opt_volume, stock_volume,
+               option_type, strike_price, time_to_expiry, moneyness
+        FROM {table} WHERE {' AND '.join(where_clauses)}
+        ORDER BY ts_event
+        """
+        
+        df = pd.read_sql_query(query, conn, params=params, parse_dates=["ts_event", "expiry_date"])
+    
+    if df.empty:
+        return df
+        
+    # IV calculation
+    df["iv"] = df.apply(lambda row: _calculate_iv(
+        row["opt_close"], row["stock_close"], row["strike_price"], 
+        max(row["time_to_expiry"], 1e-6), row["option_type"], r
+    ), axis=1)
+    
+    # Core cleanup (preserves original column selection and processing)
+    keep = ["ts_event", "expiry_date", "iv", "opt_volume", "stock_close", 
+            "stock_volume", "time_to_expiry", "strike_price", "option_type"]
+    df = df[keep].copy()
+    df["symbol"] = ticker
+    df["ts_event"] = pd.to_datetime(df["ts_event"], utc=True, errors="coerce")
+    df = df.dropna(subset=["iv"]).sort_values("ts_event").reset_index(drop=True)
+    df["iv_clip"] = df["iv"].clip(lower=1e-6)
+    
+    return df
+
 
 class DataCoordinator:
     """Coordinates data loading and ensures consistency across modules."""
@@ -32,11 +115,6 @@ class DataCoordinator:
     ) -> Dict[str, pd.DataFrame]:
         """
         Load ticker cores, automatically fetching missing data if possible.
-        
-        This is the main coordination function that:
-        1. Tries to load existing data using feature_engineering.load_ticker_core
-        2. If data is missing and auto_fetch=True, uses fetch_data_sqlite.fetch_and_save
-        3. Returns a clean cores dict for use across all modules
         """
         cores = {}
         missing_tickers = []
@@ -46,6 +124,7 @@ class DataCoordinator:
         # First pass: try to load existing data
         for ticker in tickers:
             try:
+                # Call the module-level function
                 core = load_ticker_core(ticker, start=start, end=end, db_path=self.db_path)
                 if not core.empty:
                     cores[ticker] = core
@@ -69,7 +148,7 @@ class DataCoordinator:
                     print(f"  Fetching {ticker}...")
                     fetch_and_save(self.api_key, ticker, start_ts, end_ts, self.db_path, force=False)
                     
-                    # Retry loading after fetch
+                    # Retry loading after fetch - call module-level function
                     core = load_ticker_core(ticker, start=start, end=end, db_path=self.db_path)
                     if not core.empty:
                         cores[ticker] = core
@@ -92,15 +171,11 @@ class DataCoordinator:
         cores: Dict[str, pd.DataFrame], 
         analysis_type: str = "general"
     ) -> Dict[str, pd.DataFrame]:
-        """
-        Validate cores are suitable for specific analysis types.
-        
-        This ensures consistent validation logic across modules.
-        """
+        """Validate cores are suitable for specific analysis types."""
         valid_cores = {}
         
         for ticker, core in cores.items():
-            # Basic validation (from feature_engineering._valid_core logic)
+            # Basic validation
             if core is None or core.empty:
                 print(f"Skipping {ticker}: empty core")
                 continue
@@ -111,13 +186,11 @@ class DataCoordinator:
                 
             # Analysis-specific validation
             if analysis_type == "peer_effects":
-                # Need sufficient data for train/test split
                 if len(core) < 100:
                     print(f"Skipping {ticker}: insufficient data for peer effects ({len(core)} rows)")
                     continue
                     
             elif analysis_type == "pooled":
-                # Need at least some data to contribute to pool
                 if len(core) < 50:
                     print(f"Skipping {ticker}: insufficient data for pooling ({len(core)} rows)")
                     continue
@@ -172,117 +245,3 @@ def validate_cores(
     """Convenience function for core validation."""
     coordinator = DataCoordinator()
     return coordinator.validate_cores_for_analysis(cores, analysis_type)
-
-
-# Integration helpers for existing modules
-class AnalysisConfig:
-    """Shared configuration that works across all analysis types."""
-    
-    def __init__(
-        self,
-        tickers: Sequence[str],
-        start: str,
-        end: str,
-        db_path: Optional[Path] = None,
-        forward_steps: int = 15,
-        test_frac: float = 0.2,
-        tolerance: str = "2s"
-    ):
-        self.tickers = list(tickers)
-        self.start = start
-        self.end = end
-        self.db_path = db_path or Path(os.getenv("IV_DB_PATH", "data/iv_data_1m.db"))
-        self.forward_steps = forward_steps
-        self.test_frac = test_frac
-        self.tolerance = tolerance
-        
-        # Load cores once for all analyses
-        self.coordinator = DataCoordinator(self.db_path)
-        self.cores = self.coordinator.load_cores_with_fetch(
-            self.tickers, self.start, self.end, auto_fetch=True
-        )
-        
-    def get_pooled_cores(self) -> Dict[str, pd.DataFrame]:
-        """Get cores validated for pooled analysis."""
-        return self.coordinator.validate_cores_for_analysis(self.cores, "pooled")
-        
-    def get_peer_cores(self) -> Dict[str, pd.DataFrame]:
-        """Get cores validated for peer effects analysis.""" 
-        return self.coordinator.validate_cores_for_analysis(self.cores, "peer_effects")
-    
-    def summary(self) -> Dict:
-        """Get summary of loaded data."""
-        return self.coordinator.get_analysis_summary(self.cores)
-
-
-# Example integration with existing modules
-def run_integrated_analysis(config: AnalysisConfig):
-    """Example of how to use the coordinator with existing modules."""
-    
-    print("=== Integrated Analysis ===")
-    print(f"Config: {config.summary()}")
-    
-    # 1. Pooled analysis using existing feature_engineering functions
-    from feature_engineering import build_pooled_iv_return_dataset_time_safe
-    
-    pooled_cores = config.get_pooled_cores()
-    if pooled_cores:
-        print(f"\nRunning pooled analysis with {len(pooled_cores)} tickers...")
-        pooled_data = build_pooled_iv_return_dataset_time_safe(
-            tickers=list(pooled_cores.keys()),
-            start=config.start,
-            end=config.end,
-            forward_steps=config.forward_steps,
-            tolerance=config.tolerance,
-            db_path=config.db_path,
-            cores=pooled_cores  # Pass pre-loaded cores
-        )
-        print(f"Pooled dataset: {len(pooled_data):,} rows")
-    
-    # 2. Peer effects using existing train_peer_effects functions
-    from train_peer_effects import PeerEffectsConfig, run_peer_effects
-    from feature_engineering import build_target_peer_dataset
-    
-    peer_cores = config.get_peer_cores()
-    if len(peer_cores) >= 2:  # Need at least target + 1 peer
-        print(f"\nRunning peer effects with {len(peer_cores)} tickers...")
-        
-        # Example: analyze first ticker vs others
-        target = list(peer_cores.keys())[0]
-        
-        # Use existing PeerEffectsConfig with pre-loaded cores
-        peer_config = PeerEffectsConfig(
-            target=target,
-            tickers=list(peer_cores.keys()),
-            start=config.start,
-            end=config.end,
-            db_path=str(config.db_path),
-            forward_steps=config.forward_steps,
-            test_frac=config.test_frac
-        )
-        
-        # Build dataset using existing function with cores
-        dataset = build_target_peer_dataset(
-            target=target,
-            tickers=list(peer_cores.keys()),
-            start=config.start,
-            end=config.end,
-            forward_steps=config.forward_steps,
-            db_path=config.db_path,
-            cores=peer_cores  # Pass pre-loaded cores
-        )
-        
-        if not dataset.empty:
-            result = run_peer_effects(peer_config, dataset)
-            print(f"Peer effects for {target}: {result.get('status', 'completed')}")
-
-
-if __name__ == "__main__":
-    # Example usage
-    config = AnalysisConfig(
-        tickers=["QUBT", "QBTS", "RGTI", "IONQ"],
-        start="2025-08-02",
-        end="2025-08-06"
-    )
-    
-    run_integrated_analysis(config)

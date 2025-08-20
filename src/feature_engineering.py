@@ -1,17 +1,3 @@
-"""
-Cleaned feature engineering with duplicated/unnecessary code removed.
-
-Removed functions now handled by data_loader_coordinator:
-- Complex database loading logic (coordinator handles this)
-- Individual ticker core loading (coordinator does this better)
-- Core validation logic (moved to coordinator)
-
-Kept essential functions:
-- Feature engineering logic
-- Dataset building functions that other modules depend on
-- Core transformation functions
-"""
-
 import os
 import sqlite3
 from pathlib import Path
@@ -299,85 +285,6 @@ def build_target_peer_dataset(
     return finalize_dataset(feats, "y", drop_symbol=True)
 
 
-
-
-
-def load_ticker_core(ticker: str, start=None, end=None, r=0.045, db_path=DEFAULT_DB_PATH) -> pd.DataFrame:
-    """Centralized ticker data loading with IV calculation."""
-    
-    with sqlite3.connect(str(db_path)) as conn:
-        # Table selection logic (preserves original)
-        table = "atm_slices_1m"
-        if not conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone():
-            table = "processed_merged_1m" 
-            if not conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone():
-                table = "processed_merged"
-        
-        where_clauses, params = ["ticker=?"], [ticker]
-        if start:
-            where_clauses.append("ts_event >= ?")
-            params.append(pd.to_datetime(start).strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
-        if end:
-            where_clauses.append("ts_event <= ?")
-            params.append(pd.to_datetime(end).strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
-            
-        query = f"""
-        SELECT ts_event, expiry_date, opt_symbol, stock_symbol,
-               opt_close, stock_close, opt_volume, stock_volume,
-               option_type, strike_price, time_to_expiry, moneyness
-        FROM {table} WHERE {' AND '.join(where_clauses)}
-        ORDER BY ts_event
-        """
-        
-        df = pd.read_sql_query(query, conn, params=params, parse_dates=["ts_event", "expiry_date"])
-    
-    if df.empty:
-        return df
-        
-    # IV calculation (preserves original BS implementation)
-    df["iv"] = df.apply(lambda row: _calculate_iv(
-        row["opt_close"], row["stock_close"], row["strike_price"], 
-        max(row["time_to_expiry"], 1e-6), row["option_type"], r
-    ), axis=1)
-    
-    # Core cleanup (preserves original column selection and processing)
-    keep = ["ts_event", "expiry_date", "iv", "opt_volume", "stock_close", 
-            "stock_volume", "time_to_expiry", "strike_price", "option_type"]
-    df = df[keep].copy()
-    df["symbol"] = ticker
-    df["ts_event"] = pd.to_datetime(df["ts_event"], utc=True, errors="coerce")
-    df = df.dropna(subset=["iv"]).sort_values("ts_event").reset_index(drop=True)
-    df["iv_clip"] = df["iv"].clip(lower=1e-6)
-    
-    return df
-
-
-
-def _calculate_iv(price: float, S: float, K: float, T: float, cp: str, r: float) -> float:
-    """Centralized IV calculation (preserves original BS logic)."""
-    if not np.isfinite([price, S, K, T, r]).all() or price <= 0 or S <= 0 or K <= 0 or T <= 0:
-        return np.nan
-    
-    intrinsic = max(S - K, 0.0) if cp.upper().startswith('C') else max(K - S, 0.0)
-    if price <= intrinsic + 1e-10:
-        return 1e-6
-        
-    def bs_price(sigma):
-        if T <= 0 or sigma <= 0 or S <= 0 or K <= 0:
-            return intrinsic
-        sqrtT = np.sqrt(T)
-        d1 = (np.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * sqrtT)
-        d2 = d1 - sigma * sqrtT
-        if cp.upper().startswith('C'):
-            return S * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
-        else:
-            return K * np.exp(-r * T) * norm.cdf(-d2) - S * norm.cdf(-d1)
-    
-    try:
-        return brentq(lambda sig: bs_price(sig) - price, 1e-6, 5.0, maxiter=100, xtol=1e-8)
-    except:
-        return np.nan
-
 # Export original names for backward compatibility
 __all__ = [
     "build_pooled_iv_return_dataset_time_safe",
@@ -387,3 +294,23 @@ __all__ = [
     "build_iv_panel",
     "finalize_dataset"
 ]
+
+
+# ------------------------------------------------------------
+# REMOVED FUNCTIONS (now handled by data_loader_coordinator):
+# ------------------------------------------------------------
+# - load_atm_from_sqlite() -> coordinator handles DB access
+# - _atm_core() -> coordinator handles core loading
+# - load_ticker_core() -> coordinator handles this better
+# - _valid_core() -> coordinator validates cores
+# - _table_exists() -> coordinator handles DB logic
+# - _read_sql() -> coordinator handles DB logic  
+# - compute_iv_column() -> coordinator handles IV calculation
+# - implied_vol() -> coordinator handles IV calculation
+# - _bs_price() -> coordinator handles IV calculation
+# - _encode_option_type() -> moved inline to add_all_features
+# - _compute_forward_returns() -> moved inline to add_all_features
+# - _merge_panel() -> simplified inline in main functions
+# - _add_simple_controls() -> moved inline to add_all_features
+# - _numeric() -> moved inline to finalize_dataset
+# - build_base_iv_dataset() -> replaced by coordinator + individual functions
