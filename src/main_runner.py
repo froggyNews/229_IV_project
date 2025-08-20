@@ -22,6 +22,7 @@ except Exception:
 from feature_engineering import build_pooled_iv_return_dataset_time_safe
 from model_evaluation import evaluate_pooled_model
 from train_peer_effects import PeerEffectsConfig, train_peer_effects
+from feature_engineering import _atm_core, _valid_core, build_target_peer_dataset
 
 
 @dataclass
@@ -114,14 +115,24 @@ def run(cfg: RunConfig) -> Dict[str, Any]:
     start = pd.Timestamp(cfg.start, tz="UTC")
     end = pd.Timestamp(cfg.end, tz="UTC")
 
-    # Build pooled dataset once
+    dbp = Path(CFG.db)
+    tickers_all = list(set(CFG.tickers))  # include union of pooled + peer tickers
+    cores_raw = {t: _atm_core(t, start=CFG.start, end=CFG.end, r=0.045, db_path=dbp) for t in tickers_all}
+    cores = {t: df for t, df in cores_raw.items() if _valid_core(df)}
+    dropped = set(cores_raw) - set(cores)
+    if dropped:
+        print(f"[CORES] Dropped invalid cores: {sorted(dropped)}")
+
+    # Step 2: Use unified cores everywhere
     pooled = build_pooled_iv_return_dataset_time_safe(
-        tickers=list(cfg.tickers),
-        start=start,
-        end=end,
-        forward_steps=cfg.forward_steps,
-        tolerance=cfg.tolerance,
-        db_path=cfg.db,
+        tickers=CFG.tickers,
+        start=CFG.start,
+        end=CFG.end,
+        r=0.045,
+        forward_steps=CFG.forward_steps,
+        tolerance=CFG.tolerance,
+        db_path=CFG.db,
+        cores=cores,  # pass shared cores
     )
     if pooled.empty:
         raise RuntimeError("Pooled dataset is empty.")
@@ -200,29 +211,51 @@ def run(cfg: RunConfig) -> Dict[str, Any]:
         print(f"[EVAL] done → {tag} ({model_path})")
 
     # --- Peer-effects per target (optional) ---
+    # --- Peer-effects per target (optional) ---
     peer_eval_results: Dict[str, Any] = {}
     if cfg.peer_targets:
         kinds = list(cfg.peer_target_kinds) if cfg.peer_target_kinds else [cfg.peer_target_kind]
+
         for tgt in cfg.peer_targets:
             for kind in kinds:
+                if tgt not in cores or not _valid_core(cores.get(tgt)):
+                    print(f"[SKIP] {tgt}:{kind} → target core is missing or invalid")
+                    continue
+
                 pe_cfg = PeerEffectsConfig(
                     target=tgt,
                     tickers=list(cfg.tickers),
                     start=cfg.start,
                     end=cfg.end,
                     db_path=str(cfg.db),
-                    target_kind=kind,                         # <-- run both
+                    target_kind=kind,
                     test_frac=cfg.test_frac,
                     forward_steps=cfg.forward_steps,
                     tolerance=cfg.tolerance,
                     metrics_dir=cfg.metrics_path.parent,
-                    prefix=f"{cfg.peer_prefix}_{kind}",       # separate outputs
+                    prefix=f"{cfg.peer_prefix}_{kind}",
                     xgb_params=cfg.xgb_params,
                     save_report=False,
                 )
-                res = train_peer_effects(pe_cfg)
-                peer_eval_results[f"{tgt}_{kind}"] = res.get("evaluation", {})
-                print(f"[PEER] {tgt}:{kind} → {res.get('status','ok')}")
+
+                try:
+                    ds = build_target_peer_dataset(
+                        target=pe_cfg.target,
+                        tickers=pe_cfg.tickers,
+                        start=pe_cfg.start,
+                        end=pe_cfg.end,
+                        r=0.045,  # fixed r value
+                        forward_steps=pe_cfg.forward_steps,
+                        tolerance=pe_cfg.tolerance,
+                        db_path=pe_cfg.db_path,
+                        target_kind=pe_cfg.target_kind,
+                        cores=cores,  # shared core usage
+                    )
+                    res = train_peer_effects(pe_cfg, ds)
+                    peer_eval_results[f"{tgt}_{kind}"] = res.get("evaluation", {})
+                    print(f"[PEER] {tgt}:{kind} → {res.get('status','ok')}")
+                except ValueError as e:
+                    print(f"[SKIP] {tgt}:{kind} → error: {e}")
 
     # Final aggregated metrics and evaluations
     results = {

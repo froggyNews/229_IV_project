@@ -25,6 +25,16 @@ __all__ = [
 ]
 
 # ------------------------------------------------------------
+# Validation helpers
+# ------------------------------------------------------------
+def _valid_core(df: pd.DataFrame) -> bool:
+    """Core must be a non-empty DataFrame with required columns."""
+    # Check if df is None first
+    if df is None:
+        return False
+    
+    return isinstance(df, pd.DataFrame) and not df.empty and {"ts_event", "iv_clip"}.issubset(df.columns)
+# ------------------------------------------------------------
 # DB I/O + raw IV
 # ------------------------------------------------------------
 def _table_exists(conn: sqlite3.Connection, name: str) -> bool:
@@ -43,7 +53,7 @@ def load_atm_from_sqlite(
     db_path: Path = DEFAULT_DB_PATH,
 ) -> pd.DataFrame:
     """Load near-ATM rows (or fallback processed rows) for one ticker."""
-    with sqlite3.connect(db_path) as conn:
+    with sqlite3.connect(str(db_path)) as conn:
         table = "atm_slices_1m" if _table_exists(conn, "atm_slices_1m") else None
         if table is None:
             table = "processed_merged_1m" if _table_exists(conn, "processed_merged_1m") else "processed_merged"
@@ -52,11 +62,19 @@ def load_atm_from_sqlite(
 
         clauses, params = ["ticker=?"], [ticker]
         if start is not None:
+            if isinstance(start, str):
+                start_dt = pd.to_datetime(start)
+            else:
+                start_dt = start
             clauses.append("ts_event >= ?")
-            params.append(start.strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
+            params.append(start_dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
         if end is not None:
+            if isinstance(end, str):
+                end_dt = pd.to_datetime(end)
+            else:
+                end_dt = end
             clauses.append("ts_event <= ?")
-            params.append(end.strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
+            params.append(end_dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
 
         where = " AND ".join(clauses)
         q = f"""
@@ -133,41 +151,56 @@ def _atm_core(ticker: str, *, start=None, end=None, r: float = 0.045, db_path: P
     out["ts_event"] = pd.to_datetime(out["ts_event"], utc=True, errors="coerce")
     out = out.dropna(subset=["iv"]).sort_values("ts_event").reset_index(drop=True)
     out["iv_clip"] = out["iv"].clip(lower=1e-6)
+    S = out["stock_close"].astype(float).to_numpy()
+    K = out["strike_price"].astype(float).to_numpy()
+    T = np.maximum(out["time_to_expiry"].astype(float).to_numpy(), 1e-9)
+    sig = out["iv_clip"].astype(float).to_numpy()
+    sqrtT = np.sqrt(T)
 
-    # Greeks using clipped IV to avoid degenerate cases
-    def _greeks_row(row):
-        S = float(row["stock_close"])
-        K = float(row["strike_price"])
-        T = float(max(row["time_to_expiry"], 1e-9))
-        sigma = float(row["iv_clip"])
-        cp = str(row["option_type"])
-        return (
-            bs_delta(S, K, T, r, sigma, cp),
-            bs_gamma(S, K, T, r, sigma),
-            bs_vega(S, K, T, r, sigma),
-        )
+    d1 = (np.log(S / K) + (r + 0.5 * sig * sig) * T) / (sig * sqrtT)
+    pdf = np.exp(-0.5 * d1 * d1) / np.sqrt(2.0 * np.pi)
+    is_call = out["option_type"].astype(str).str.upper().str[0].eq("C").to_numpy()
 
-    greeks = out.apply(_greeks_row, axis=1, result_type="expand")
-    greeks.columns = ["delta", "gamma", "vega"]
-    out = pd.concat([out, greeks], axis=1)
+    out["delta"] = np.where(is_call, norm.cdf(d1), norm.cdf(d1) - 1.0)
+    out["gamma"] = pdf / (S * sig * sqrtT)
+    out["vega"] = S * pdf * sqrtT
+
     return out
-
-
 def _build_iv_panel(cores: Dict[str, pd.DataFrame], tolerance: str) -> pd.DataFrame:
     """
     Build a wide, time-safe panel of IV and IVRET for all tickers:
         ts_event, IV_<T1>.., IVRET_<T1>.., IV_<Tn>.., IVRET_<Tn>..
+    Skips any invalid/empty cores gracefully.
     """
-    iv_wide = None
     tol = pd.Timedelta(tolerance)
+    iv_wide: pd.DataFrame | None = None
+
     for t, df in cores.items():
-        tmp = df[["ts_event", "iv_clip"]].rename(columns={"iv_clip": f"IV_{t}"}).sort_values("ts_event").copy()
-        tmp[f"IVRET_{t}"] = np.log(tmp[f"IV_{t}"]) - np.log(tmp[f"IV_{t}"].shift(1))
-        # keep only needed cols
-        tmp = tmp[["ts_event", f"IV_{t}", f"IVRET_{t}"]]
-        iv_wide = tmp if iv_wide is None else pd.merge_asof(
-            iv_wide, tmp, on="ts_event", direction="backward", tolerance=tol
+        if not _valid_core(df):
+            print(f"[iv_panel] skip {t}: core is None/empty or missing required cols")
+            continue
+
+        # ensure proper types and sorting for merge_asof
+        tmp = (
+            df[["ts_event", "iv_clip"]]
+            .rename(columns={"iv_clip": f"IV_{t}"})
+            .copy()
         )
+        tmp["ts_event"] = pd.to_datetime(tmp["ts_event"], utc=True, errors="coerce")
+        tmp = tmp.dropna(subset=["ts_event", f"IV_{t}"]).sort_values("ts_event")
+
+        # IVRET uses each ticker's own history
+        tmp[f"IVRET_{t}"] = np.log(tmp[f"IV_{t}"]) - np.log(tmp[f"IV_{t}"].shift(1))
+        tmp = tmp[["ts_event", f"IV_{t}", f"IVRET_{t}"]]
+
+        iv_wide = tmp if iv_wide is None else pd.merge_asof(
+            iv_wide.sort_values("ts_event"),
+            tmp,
+            on="ts_event",
+            direction="backward",
+            tolerance=tol,
+        )
+
     return iv_wide if iv_wide is not None else pd.DataFrame(columns=["ts_event"])
 
 
@@ -220,7 +253,13 @@ def build_iv_return_dataset_time_safe(
       - features: IV_SELF, IVRET_SELF, IV_<peer>*, IVRET_<peer>* + simple controls
     """
     dbp = Path(db_path) if db_path else DEFAULT_DB_PATH
-    cores = {t: _atm_core(t, start=start, end=end, r=r, db_path=dbp) for t in tickers}
+    cores_raw = {t: _atm_core(t, start=start, end=end, r=r, db_path=dbp) for t in tickers}
+    cores = {t: df for t, df in cores_raw.items() if _valid_core(df)}
+    print(cores)
+    dropped = None
+    if dropped:
+        print(f"[iv_dataset] dropped invalid cores: {sorted(dropped)}")
+
     panel = _build_iv_panel(cores, tolerance=tolerance)
 
     out: Dict[str, pd.DataFrame] = {}
@@ -271,6 +310,7 @@ def build_pooled_iv_return_dataset_time_safe(
     start=None, end=None, r: float = 0.045,
     forward_steps: int = 1, tolerance: str = "2s",
     db_path: Path | str | None = None,
+    cores: dict[str, pd.DataFrame] | None = None,
 ) -> pd.DataFrame:
     """
     One pooled frame suitable for XGB eval:
@@ -279,11 +319,22 @@ def build_pooled_iv_return_dataset_time_safe(
       - time-safe merges; no leakage
     """
     dbp = Path(db_path) if db_path else DEFAULT_DB_PATH
-    cores = {t: _atm_core(t, start=start, end=end, r=r, db_path=dbp) for t in tickers}
+    if cores is None:
+        dbp = Path(db_path) if db_path else DEFAULT_DB_PATH
+        cores_raw = {t: _atm_core(t, start=start, end=end, r=r, db_path=dbp) for t in tickers}
+        cores = {t: df for t, df in cores_raw.items() if _valid_core(df)}
+        dropped = set(cores_raw) - set(cores)
+        if dropped:
+            print(f"[pooled] dropped invalid cores: {sorted(dropped)}")
+
+    dropped = None
+    if dropped:
+        print(f"[pooled] dropped invalid cores: {sorted(dropped)}")
+
     panel = _build_iv_panel(cores, tolerance=tolerance)
 
     frames = []
-    for tgt, base in cores.items():
+    for tgt, base in cores.items():   # <-- iterate sanitized cores
         feats = base.copy()
         feats["iv_ret_fwd"] = np.log(feats["iv_clip"].shift(-forward_steps)) - np.log(feats["iv_clip"])
         feats["iv_ret_fwd_abs"] = feats["iv_ret_fwd"].abs()
@@ -328,19 +379,23 @@ def build_target_peer_dataset(
     forward_steps: int = 1,
     tolerance: str = "2s",
     db_path: Path | str | None = None,
-    target_kind: str = "iv_ret",  # "iv_ret" (default) or "iv"
+    target_kind: str = "iv_ret",
+    cores: dict[str, pd.DataFrame] | None = None,
 ) -> pd.DataFrame:
-    """
-    Single-target dataset to study how peers move the target.
-    Columns: y, IV_SELF, IVRET_SELF, IV_<peer>*, IVRET_<peer>* + controls.
-    Ensures no 'target' column or IV_{target}/IVRET_{target} leak into peers.
-    """
+    assert target in tickers, "target must be included in tickers"
+
+    if cores is None:
+        dbp = Path(db_path) if db_path else DEFAULT_DB_PATH
+        cores_raw = {t: _atm_core(t, start=start, end=end, r=r, db_path=dbp) for t in tickers}
+        cores = {t: df for t, df in cores_raw.items() if _valid_core(df)}
+
+    if target not in cores:
+        raise ValueError(f"Target {target} produced no valid core (None/empty/missing cols)")
+
     assert target in tickers, "target must be included in tickers"
     dbp = Path(db_path) if db_path else DEFAULT_DB_PATH
 
-    cores = {t: _atm_core(t, start=start, end=end, r=r, db_path=dbp) for t in tickers}
     panel = _build_iv_panel(cores, tolerance=tolerance)
-
     feats = cores[target].copy()
     feats = pd.merge_asof(
         feats.sort_values("ts_event"),
