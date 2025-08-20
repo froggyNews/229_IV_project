@@ -1,0 +1,52 @@
+{
+  "config": {
+    "tickers": [
+      "QUBT",
+      "QBTS",
+      "RGTI",
+      "IONQ"
+    ],
+    "start": "2025-08-02",
+    "end": "2025-08-06",
+    "forward_steps": 15,
+    "test_frac": 0.2,
+    "timestamp": "20250820_192357"
+  },
+  "pooled_models": {
+    "iv_ret_fwd": {
+      "rmse": 0.399614719162226,
+      "r2": 0.36977832448845593,
+      "n_train": 12072,
+      "n_test": 3018,
+      "features": [
+        "iv",
+        "opt_volume",
+        "stock_volume",
+        "time_to_expiry",
+        "strike_price",
+        "option_type",
+        "delta",
+        "gamma",
+        "vega",
+        "option_type_enc",
+        "rv_30m",
+        "opt_vol_change_1m",
+        "opt_vol_roll_15m",
+        "sabr_alpha",
+        "sabr_beta",
+        "sabr_rho",
+        "sabr_nu",
+        "sym_QUBT",
+        "sym_QBTS",
+        "sym_RGTI",
+        "sym_IONQ"
+      ]
+    }
+  },
+  "peer_effects": {
+    "QUBT": {},
+    "QBTS": {},
+    "RGTI": {},
+    "IONQ": {}
+  }
+}

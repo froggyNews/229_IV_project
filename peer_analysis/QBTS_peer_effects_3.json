@@ -1,0 +1,126 @@
+{
+  "target": "QBTS",
+  "target_kind": "iv_ret",
+  "config": {
+    "forward_steps": 15,
+    "include_self_lag": true,
+    "exclude_contemporaneous": true
+  },
+  "performance": {
+    "rmse": 0.5755688466083838,
+    "r2": 0.5351870499607768,
+    "n_train": 3063,
+    "n_test": 766,
+    "n_features": 21
+  },
+  "peer_analysis": {
+    "peer_rankings": {},
+    "self_lag_effects": {},
+    "control_effects": {
+      "ts_event": 0.24338912963867188,
+      "delta": 0.19356577098369598,
+      "option_type": 0.18640485405921936,
+      "iv_ret_fwd": 0.12870760262012482,
+      "time_to_expiry": 0.09365468472242355,
+      "stock_volume": 0.06611036509275436,
+      "expiry_date": 0.04779161512851715,
+      "gamma": 0.014431123621761799,
+      "rv_30m": 0.013015484437346458,
+      "opt_volume": 0.009501568041741848,
+      "opt_vol_roll_15m": 0.0008475318900309503,
+      "iv_ret_fwd_abs": 0.0008044521091505885,
+      "iv": 0.0005359789356589317,
+      "sabr_rho": 0.000275649392278865,
+      "opt_vol_change_1m": 0.00023264480114448816,
+      "sabr_nu": 0.00021494616521522403,
+      "option_type_enc": 0.00017774527077563107,
+      "vega": 0.00017293315613642335,
+      "sabr_beta": 0.0001658746477914974,
+      "strike_price": 0.0,
+      "sabr_alpha": 0.0
+    },
+    "detailed_features": [
+      {
+        "feature": "ts_event",
+        "importance": 0.24338912963867188
+      },
+      {
+        "feature": "delta",
+        "importance": 0.19356577098369598
+      },
+      {
+        "feature": "option_type",
+        "importance": 0.18640485405921936
+      },
+      {
+        "feature": "iv_ret_fwd",
+        "importance": 0.12870760262012482
+      },
+      {
+        "feature": "time_to_expiry",
+        "importance": 0.09365468472242355
+      },
+      {
+        "feature": "stock_volume",
+        "importance": 0.06611036509275436
+      },
+      {
+        "feature": "expiry_date",
+        "importance": 0.04779161512851715
+      },
+      {
+        "feature": "gamma",
+        "importance": 0.014431123621761799
+      },
+      {
+        "feature": "rv_30m",
+        "importance": 0.013015484437346458
+      },
+      {
+        "feature": "opt_volume",
+        "importance": 0.009501568041741848
+      },
+      {
+        "feature": "opt_vol_roll_15m",
+        "importance": 0.0008475318900309503
+      },
+      {
+        "feature": "iv_ret_fwd_abs",
+        "importance": 0.0008044521091505885
+      },
+      {
+        "feature": "iv",
+        "importance": 0.0005359789356589317
+      },
+      {
+        "feature": "sabr_rho",
+        "importance": 0.000275649392278865
+      },
+      {
+        "feature": "opt_vol_change_1m",
+        "importance": 0.00023264480114448816
+      },
+      {
+        "feature": "sabr_nu",
+        "importance": 0.00021494616521522403
+      },
+      {
+        "feature": "option_type_enc",
+        "importance": 0.00017774527077563107
+      },
+      {
+        "feature": "vega",
+        "importance": 0.00017293315613642335
+      },
+      {
+        "feature": "sabr_beta",
+        "importance": 0.0001658746477914974
+      },
+      {
+        "feature": "strike_price",
+        "importance": 0.0
+      }
+    ]
+  },
+  "status": "success"
+}

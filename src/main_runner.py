@@ -231,12 +231,8 @@ def train_peer_effects(cfg: RunConfig, cores: Dict[str, pd.DataFrame]) -> Dict[s
 
 
 def save_results(cfg: RunConfig, pooled_results: Dict, peer_results: Dict) -> Path:
-    """Save all results to JSON file."""
-    
-    # Create output directory
     cfg.output_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Prepare metrics (exclude models from JSON)
+
     output = {
         "config": {
             "tickers": list(cfg.tickers),
@@ -245,25 +241,19 @@ def save_results(cfg: RunConfig, pooled_results: Dict, peer_results: Dict) -> Pa
             "forward_steps": cfg.forward_steps,
             "test_frac": cfg.test_frac,
             "timestamp": cfg.timestamp,
-            "db_path": str(cfg.db_path),
-            "output_dir": str(cfg.output_dir),
-            "xgb_params": cfg.xgb_params if cfg.xgb_params is not None else get_default_xgb_params(),
-            "peer_targets": list(cfg.peer_targets),
-            "peer_target_kinds": list(cfg.peer_target_kinds),
-            "tolerance": cfg.tolerance,
-            "drop_zero_iv_ret": cfg.drop_zero_iv_ret,
         },
-        "pooled_models": pooled_results[1],
-        "peer_effects": peer_results,
+        "pooled_models": pooled_results.get("metrics", {}),
+        # analyzer returns "performance", not "metrics"
+        "peer_effects": {k: (v.get("performance", {}) if isinstance(v, dict) else {}) 
+                         for k, v in peer_results.items()},
     }
-    
-    # Save metrics
+
     metrics_path = cfg.output_dir / f"metrics_{cfg.timestamp}.json"
     with open(metrics_path, "w") as f:
         json.dump(output, f, indent=2)
-    
     print(f"Results saved to: {metrics_path}")
     return metrics_path
+
 
 
 def save_models(cfg: RunConfig, pooled_results: Dict, peer_results: Dict) -> Dict[str, Path]:

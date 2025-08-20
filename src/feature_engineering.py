@@ -218,12 +218,16 @@ def finalize_dataset(df: pd.DataFrame, target_col: str, drop_symbol: bool = True
     if drop_symbol and "symbol" in out.columns:
         out = out.drop(columns=["symbol"])
     
-    out = _normalize_numeric_features(out, target_col=target_col, exclude_prefixes=("sym_",), keep_cols=("ts_event",))
+    out = out.reset_index(drop=True)
+    out = _normalize_numeric_features(out, target_col=target_col)
 
+    
     # log final set of columns for inspection
     logging.getLogger(__name__).info("Final dataset columns: %s", list(out.columns))
 
-    return out.reset_index(drop=True)
+
+    return out
+
 
 
 # ------------------------------------------------------------
@@ -384,57 +388,29 @@ def build_target_peer_dataset(
     # Finalize
     return finalize_dataset(feats, "y", drop_symbol=True)
 
-def _normalize_numeric_features(
-    df: pd.DataFrame,
-    target_col: str,
-    exclude_prefixes: Sequence[str] = ("sym_",),
-    keep_cols: Sequence[str] = ("ts_event",),
-) -> pd.DataFrame:
-    """
-    Z-score normalize numeric feature columns:
-      x_norm = (x - mean) / std
-    Skips the target column, time index, and any columns starting with prefixes in exclude_prefixes.
-    """
-    out = df.copy()
-    # pick numeric feature columns
-    num_cols: list[str] = []
+from pandas.api.types import is_numeric_dtype
+
+def _normalize_numeric_features(out: pd.DataFrame, target_col: str) -> pd.DataFrame:
+    keep = {"ts_event"}            # never normalize timestamps
+    skip_prefixes = ("sym_",)      # keep one-hots as 0/1
+    skip_exact = {target_col}      # don't normalize the label
+
+    cols = []
     for c in out.columns:
-        if c == target_col or c in keep_cols:
+        if c in keep or c in skip_exact: 
             continue
-        if any(c.startswith(p) for p in exclude_prefixes):
+        if any(c.startswith(p) for p in skip_prefixes):
             continue
         if is_numeric_dtype(out[c]):
-            num_cols.append(c)
+            cols.append(c)
 
-    if num_cols:
-        means = out[num_cols].mean(axis=0)
-        stds = out[num_cols].std(axis=0).replace(0.0, 1.0).fillna(1.0)
-        out[num_cols] = (out[num_cols] - means) / stds
-
-        stats = {
-            "columns": list(num_cols),
-            "means": {c: float(means[c]) for c in num_cols},
-            "stds": {c: float(stds[c]) for c in num_cols},
-        }
-
-        # keep stats for inspection on the dataframe
-        out.attrs["norm_means"] = stats["means"]
-        out.attrs["norm_stds"] = stats["stds"]
-
-        # log and snapshot to disk for external inspection
-        logger = logging.getLogger(__name__)
-        logger.info("Normalizing columns: %s", num_cols)
-        logger.debug("Normalization stats: %s", stats)
-        try:
-            out_dir = Path("outputs")
-            out_dir.mkdir(exist_ok=True)
-            ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-            with open(out_dir / f"feature_snapshot_{ts}.json", "w") as fh:
-                json.dump(stats, fh, indent=2)
-        except Exception:
-            logger.exception("Failed to write feature snapshot")
+    if cols:
+        mu = out[cols].mean()
+        sd = out[cols].std().replace(0.0, 1.0).fillna(1.0)
+        out[cols] = (out[cols] - mu) / sd
+        out.attrs["norm_means"] = {k: float(mu[k]) for k in mu.index}
+        out.attrs["norm_stds"]  = {k: float(sd[k]) for k in sd.index}
     return out
-
 
 # Export original names for backward compatibility
 __all__ = [
