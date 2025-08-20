@@ -22,7 +22,7 @@ class PeerEffectsConfig:
     db_path: str | Path | None = None
     target_kind: Literal["iv_ret","iv"] = "iv_ret"
     test_frac: float = 0.2
-    forward_steps: int = 1
+    forward_steps: int = 15
     tolerance: str = "2s"
     metrics_dir: Path = Path("metrics")
     prefix: str = "peer_effects"

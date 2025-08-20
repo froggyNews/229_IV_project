@@ -192,7 +192,7 @@ def _numeric(df: pd.DataFrame) -> pd.DataFrame:
 def build_iv_return_dataset_time_safe(
     tickers: List[str],
     start=None, end=None, r: float = 0.045,
-    forward_steps: int = 1, tolerance: str = "2s",
+    forward_steps: int = 15, tolerance: str = "2s",
     db_path: Path | str | None = None,
 ) -> Dict[str, pd.DataFrame]:
     """

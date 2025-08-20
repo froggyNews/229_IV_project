@@ -134,7 +134,7 @@ def evaluate_pooled_model(
     start: str,
     end: str,
     test_frac: float = 0.2,
-    forward_steps: int = 1,
+    forward_steps: int = 15,
     tolerance: str = "2s",
     r: float = 0.045,
     metrics_dir: str | Path | None = "metrics",

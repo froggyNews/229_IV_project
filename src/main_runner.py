@@ -36,7 +36,8 @@ class RunConfig:
     test_frac: float = 0.2
 
     # outputs
-    metrics_path: Path = Path("metrics/iv_metrics.json")
+    timestamp: str = pd.Timestamp.now(tz="UTC").strftime("%Y%m%d_%H%M%S")
+    metrics_path: Path = Path(f"metrics/iv_metrics_{timestamp}.json")
     models_dir: Path = Path("models")
     prefix: str = "iv_returns_pooled"
 
