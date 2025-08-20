@@ -16,7 +16,7 @@ from feature_engineering import build_target_peer_dataset
 @dataclass
 class PeerEffectsConfig:
     target: str
-    tickers: Sequence[str]
+    peer_targets: Sequence[str]
     start: str | None = None                 # "YYYY-MM-DD" (UTC) or ISO ts
     end: str | None = None
     db_path: str | Path | None = None
@@ -50,7 +50,7 @@ def _winsorize_series(s: pd.Series, q: float) -> pd.Series:
     return s.clip(lo, hi)
 
 
-def train_peer_effects(cfg: PeerEffectsConfig) -> Dict[str, Any]:
+def run_peer_effects(cfg: PeerEffectsConfig) -> Dict[str, Any]:
     """Train a per-target XGB model and emit an evaluation dictionary.
 
     When ``cfg.save_report`` is true the evaluation is also written to
@@ -63,7 +63,7 @@ def train_peer_effects(cfg: PeerEffectsConfig) -> Dict[str, Any]:
 
     ds = build_target_peer_dataset(
         target=cfg.target,
-        tickers=list(cfg.tickers),
+        tickers=list(cfg.peer_targets),
         start=start_ts,
         end=end_ts,
         forward_steps=cfg.forward_steps,
