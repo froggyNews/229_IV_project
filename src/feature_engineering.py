@@ -36,6 +36,87 @@ CORE_FEATURE_COLS = [
 # Keep: Core feature engineering functions (other modules depend on these)
 # ------------------------------------------------------------
 
+
+def _hagan_implied_vol(F: float, K: float, T: float, alpha: float, beta: float, rho: float, nu: float) -> float:
+    """Approximate Black implied volatility under the SABR model."""
+    if F <= 0 or K <= 0 or T <= 0:
+        return np.nan
+
+    if np.isclose(F, K):
+        term1 = alpha / (F ** (1 - beta))
+        term2 = 1 + (
+            ((1 - beta) ** 2 / 24) * (alpha ** 2 / (F ** (2 - 2 * beta)))
+            + (rho * beta * nu * alpha / (4 * F ** (1 - beta)))
+            + ((2 - 3 * rho ** 2) / 24) * (nu ** 2)
+        ) * T
+        return term1 * term2
+
+    FK_beta = (F * K) ** ((1 - beta) / 2)
+    logFK = np.log(F / K)
+    z = (nu / alpha) * FK_beta * logFK
+    x_z = np.log((np.sqrt(1 - 2 * rho * z + z * z) + z - rho) / (1 - rho))
+    if np.isclose(z, 0):
+        x_z = 1  # limit z/x_z -> 1 as z -> 0
+    term1 = alpha / (FK_beta * (1 + ((1 - beta) ** 2 / 24) * (logFK ** 2) + ((1 - beta) ** 4 / 1920) * (logFK ** 4)))
+    term2 = z / x_z
+    term3 = 1 + (
+        ((1 - beta) ** 2 / 24) * (alpha ** 2 / (FK_beta ** 2))
+        + (rho * beta * nu * alpha / (4 * FK_beta))
+        + ((2 - 3 * rho ** 2) / 24) * (nu ** 2)
+    ) * T
+    return term1 * term2 * term3
+
+
+def _solve_sabr_alpha(sigma: float, F: float, K: float, T: float, beta: float, rho: float, nu: float) -> float:
+    """Calibrate alpha for a single observation using Hagan's formula."""
+    if np.any(np.isnan([sigma, F, K, T])) or sigma <= 0:
+        return np.nan
+
+    def objective(a: float) -> float:
+        return _hagan_implied_vol(F, K, T, a, beta, rho, nu) - sigma
+
+    try:
+        return brentq(objective, 1e-6, 5.0, maxiter=100)
+    except ValueError:
+        return np.nan
+
+
+def _add_sabr_features(df: pd.DataFrame, beta: float = 0.5) -> pd.DataFrame:
+    """Compute simple SABR parameter features and drop raw price/IV columns."""
+    F_series = df.get("stock_close")
+    K_series = df.get("strike_price")
+    T_series = df.get("time_to_expiry")
+    sigma_series = df.get("iv_clip")
+    if F_series is None or K_series is None or T_series is None or sigma_series is None:
+        return df
+
+    F = F_series.astype(float).to_numpy()
+    K = K_series.astype(float).to_numpy()
+    T = np.maximum(T_series.astype(float).to_numpy(), 1e-9)
+    sigma = sigma_series.astype(float).to_numpy()
+
+    # Heuristic estimates for rho and nu
+    moneyness = (K / F) - 1.0
+    rho = np.tanh(moneyness * 5.0)
+    nu_series = (
+        df["iv_clip"].astype(float).rolling(30).std() * np.sqrt(ANNUAL_MINUTES / 30)
+    ).shift(1)
+    nu = nu_series.to_numpy()
+
+    alpha = np.array([
+        _solve_sabr_alpha(sig, f, k, t, beta, r, n)
+        for sig, f, k, t, r, n in zip(sigma, F, K, T, rho, nu)
+    ])
+
+    df["sabr_alpha"] = alpha
+    df["sabr_beta"] = beta
+    df["sabr_rho"] = rho
+    df["sabr_nu"] = nu
+
+    # Remove raw stock price and IV information to hide them
+    df = df.drop(columns=[c for c in ["stock_close", "iv_clip"] if c in df.columns])
+    return df
+
 def add_all_features(df: pd.DataFrame, forward_steps: int = 1, r: float = 0.045) -> pd.DataFrame:
     """Centralized feature engineering (preserves all original feature logic)."""
     df = df.copy()
@@ -79,7 +160,10 @@ def add_all_features(df: pd.DataFrame, forward_steps: int = 1, r: float = 0.045)
         pct_change = df["opt_volume"].pct_change()
         df["opt_vol_change_1m"] = (pct_change.replace([np.inf, -np.inf], np.nan).fillna(0.0))
         df["opt_vol_roll_15m"] = df["opt_volume"].rolling(15).mean().shift(1)
-    
+
+    # SABR parameters and hide raw price/IV data
+    df = _add_sabr_features(df)
+
     return df
 
 
@@ -124,6 +208,11 @@ def finalize_dataset(df: pd.DataFrame, target_col: str, drop_symbol: bool = True
     for col in HIDE_COLUMNS.get(target_col, []):
         if col in out.columns:
             out = out.drop(columns=col)
+
+    # Remove raw stock and IV information entirely
+    leak_cols = [c for c in out.columns if c in {"stock_close", "iv_clip"} or c.startswith("IV_") or c.startswith("IVRET_")]
+    if leak_cols:
+        out = out.drop(columns=leak_cols)
     
     # Drop symbol if requested (for per-ticker datasets)
     if drop_symbol and "symbol" in out.columns:
