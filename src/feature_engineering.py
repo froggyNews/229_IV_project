@@ -9,6 +9,8 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
+from greeks import bs_delta, bs_gamma, bs_vega
+
 # ------------------------------------------------------------
 # Config
 # ------------------------------------------------------------
@@ -131,6 +133,23 @@ def _atm_core(ticker: str, *, start=None, end=None, r: float = 0.045, db_path: P
     out["ts_event"] = pd.to_datetime(out["ts_event"], utc=True, errors="coerce")
     out = out.dropna(subset=["iv"]).sort_values("ts_event").reset_index(drop=True)
     out["iv_clip"] = out["iv"].clip(lower=1e-6)
+
+    # Greeks using clipped IV to avoid degenerate cases
+    def _greeks_row(row):
+        S = float(row["stock_close"])
+        K = float(row["strike_price"])
+        T = float(max(row["time_to_expiry"], 1e-9))
+        sigma = float(row["iv_clip"])
+        cp = str(row["option_type"])
+        return (
+            bs_delta(S, K, T, r, sigma, cp),
+            bs_gamma(S, K, T, r, sigma),
+            bs_vega(S, K, T, r, sigma),
+        )
+
+    greeks = out.apply(_greeks_row, axis=1, result_type="expand")
+    greeks.columns = ["delta", "gamma", "vega"]
+    out = pd.concat([out, greeks], axis=1)
     return out
 
 
@@ -226,8 +245,19 @@ def build_iv_return_dataset_time_safe(
         cols = (
             ["iv_ret_fwd", "IV_SELF", "IVRET_SELF"]
             + peer_cols + peer_ret_cols
-            + ["opt_volume", "time_to_expiry", "days_to_expiry", "strike_price",
-               "option_type_enc", "hour", "minute", "day_of_week"]
+            + [
+                "opt_volume",
+                "time_to_expiry",
+                "days_to_expiry",
+                "strike_price",
+                "option_type_enc",
+                "delta",
+                "gamma",
+                "vega",
+                "hour",
+                "minute",
+                "day_of_week",
+            ]
         )
         sub = _numeric(feats[[c for c in cols if c in feats.columns]]).dropna(subset=["iv_ret_fwd"])
         out[tgt] = sub.reset_index(drop=True)
@@ -265,7 +295,7 @@ def build_pooled_iv_return_dataset_time_safe(
         cols = [
             "iv_ret_fwd", "iv_clip",
             "opt_volume", "time_to_expiry", "days_to_expiry", "strike_price",
-            "option_type_enc", "hour", "minute", "day_of_week",
+            "option_type_enc", "delta", "gamma", "vega", "hour", "minute", "day_of_week",
         ] + [c for c in feats.columns if c.startswith("IV_") or c.startswith("IVRET_")] + ["symbol"]
 
         frames.append(_numeric(feats[cols]).dropna(subset=["iv_ret_fwd"]))
@@ -363,6 +393,9 @@ def build_target_peer_dataset(
             "days_to_expiry",
             "strike_price",
             "option_type_enc",
+            "delta",
+            "gamma",
+            "vega",
             "hour",
             "minute",
             "day_of_week",
