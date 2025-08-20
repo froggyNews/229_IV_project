@@ -317,7 +317,7 @@ if __name__ == "__main__":
     # Simple configuration
     config = RunConfig(
         tickers=["QUBT", "QBTS", "RGTI", "IONQ"],
-        start="2025-06-02",
+        start="2025-08-02",
         end="2025-08-06",
         forward_steps=15,
         test_frac=0.2,

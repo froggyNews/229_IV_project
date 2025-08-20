@@ -26,6 +26,15 @@ except ImportError as e:
     init_schema = None
 
 
+def _get_table_columns(conn: sqlite3.Connection, table_name: str) -> list:
+    """Get column names for a table."""
+    try:
+        cursor = conn.execute(f"PRAGMA table_info({table_name})")
+        return [row[1] for row in cursor.fetchall()]
+    except Exception:
+        return []
+
+
 def _calculate_iv(price: float, S: float, K: float, T: float, cp: str, r: float) -> float:
     """IV calculation (moved here to avoid circular imports)."""
     if not np.isfinite([price, S, K, T, r]).all() or price <= 0 or S <= 0 or K <= 0 or T <= 0:
@@ -80,114 +89,6 @@ def _safe_data_exists(conn: sqlite3.Connection, table: str, ticker: str, start: 
         return result[0] > 0 if result else False
     except Exception:
         return False
-
-def load_ticker_core(ticker: str, start=None, end=None, r=0.045, db_path=None) -> pd.DataFrame:
-    """Load ticker core data with IV calculation."""
-    
-    if db_path is None:
-        db_path = Path(os.getenv("IV_DB_PATH", "data/iv_data_1m.db"))
-    
-    # Check if database file exists
-    if not Path(db_path).exists():
-        print(f"Database file does not exist: {db_path}")
-        return pd.DataFrame()
-    
-    try:
-        with sqlite3.connect(str(db_path)) as conn:
-            # Try tables in order of preference
-            table = None
-            for candidate in ["atm_slices_1m", "processed_merged_1m", "processed_merged"]:
-                if _safe_table_exists(conn, candidate):
-                    if _safe_data_exists(conn, candidate, ticker, start, end):
-                        table = candidate
-                        break
-            
-            if table is None:
-                print(f"No data found for {ticker} in any table")
-                return pd.DataFrame()
-            
-            # If we have processed_merged_1m but not atm_slices_1m, populate ATM slices
-            if table == "processed_merged_1m" and _safe_table_exists(conn, "atm_slices_1m"):
-                print(f"Populating ATM slices for {ticker}...")
-                _populate_atm_slices(conn, ticker)
-                # Check if ATM data is now available
-                if _safe_data_exists(conn, "atm_slices_1m", ticker, start, end):
-                    table = "atm_slices_1m"
-            
-            where_clauses, params = ["ticker=?"], [ticker]
-            if start:
-                where_clauses.append("ts_event >= ?")
-                params.append(pd.to_datetime(start).strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
-            if end:
-                where_clauses.append("ts_event <= ?")
-                params.append(pd.to_datetime(end).strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
-            
-            # Build query based on table
-            if table == "atm_slices_1m":
-                query = f"""
-                SELECT ts_event, expiry_date, opt_symbol, stock_symbol,
-                       opt_close, stock_close, opt_volume, stock_volume,
-                       option_type, strike_price, time_to_expiry, moneyness
-                FROM {table} WHERE {' AND '.join(where_clauses)}
-                ORDER BY ts_event
-                """
-            else:
-                # For processed_merged_1m, we need to select ATM options manually
-                query = f"""
-                SELECT ts_event, expiry_date, opt_symbol, stock_symbol,
-                       opt_close, stock_close, opt_volume, stock_volume,
-                       option_type, strike_price, time_to_expiry, moneyness
-                FROM (
-                    SELECT *,
-                           ROW_NUMBER() OVER (
-                               PARTITION BY ticker, ts_event, expiry_date
-                               ORDER BY ABS(strike_price - stock_close)
-                           ) as rn
-                    FROM {table} 
-                    WHERE {' AND '.join(where_clauses)}
-                ) ranked
-                WHERE rn = 1
-                ORDER BY ts_event
-                """
-            
-            df = pd.read_sql_query(query, conn, params=params, parse_dates=["ts_event", "expiry_date"])
-            
-    except Exception as e:
-        print(f"Error loading data for {ticker}: {e}")
-        return pd.DataFrame()
-    
-    if df.empty:
-        return df
-        
-    try:
-        # IV calculation
-        df["iv"] = df.apply(lambda row: _calculate_iv(
-            row["opt_close"], row["stock_close"], row["strike_price"], 
-            max(row["time_to_expiry"], 1e-6), row["option_type"], r
-        ), axis=1)
-        
-        # Core cleanup (preserves original column selection and processing)
-        keep = ["ts_event", "expiry_date", "iv", "opt_volume", "stock_close", 
-                "stock_volume", "time_to_expiry", "strike_price", "option_type"]
-        df = df[keep].copy()
-        df["symbol"] = ticker
-        df["ts_event"] = pd.to_datetime(df["ts_event"], utc=True, errors="coerce")
-        df = df.dropna(subset=["iv"]).sort_values("ts_event").reset_index(drop=True)
-        df["iv_clip"] = df["iv"].clip(lower=1e-6)
-        
-    except Exception as e:
-        print(f"Error processing IV data for {ticker}: {e}")
-        return pd.DataFrame()
-    
-    return df
-
-def _get_table_columns(conn: sqlite3.Connection, table_name: str) -> list:
-    """Get column names for a table."""
-    try:
-        cursor = conn.execute(f"PRAGMA table_info({table_name})")
-        return [row[1] for row in cursor.fetchall()]
-    except Exception:
-        return []
 
 
 def _populate_atm_slices(conn: sqlite3.Connection, ticker: str) -> None:
@@ -468,11 +369,6 @@ class DataCoordinator:
             
         print(f"Final result: {len(cores)}/{len(tickers)} tickers loaded")
         return cores
-
-    # ...rest of the methods remain the same...
-
-
-
 
     def validate_cores_for_analysis(
         self, 

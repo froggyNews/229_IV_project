@@ -1,0 +1,126 @@
+{
+  "target": "IONQ",
+  "target_kind": "iv_ret",
+  "config": {
+    "forward_steps": 15,
+    "include_self_lag": true,
+    "exclude_contemporaneous": true
+  },
+  "performance": {
+    "rmse": 0.08994417708627989,
+    "r2": 0.951790293982396,
+    "n_train": 2862,
+    "n_test": 716,
+    "n_features": 21
+  },
+  "peer_analysis": {
+    "peer_rankings": {},
+    "self_lag_effects": {},
+    "control_effects": {
+      "time_to_expiry": 0.3320313096046448,
+      "option_type": 0.1900642365217209,
+      "expiry_date": 0.11364483833312988,
+      "ts_event": 0.10594647377729416,
+      "gamma": 0.1053985208272934,
+      "iv_ret_fwd": 0.07673387974500656,
+      "stock_volume": 0.03761514276266098,
+      "delta": 0.025579022243618965,
+      "opt_vol_roll_15m": 0.007195581682026386,
+      "opt_volume": 0.0017775038722902536,
+      "sabr_rho": 0.0014474288327619433,
+      "iv_ret_fwd_abs": 0.0007089692517183721,
+      "sabr_beta": 0.0006132552516646683,
+      "option_type_enc": 0.00046303487033583224,
+      "sabr_nu": 0.00039806534186936915,
+      "opt_vol_change_1m": 0.00033403991255909204,
+      "iv": 2.6189107302343473e-05,
+      "rv_30m": 1.7248341464437544e-05,
+      "vega": 5.322519882611232e-06,
+      "strike_price": 0.0,
+      "sabr_alpha": 0.0
+    },
+    "detailed_features": [
+      {
+        "feature": "time_to_expiry",
+        "importance": 0.3320313096046448
+      },
+      {
+        "feature": "option_type",
+        "importance": 0.1900642365217209
+      },
+      {
+        "feature": "expiry_date",
+        "importance": 0.11364483833312988
+      },
+      {
+        "feature": "ts_event",
+        "importance": 0.10594647377729416
+      },
+      {
+        "feature": "gamma",
+        "importance": 0.1053985208272934
+      },
+      {
+        "feature": "iv_ret_fwd",
+        "importance": 0.07673387974500656
+      },
+      {
+        "feature": "stock_volume",
+        "importance": 0.03761514276266098
+      },
+      {
+        "feature": "delta",
+        "importance": 0.025579022243618965
+      },
+      {
+        "feature": "opt_vol_roll_15m",
+        "importance": 0.007195581682026386
+      },
+      {
+        "feature": "opt_volume",
+        "importance": 0.0017775038722902536
+      },
+      {
+        "feature": "sabr_rho",
+        "importance": 0.0014474288327619433
+      },
+      {
+        "feature": "iv_ret_fwd_abs",
+        "importance": 0.0007089692517183721
+      },
+      {
+        "feature": "sabr_beta",
+        "importance": 0.0006132552516646683
+      },
+      {
+        "feature": "option_type_enc",
+        "importance": 0.00046303487033583224
+      },
+      {
+        "feature": "sabr_nu",
+        "importance": 0.00039806534186936915
+      },
+      {
+        "feature": "opt_vol_change_1m",
+        "importance": 0.00033403991255909204
+      },
+      {
+        "feature": "iv",
+        "importance": 2.6189107302343473e-05
+      },
+      {
+        "feature": "rv_30m",
+        "importance": 1.7248341464437544e-05
+      },
+      {
+        "feature": "vega",
+        "importance": 5.322519882611232e-06
+      },
+      {
+        "feature": "strike_price",
+        "importance": 0.0
+      }
+    ]
+  },
+  "status": "success"
+}
