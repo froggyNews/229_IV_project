@@ -9,6 +9,8 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
+from greeks import bs_delta, bs_gamma, bs_vega
+
 # ------------------------------------------------------------
 # Config
 # ------------------------------------------------------------
@@ -131,21 +133,48 @@ def _atm_core(ticker: str, *, start=None, end=None, r: float = 0.045, db_path: P
     out["ts_event"] = pd.to_datetime(out["ts_event"], utc=True, errors="coerce")
     out = out.dropna(subset=["iv"]).sort_values("ts_event").reset_index(drop=True)
     out["iv_clip"] = out["iv"].clip(lower=1e-6)
+
+    # Greeks using clipped IV to avoid degenerate cases
+    def _greeks_row(row):
+        S = float(row["stock_close"])
+        K = float(row["strike_price"])
+        T = float(max(row["time_to_expiry"], 1e-9))
+        sigma = float(row["iv_clip"])
+        cp = str(row["option_type"])
+        return (
+            bs_delta(S, K, T, r, sigma, cp),
+            bs_gamma(S, K, T, r, sigma),
+            bs_vega(S, K, T, r, sigma),
+        )
+
+    if out.empty:
+        out["delta"] = pd.Series(dtype=float)
+        out["gamma"] = pd.Series(dtype=float)
+        out["vega"] = pd.Series(dtype=float)
+        return out
+
+    greeks = out.apply(_greeks_row, axis=1, result_type="expand")
+    greeks.columns = ["delta", "gamma", "vega"]
+    out = pd.concat([out, greeks], axis=1)
     return out
 
 
 def _build_iv_panel(cores: Dict[str, pd.DataFrame], tolerance: str) -> pd.DataFrame:
     """
-    Build a wide, time-safe panel of IV and IVRET for all tickers:
-        ts_event, IV_<T1>.., IVRET_<T1>.., IV_<Tn>.., IVRET_<Tn>..
+    Build a wide, time-safe panel of IV/IVRET and stock close for all tickers:
+        ts_event, IV_<T>, IVRET_<T>, PX_<T>
     """
     iv_wide = None
     tol = pd.Timedelta(tolerance)
     for t, df in cores.items():
-        tmp = df[["ts_event", "iv_clip"]].rename(columns={"iv_clip": f"IV_{t}"}).sort_values("ts_event").copy()
+        tmp = (
+            df[["ts_event", "iv_clip", "stock_close"]]
+            .rename(columns={"iv_clip": f"IV_{t}", "stock_close": f"PX_{t}"})
+            .sort_values("ts_event")
+            .copy()
+        )
         tmp[f"IVRET_{t}"] = np.log(tmp[f"IV_{t}"]) - np.log(tmp[f"IV_{t}"].shift(1))
-        # keep only needed cols
-        tmp = tmp[["ts_event", f"IV_{t}", f"IVRET_{t}"]]
+        tmp = tmp[["ts_event", f"IV_{t}", f"IVRET_{t}", f"PX_{t}"]]
         iv_wide = tmp if iv_wide is None else pd.merge_asof(
             iv_wide, tmp, on="ts_event", direction="backward", tolerance=tol
         )
@@ -218,16 +247,30 @@ def build_iv_return_dataset_time_safe(
             feats = feats.rename(columns={f"IV_{tgt}": "IV_SELF"})
         if f"IVRET_{tgt}" in feats.columns:
             feats = feats.rename(columns={f"IVRET_{tgt}": "IVRET_SELF"})
+        # drop self price from panel (already in stock_close)
+        feats = feats.drop(columns=[f"PX_{tgt}"], errors="ignore")
         peer_cols = [c for c in feats.columns if c.startswith("IV_") and c != "IV_SELF"]
         peer_ret_cols = [c for c in feats.columns if c.startswith("IVRET_") and c != "IVRET_SELF"]
+        peer_px_cols = [c for c in feats.columns if c.startswith("PX_")]
 
         feats = _add_simple_controls(feats)
 
         cols = (
-            ["iv_ret_fwd", "IV_SELF", "IVRET_SELF"]
-            + peer_cols + peer_ret_cols
-            + ["opt_volume", "time_to_expiry", "days_to_expiry", "strike_price",
-               "option_type_enc", "hour", "minute", "day_of_week"]
+            ["iv_ret_fwd", "IV_SELF", "IVRET_SELF", "stock_close"]
+            + peer_cols + peer_ret_cols + peer_px_cols
+            + [
+                "opt_volume",
+                "time_to_expiry",
+                "days_to_expiry",
+                "strike_price",
+                "option_type_enc",
+                "delta",
+                "gamma",
+                "vega",
+                "hour",
+                "minute",
+                "day_of_week",
+            ]
         )
         sub = _numeric(feats[[c for c in cols if c in feats.columns]]).dropna(subset=["iv_ret_fwd"])
         out[tgt] = sub.reset_index(drop=True)
@@ -259,14 +302,17 @@ def build_pooled_iv_return_dataset_time_safe(
             feats.sort_values("ts_event"), panel.sort_values("ts_event"),
             on="ts_event", direction="backward", tolerance=pd.Timedelta(tolerance)
         )
+        feats = feats.drop(columns=[f"PX_{tgt}"], errors="ignore")
         feats["symbol"] = tgt
         feats = _add_simple_controls(feats)
 
         cols = [
-            "iv_ret_fwd", "iv_clip",
+            "iv_ret_fwd", "iv_clip", "stock_close",
             "opt_volume", "time_to_expiry", "days_to_expiry", "strike_price",
-            "option_type_enc", "hour", "minute", "day_of_week",
-        ] + [c for c in feats.columns if c.startswith("IV_") or c.startswith("IVRET_")] + ["symbol"]
+            "option_type_enc", "delta", "gamma", "vega", "hour", "minute", "day_of_week",
+        ] + [
+            c for c in feats.columns if c.startswith("IV_") or c.startswith("IVRET_") or c.startswith("PX_")
+        ] + ["symbol"]
 
         frames.append(_numeric(feats[cols]).dropna(subset=["iv_ret_fwd"]))
 
@@ -317,6 +363,7 @@ def build_target_peer_dataset(
         direction="backward",
         tolerance=pd.Timedelta(tolerance),
     )
+    feats = feats.drop(columns=[f"PX_{target}"], errors="ignore")
 
     # rename self columns
     rename_map = {}
@@ -353,16 +400,20 @@ def build_target_peer_dataset(
         c for c in feats.columns
         if c.startswith("IVRET_") and c not in {"IVRET_SELF"}
     ]
+    peer_px_cols = [c for c in feats.columns if c.startswith("PX_")]
 
     final_cols = (
-        ["y", "IV_SELF", "IVRET_SELF"]
-        + peer_cols + peer_ret_cols
+        ["y", "IV_SELF", "IVRET_SELF", "stock_close"]
+        + peer_cols + peer_ret_cols + peer_px_cols
         + [
             "opt_volume",
             "time_to_expiry",
             "days_to_expiry",
             "strike_price",
             "option_type_enc",
+            "delta",
+            "gamma",
+            "vega",
             "hour",
             "minute",
             "day_of_week",
