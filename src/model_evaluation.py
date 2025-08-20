@@ -137,22 +137,26 @@ def evaluate_pooled_model(
     forward_steps: int = 1,
     tolerance: str = "2s",
     r: float = 0.045,
-    metrics_dir: str | Path = "metrics",
+    metrics_dir: str | Path | None = "metrics",
     outputs_prefix: str = "iv_returns_pooled_eval",
     save_predictions: bool = True,
     perm_repeats: int = 5,
     perm_sample: int | None = 5000,
     db_path: str | Path = Path("data/iv_data_1m.db"),
     target_col: str | None = None,               # <-- NEW
-) -> None:
-    """Evaluate a saved model and write a single JSON report.
+    save_report: bool = True,
+) -> dict:
+    """Evaluate a saved model and optionally write a single JSON report.
 
-    The report consolidates metrics, feature importances, optional
-    permutation importances, SHAP summaries and predictions into one file
-    under ``metrics_dir`` with ``outputs_prefix``.
+    Returns a dictionary with metrics, feature importances, permutation
+    importances, SHAP summaries and (optionally) predictions. If
+    ``save_report`` is true, the report is written under ``metrics_dir`` with
+    ``outputs_prefix``.
     """
-    metrics_dir = Path(metrics_dir)
-    metrics_dir.mkdir(parents=True, exist_ok=True)
+    metrics_dir_path = Path(metrics_dir) if metrics_dir is not None else None
+    if save_report and metrics_dir_path is not None:
+        metrics_dir_path.mkdir(parents=True, exist_ok=True)
+
 
     start_ts = pd.Timestamp(start, tz="UTC")
     end_ts = pd.Timestamp(end, tz="UTC")
@@ -278,12 +282,14 @@ def evaluate_pooled_model(
     }
     if save_predictions:
         evaluation["predictions"] = preds_df.to_dict(orient="records")
+    if save_report and metrics_dir_path is not None:
+        eval_path = metrics_dir_path / f"{outputs_prefix}_evaluation.json"
+        with open(eval_path, "w", encoding="utf-8") as f:
+            json.dump(evaluation, f, indent=2)
+        print(f"[SAVED] {eval_path}")
+        evaluation["eval_path"] = str(eval_path)
 
-    eval_path = metrics_dir / f"{outputs_prefix}_evaluation.json"
-    with open(eval_path, "w", encoding="utf-8") as f:
-        json.dump(evaluation, f, indent=2)
-
-    print(f"[SAVED] {eval_path}")
+    return evaluation
 
 
 # -----------------------------

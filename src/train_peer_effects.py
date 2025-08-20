@@ -32,6 +32,7 @@ class PeerEffectsConfig:
     include_self: Literal["keep","drop","lag1"] = "keep"
     winsorize_y_q: Optional[float] = None         # e.g., 0.005
     winsorize_peer_ret_q: Optional[float] = None  # e.g., 0.005 (applies to IVRET_* cols)
+    save_report: bool = False
 
 
 def _chrono_split(X: pd.DataFrame, y: pd.Series, test_frac: float) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
@@ -50,10 +51,12 @@ def _winsorize_series(s: pd.Series, q: float) -> pd.Series:
 
 
 def train_peer_effects(cfg: PeerEffectsConfig) -> Dict[str, Any]:
-    """Train a per-target XGB model and emit a single evaluation report.
+    """Train a per-target XGB model and emit an evaluation dictionary.
 
-    The returned JSON aggregates metrics, feature importances, and peer effect
-    SHAP summaries into one file per run.
+    When ``cfg.save_report`` is true the evaluation is also written to
+    ``cfg.metrics_dir`` using ``cfg.prefix`` and ``cfg.target`` to build the
+    filename.
+
     """
     start_ts = pd.Timestamp(cfg.start, tz="UTC") if cfg.start else None
     end_ts   = pd.Timestamp(cfg.end,   tz="UTC") if cfg.end   else None
@@ -131,7 +134,9 @@ def train_peer_effects(cfg: PeerEffectsConfig) -> Dict[str, Any]:
     r2 = float(1.0 - (float(np.sum((pred - y_te.values) ** 2)) / denom)) if denom > 0 else 0.0
 
     out_dir = Path(cfg.metrics_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
+    if cfg.save_report:
+        out_dir.mkdir(parents=True, exist_ok=True)
+
 
     # Metrics dictionary
     metrics = dict(
@@ -176,12 +181,15 @@ def train_peer_effects(cfg: PeerEffectsConfig) -> Dict[str, Any]:
         "peer_effect_abs_shap": peer_abs_df.to_dict(orient="records"),
         "peer_effect_signed_shap": peer_signed_df.to_dict(orient="records"),
     }
-    eval_path = out_dir / f"{cfg.prefix}_{cfg.target}_evaluation.json"
-    eval_path.write_text(json.dumps(evaluation, indent=2), encoding="utf-8")
-
-    return {
+    result = {
         "status": "ok",
-        "evaluation_path": str(eval_path),
         "rmse": rmse,
         "r2": r2,
+        "evaluation": evaluation,
     }
+    if cfg.save_report:
+        eval_path = out_dir / f"{cfg.prefix}_{cfg.target}_evaluation.json"
+        eval_path.write_text(json.dumps(evaluation, indent=2), encoding="utf-8")
+        result["evaluation_path"] = str(eval_path)
+
+    return result

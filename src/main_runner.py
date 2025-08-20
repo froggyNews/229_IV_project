@@ -136,12 +136,8 @@ def run(cfg: RunConfig) -> Dict[str, Any]:
         pooled, target="iv_clip", test_frac=cfg.test_frac, drop_cols=["iv_ret_fwd"], params=cfg.xgb_params
     )
 
-    # Save aggregate metrics for pooled models
-    cfg.metrics_path.parent.mkdir(parents=True, exist_ok=True)
+    # Collect training metrics for pooled models
     all_metrics = {"iv_ret_fwd": m_ret, "iv_clip": m_clip}
-    with open(cfg.metrics_path, "w", encoding="utf-8") as f:
-        json.dump(all_metrics, f, indent=2)
-    print(f"[METRICS] saved → {cfg.metrics_path}")
 
     # Save models
     cfg.models_dir.mkdir(parents=True, exist_ok=True)
@@ -160,8 +156,9 @@ def run(cfg: RunConfig) -> Dict[str, Any]:
     if cfg.evaluate_model_path is not None:
         eval_targets.append(("custom", cfg.evaluate_model_path))
     
+    eval_results: Dict[str, Any] = {}
     for tag, model_path in eval_targets:
-        evaluate_pooled_model(
+        ev = evaluate_pooled_model(
             model_path=model_path,
             tickers=list(cfg.tickers),
             start=cfg.start,
@@ -169,17 +166,20 @@ def run(cfg: RunConfig) -> Dict[str, Any]:
             test_frac=cfg.test_frac,
             forward_steps=cfg.forward_steps,
             tolerance=cfg.tolerance,
-            metrics_dir=cfg.metrics_path.parent,
+            metrics_dir=None,
             outputs_prefix=f"{cfg.prefix}_{tag}",
             save_predictions=False,
             perm_repeats=0,
             db_path=cfg.db,
             target_col=("iv_ret_fwd" if tag == "iv_ret_fwd" or "ret" in str(model_path).lower() else "iv_clip"),
+            save_report=False,
         )
 
+        eval_results[tag] = ev
         print(f"[EVAL] done → {tag} ({model_path})")
 
     # --- Peer-effects per target (optional) ---
+    peer_eval_results: Dict[str, Any] = {}
     if cfg.peer_targets:
         kinds = list(cfg.peer_target_kinds) if cfg.peer_target_kinds else [cfg.peer_target_kind]
         for tgt in cfg.peer_targets:
@@ -197,11 +197,26 @@ def run(cfg: RunConfig) -> Dict[str, Any]:
                     metrics_dir=cfg.metrics_path.parent,
                     prefix=f"{cfg.peer_prefix}_{kind}",       # separate outputs
                     xgb_params=cfg.xgb_params,
+                    save_report=False,
                 )
                 res = train_peer_effects(pe_cfg)
+                peer_eval_results[f"{tgt}_{kind}"] = res.get("evaluation", {})
                 print(f"[PEER] {tgt}:{kind} → {res.get('status','ok')}")
 
-    return all_metrics
+    # Final aggregated metrics and evaluations
+    results = {
+        "training": all_metrics,
+        "evaluation": {
+            **eval_results,
+            "peer_effects": peer_eval_results,
+        },
+    }
+    cfg.metrics_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(cfg.metrics_path, "w", encoding="utf-8") as f:
+        json.dump(results, f, indent=2)
+    print(f"[METRICS] saved → {cfg.metrics_path}")
+
+    return results
 
 
 # Example programmatic usage
