@@ -50,7 +50,11 @@ def _winsorize_series(s: pd.Series, q: float) -> pd.Series:
 
 
 def train_peer_effects(cfg: PeerEffectsConfig) -> Dict[str, Any]:
-    """Train a per-target XGB model and export peer effect summaries (SHAP-like)."""
+    """Train a per-target XGB model and emit a single evaluation report.
+
+    The returned JSON aggregates metrics, feature importances, and peer effect
+    SHAP summaries into one file per run.
+    """
     start_ts = pd.Timestamp(cfg.start, tz="UTC") if cfg.start else None
     end_ts   = pd.Timestamp(cfg.end,   tz="UTC") if cfg.end   else None
 
@@ -126,9 +130,10 @@ def train_peer_effects(cfg: PeerEffectsConfig) -> Dict[str, Any]:
     denom = float(np.sum((y_te.values - float(y_te.values.mean())) ** 2))
     r2 = float(1.0 - (float(np.sum((pred - y_te.values) ** 2)) / denom)) if denom > 0 else 0.0
 
-    out_dir = Path(cfg.metrics_dir); out_dir.mkdir(parents=True, exist_ok=True)
+    out_dir = Path(cfg.metrics_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Metrics
+    # Metrics dictionary
     metrics = dict(
         target=cfg.target,
         target_kind=cfg.target_kind,
@@ -141,40 +146,42 @@ def train_peer_effects(cfg: PeerEffectsConfig) -> Dict[str, Any]:
         winsorize_y_q=cfg.winsorize_y_q,
         winsorize_peer_ret_q=cfg.winsorize_peer_ret_q,
     )
-    metrics_path = out_dir / f"{cfg.prefix}_{cfg.target}_metrics.json"
-    metrics_path.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
     print(f"[{cfg.target}] RMSE={rmse:.4f} R²={r2:.3f} rows={len(ds)}")
 
     # Importances
     booster = model.get_booster()
     gain = booster.get_score(importance_type="gain")
     imp_df = pd.DataFrame({"feature": list(gain.keys()), "gain": list(gain.values())}).sort_values("gain", ascending=False)
-    imp_path = out_dir / f"{cfg.prefix}_{cfg.target}_xgb_importance.csv"
-    imp_df.to_csv(imp_path, index=False)
 
     # SHAP-like (pred_contribs)
     dm = xgb.DMatrix(X_te, feature_names=X.columns.tolist())
-    shap_contribs = booster.predict(dm, pred_contribs=True)  # bias in last col
+    shap_contribs = booster.predict(dm, pred_contribs=True)
     shap_df = pd.DataFrame(shap_contribs, columns=list(X.columns) + ["bias"])
 
     # Peer-only columns (exclude self aliases if present)
     peer_cols = [c for c in X.columns if (c.startswith("IV_") or c.startswith("IVRET_"))]
     peer_cols = [c for c in peer_cols if c not in ("IV_SELF", "IVRET_SELF", "IV_SELF_L1", "IVRET_SELF_L1")]
 
-    if len(peer_cols) == 0:
-        # still write empty files to keep downstream stable
-        pd.DataFrame(columns=["feature","mean_abs_shap"]).to_csv(out_dir / f"{cfg.prefix}_{cfg.target}_peer_effect_abs_shap.csv", index=False)
-        pd.DataFrame(columns=["feature","mean_signed_shap"]).to_csv(out_dir / f"{cfg.prefix}_{cfg.target}_peer_effect_signed_shap.csv", index=False)
-    else:
+    peer_abs_df = pd.DataFrame(columns=["feature", "mean_abs_shap"])
+    peer_signed_df = pd.DataFrame(columns=["feature", "mean_signed_shap"])
+    if peer_cols:
         peer_abs = shap_df[peer_cols].abs().mean().sort_values(ascending=False).to_frame("mean_abs_shap")
         peer_signed = shap_df[peer_cols].mean().sort_values(ascending=False).to_frame("mean_signed_shap")
-        peer_abs.reset_index().rename(columns={"index":"feature"}).to_csv(out_dir / f"{cfg.prefix}_{cfg.target}_peer_effect_abs_shap.csv", index=False)
-        peer_signed.reset_index().rename(columns={"index":"feature"}).to_csv(out_dir / f"{cfg.prefix}_{cfg.target}_peer_effect_signed_shap.csv", index=False)
+        peer_abs_df = peer_abs.reset_index().rename(columns={"index": "feature"})
+        peer_signed_df = peer_signed.reset_index().rename(columns={"index": "feature"})
+
+    evaluation = {
+        "metrics": metrics,
+        "xgb_importances": imp_df.to_dict(orient="records"),
+        "peer_effect_abs_shap": peer_abs_df.to_dict(orient="records"),
+        "peer_effect_signed_shap": peer_signed_df.to_dict(orient="records"),
+    }
+    eval_path = out_dir / f"{cfg.prefix}_{cfg.target}_evaluation.json"
+    eval_path.write_text(json.dumps(evaluation, indent=2), encoding="utf-8")
 
     return {
         "status": "ok",
-        "metrics_path": str(metrics_path),
-        "importance_path": str(imp_path),
+        "evaluation_path": str(eval_path),
         "rmse": rmse,
         "r2": r2,
     }
