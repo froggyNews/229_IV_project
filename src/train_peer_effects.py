@@ -431,12 +431,17 @@ def prepare_peer_dataset(cfg: PeerConfig, cores: Dict[str, pd.DataFrame], debug:
     if debug:
         print(f"  DEBUG: After dropping NaN targets - {after_dropna} rows (dropped {before_dropna - after_dropna})")
     
-    # Check for infinite values
+    # Replace infinite values with NaN but don't drop rows yet
     before_inf = len(dataset)
-    dataset = dataset.replace([np.inf, -np.inf], np.nan).dropna()
+    dataset = dataset.replace([np.inf, -np.inf], np.nan)
+
+    # After replacing infinities, ensure target column is still valid
+    dataset = dataset.dropna(subset=[target_col])
     after_inf = len(dataset)
     if debug:
-        print(f"  DEBUG: After dropping infinites - {after_inf} rows (dropped {before_inf - after_inf})")
+        print(
+            f"  DEBUG: After handling infinities - {after_inf} rows (dropped {before_inf - after_inf})"
+        )
     
     # Check datetime exclusion
     before_datetime = len(dataset)
