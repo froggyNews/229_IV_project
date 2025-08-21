@@ -1,3 +1,15 @@
+import sys
+import os
+from pathlib import Path
+
+# Add the parent directory (src) to Python path
+current_dir = Path(__file__).parent
+src_dir = current_dir.parent
+project_root = src_dir.parent
+
+# Add src directory to path for imports
+if str(src_dir) not in sys.path:
+    sys.path.insert(0, str(src_dir))
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Sequence, Dict, Any
@@ -135,10 +147,9 @@ def run_experiment(cfg: ExperimentConfig) -> Dict[str, Any]:
         _, peer_metrics, _ = train_peer_model(peer_ds, peer_cfg.test_frac)
         results["peer"][target] = peer_metrics
 
-    return results
-
 
 if __name__ == "__main__":
     cfg = ExperimentConfig()
     metrics = run_experiment(cfg)
     print(metrics)
+
