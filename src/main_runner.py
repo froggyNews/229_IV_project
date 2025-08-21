@@ -41,7 +41,7 @@ class RunConfig:
     
     # Core settings
     tickers: Sequence[str] = field(default_factory=lambda: ["QUBT", "QBTS", "RGTI", "IONQ"])
-    start: str = "2025-06-02"
+    start: str = "2025-08-02"
     end: str = "2025-08-06"
     
     # Model settings
@@ -328,6 +328,8 @@ def run_pipeline(cfg: RunConfig) -> Dict[str, Any]:
     
     # Load cores once at the start
     print("\n=== Loading Data Cores ===")
+    print(f"Requested date range: {cfg.start} to {cfg.end}")
+    
     cores = load_cores_with_auto_fetch(
         tickers=list(cfg.tickers),
         start=cfg.start,
@@ -341,6 +343,16 @@ def run_pipeline(cfg: RunConfig) -> Dict[str, Any]:
     
     if cfg.debug:
         print(f"DEBUG: Loaded cores for tickers: {list(cores.keys())}")
+        
+    # Debug: Show actual date ranges in loaded data
+    print("Actual data ranges loaded:")
+    for ticker, core in cores.items():
+        if not core.empty and 'ts_event' in core.columns:
+            min_date = core['ts_event'].min()
+            max_date = core['ts_event'].max()
+            print(f"  {ticker}: {min_date.strftime('%Y-%m-%d %H:%M')} to {max_date.strftime('%Y-%m-%d %H:%M')} ({len(core):,} rows)")
+        else:
+            print(f"  {ticker}: No valid data or missing ts_event column")
     
     # Train pooled models
     pooled_results = train_pooled_models(cfg, cores)

@@ -177,11 +177,15 @@ def load_ticker_core(ticker: str, start=None, end=None, r=0.045, db_path=None) -
             
             where_clauses, params = ["ticker=?"], [ticker]
             if start:
+                start_ts = pd.to_datetime(start).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
                 where_clauses.append("ts_event >= ?")
-                params.append(pd.to_datetime(start).strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
+                params.append(start_ts)
+                print(f"DEBUG: Filtering {ticker} with start >= {start} (converted to {start_ts})")
             if end:
+                end_ts = pd.to_datetime(end).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
                 where_clauses.append("ts_event <= ?")
-                params.append(pd.to_datetime(end).strftime("%Y-%m-%dT%H:%M:%S.%fZ"))
+                params.append(end_ts)
+                print(f"DEBUG: Filtering {ticker} with end <= {end} (converted to {end_ts})")
             
             # Get required columns that actually exist in the table
             required_cols = ["ts_event", "expiry_date", "opt_symbol", "stock_symbol",

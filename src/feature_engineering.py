@@ -2,6 +2,8 @@ import os
 import sqlite3
 import json
 import logging
+import warnings
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
@@ -13,6 +15,14 @@ from scipy.stats import norm
 from scipy.optimize import brentq
 
 logging.basicConfig(level=logging.INFO)
+
+@contextmanager
+def suppress_runtime_warnings():
+    """Context manager to suppress specific runtime warnings during SABR calculations."""
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*invalid value encountered in log.*")
+        warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*divide by zero encountered.*")
+        yield
 
 # Config
 DEFAULT_DB_PATH = Path(os.getenv("IV_DB_PATH", "data/iv_data_1m.db"))
@@ -39,45 +49,94 @@ CORE_FEATURE_COLS = [
 
 def _hagan_implied_vol(F: float, K: float, T: float, alpha: float, beta: float, rho: float, nu: float) -> float:
     """Approximate Black implied volatility under the SABR model."""
-    if F <= 0 or K <= 0 or T <= 0:
-        return np.nan
+    with suppress_runtime_warnings():
+        if F <= 0 or K <= 0 or T <= 0 or alpha <= 0:
+            return np.nan
+        
+        # Check for invalid parameters
+        if abs(rho) >= 1 or nu < 0 or not (0 <= beta <= 1):
+            return np.nan
 
-    if np.isclose(F, K):
-        term1 = alpha / (F ** (1 - beta))
-        term2 = 1 + (
-            ((1 - beta) ** 2 / 24) * (alpha ** 2 / (F ** (2 - 2 * beta)))
-            + (rho * beta * nu * alpha / (4 * F ** (1 - beta)))
+        if np.isclose(F, K):
+            term1 = alpha / (F ** (1 - beta))
+            term2 = 1 + (
+                ((1 - beta) ** 2 / 24) * (alpha ** 2 / (F ** (2 - 2 * beta)))
+                + (rho * beta * nu * alpha / (4 * F ** (1 - beta)))
+                + ((2 - 3 * rho ** 2) / 24) * (nu ** 2)
+            ) * T
+            return term1 * term2
+
+        FK_beta = (F * K) ** ((1 - beta) / 2)
+        logFK = np.log(F / K)
+        z = (nu / alpha) * FK_beta * logFK
+        
+        # Handle the z/x_z term carefully
+        if np.isclose(z, 0, atol=1e-7):
+            # When z ≈ 0, limit of z/x_z = 1
+            term2 = 1.0
+        else:
+            # Check if the log argument is valid
+            sqrt_term = np.sqrt(1 - 2 * rho * z + z * z)
+            log_arg = (sqrt_term + z - rho) / (1 - rho)
+            
+            if log_arg <= 0 or (1 - rho) == 0:
+                return np.nan
+                
+            x_z = np.log(log_arg)
+            
+            if np.isclose(x_z, 0, atol=1e-12):
+                # Avoid division by zero
+                term2 = 1.0
+            else:
+                term2 = z / x_z
+        
+        term1 = alpha / (FK_beta * (1 + ((1 - beta) ** 2 / 24) * (logFK ** 2) + ((1 - beta) ** 4 / 1920) * (logFK ** 4)))
+        term3 = 1 + (
+            ((1 - beta) ** 2 / 24) * (alpha ** 2 / (FK_beta ** 2))
+            + (rho * beta * nu * alpha / (4 * FK_beta))
             + ((2 - 3 * rho ** 2) / 24) * (nu ** 2)
         ) * T
-        return term1 * term2
-
-    FK_beta = (F * K) ** ((1 - beta) / 2)
-    logFK = np.log(F / K)
-    z = (nu / alpha) * FK_beta * logFK
-    x_z = np.log((np.sqrt(1 - 2 * rho * z + z * z) + z - rho) / (1 - rho))
-    if np.isclose(z, 0):
-        x_z = 1  # limit z/x_z -> 1 as z -> 0
-    term1 = alpha / (FK_beta * (1 + ((1 - beta) ** 2 / 24) * (logFK ** 2) + ((1 - beta) ** 4 / 1920) * (logFK ** 4)))
-    term2 = z / x_z
-    term3 = 1 + (
-        ((1 - beta) ** 2 / 24) * (alpha ** 2 / (FK_beta ** 2))
-        + (rho * beta * nu * alpha / (4 * FK_beta))
-        + ((2 - 3 * rho ** 2) / 24) * (nu ** 2)
-    ) * T
-    return term1 * term2 * term3
+        
+        result = term1 * term2 * term3
+        
+        # Final sanity check
+        if not np.isfinite(result) or result <= 0:
+            return np.nan
+            
+        return result
 
 
 def _solve_sabr_alpha(sigma: float, F: float, K: float, T: float, beta: float, rho: float, nu: float) -> float:
     """Calibrate alpha for a single observation using Hagan's formula."""
-    if np.any(np.isnan([sigma, F, K, T])) or sigma <= 0:
+    if np.any(np.isnan([sigma, F, K, T])) or sigma <= 0 or F <= 0 or K <= 0 or T <= 0:
+        return np.nan
+    
+    # Check for invalid parameter ranges
+    if abs(rho) >= 1 or nu < 0 or not (0 <= beta <= 1):
         return np.nan
 
     def objective(a: float) -> float:
-        return _hagan_implied_vol(F, K, T, a, beta, rho, nu) - sigma
+        if a <= 0:
+            return float('inf')  # Force positive alpha
+        vol = _hagan_implied_vol(F, K, T, a, beta, rho, nu)
+        if np.isnan(vol):
+            return float('inf')
+        return vol - sigma
 
     try:
+        # Check if the objective function is well-behaved at the boundaries
+        obj_low = objective(1e-6)
+        obj_high = objective(5.0)
+        
+        if not (np.isfinite(obj_low) and np.isfinite(obj_high)):
+            return np.nan
+            
+        # Only proceed if we can bracket the root
+        if obj_low * obj_high > 0:
+            return np.nan
+            
         return brentq(objective, 1e-6, 5.0, maxiter=100)
-    except ValueError:
+    except (ValueError, RuntimeError):
         return np.nan
 
 
