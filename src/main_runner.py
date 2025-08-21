@@ -63,6 +63,8 @@ class RunConfig:
     timestamp: str = field(default_factory=lambda: datetime.now().strftime("%Y%m%d_%H%M%S"))
     debug: bool = False  # Add debug flag
     
+    # Data settings
+    drop_zero_iv_ret: bool = True
     # Optional settings
     xgb_params: Optional[Dict[str, Any]] = None
 
@@ -139,15 +141,16 @@ def train_model(data: pd.DataFrame, target: str, test_frac: float,
     return model, metrics
 
 
-def train_pooled_models(cfg: RunConfig) -> Dict[str, Any]:
+def train_pooled_models(cfg: RunConfig, cores: Dict[str, pd.DataFrame]) -> Dict[str, Any]:
     """Train pooled models for IV returns and levels."""
     
     print("\n=== Training Pooled Models ===")
     
     if cfg.debug:
         print("DEBUG: Debug mode enabled - will save data snapshots")
+        print(f"DEBUG: Using preloaded cores for tickers: {list(cores.keys())}")
     
-    # Load pooled dataset
+    # Load pooled dataset with cores
     pooled = build_pooled_iv_return_dataset_time_safe(
         tickers=list(cfg.tickers),
         start=pd.Timestamp(cfg.start, tz="UTC"),
@@ -156,7 +159,8 @@ def train_pooled_models(cfg: RunConfig) -> Dict[str, Any]:
         forward_steps=cfg.forward_steps,
         tolerance=cfg.tolerance,
         db_path=cfg.db_path,
-        debug=cfg.debug,  # Pass debug flag
+        cores=cores,  # Pass the loaded cores
+        debug=cfg.debug,
     )
     
     if pooled.empty:
@@ -193,60 +197,9 @@ def train_pooled_models(cfg: RunConfig) -> Dict[str, Any]:
         models["iv_clip"] = model_level
         metrics["iv_clip"] = metrics_level
     
-    # Apply model evaluation if available
-    if MODEL_EVALUATION_AVAILABLE:
-        print("\n=== Model Evaluation (NIDEL-style) ===")
-        
-        # We need to save models temporarily to evaluate them
-        temp_models_dir = cfg.output_dir / "temp_models"
-        temp_models_dir.mkdir(parents=True, exist_ok=True)
-        
-        for model_name, model in models.items():
-            try:
-                # Save model temporarily
-                temp_model_path = temp_models_dir / f"temp_{model_name}_{cfg.timestamp}.json"
-                model.save_model(str(temp_model_path))
-                
-                print(f"Evaluating {model_name} model...")
-                evaluation = evaluate_pooled_model(
-                    model_path=temp_model_path,
-                    tickers=list(cfg.tickers),
-                    start=cfg.start,
-                    end=cfg.end,
-                    test_frac=cfg.test_frac,
-                    forward_steps=cfg.forward_steps,
-                    tolerance=cfg.tolerance,
-                    r=cfg.r,
-                    metrics_dir=cfg.output_dir / "evaluations",
-                    outputs_prefix=f"pooled_{model_name}_{cfg.timestamp}",
-                    save_predictions=True,
-                    perm_repeats=5,
-                    perm_sample=5000,
-                    db_path=cfg.db_path,
-                    target_col=model_name,  # Explicitly specify target
-                    save_report=True,
-                )
-                
-                evaluations[model_name] = evaluation
-                print(f"  ✓ {model_name}: RMSE={evaluation['metrics']['RMSE']:.6f}, R²={evaluation['metrics']['R2']:.3f}")
-                
-                # Clean up temp file
-                temp_model_path.unlink()
-                
-            except Exception as e:
-                print(f"  ✗ Failed to evaluate {model_name}: {e}")
-                evaluations[model_name] = {"error": str(e)}
-        
-        # Clean up temp directory
-        try:
-            temp_models_dir.rmdir()
-        except:
-            pass
-    
     return {
         "models": models,
         "metrics": metrics,
-        "evaluations": evaluations,  # Include detailed evaluations
         "dataset_info": {
             "n_rows": len(pooled),
             "n_features": pooled.shape[1],
@@ -373,31 +326,61 @@ def run_pipeline(cfg: RunConfig) -> Dict[str, Any]:
     print(f"Starting pipeline with {len(cfg.tickers)} tickers")
     print(f"Date range: {cfg.start} to {cfg.end}")
     
+    # Load cores once at the start
+    print("\n=== Loading Data Cores ===")
+    cores = load_cores_with_auto_fetch(
+        tickers=list(cfg.tickers),
+        start=cfg.start,
+        end=cfg.end,
+        db_path=cfg.db_path,
+        auto_fetch=cfg.auto_fetch
+    )
+    
+    if not cores:
+        raise ValueError("No cores loaded successfully")
+    
+    if cfg.debug:
+        print(f"DEBUG: Loaded cores for tickers: {list(cores.keys())}")
+    
     # Train pooled models
-    pooled_results = train_pooled_models(cfg)
+    pooled_results = train_pooled_models(cfg, cores)
     
     # Train peer effects models
-    peer_results = train_peer_effects(cfg, pooled_results["cores"])
+    peer_results = train_peer_effects(cfg, cores)
 
     # Save models first so evaluation can load them
     model_paths = save_models(cfg, pooled_results, peer_results)
 
     # Evaluate each saved pooled model
     eval_results = {}
-    for name, path in model_paths.items():
-        eval_results[name] = evaluate_pooled_model(
-            model_path=path,
-            tickers=list(cfg.tickers),
-            start=cfg.start,
-            end=cfg.end,
-            test_frac=cfg.test_frac,
-            forward_steps=cfg.forward_steps,
-            tolerance=cfg.tolerance,
-            db_path=cfg.db_path,
-            metrics_dir=cfg.output_dir,
-            outputs_prefix=f"{path.stem}_eval",
-            save_predictions=False,
-        )
+    if MODEL_EVALUATION_AVAILABLE and model_paths:
+        print("\n=== Model Evaluation (NIDEL-style) ===")
+        for name, path in model_paths.items():
+            try:
+                print(f"Evaluating {name} model...")
+                evaluation = evaluate_pooled_model(
+                    model_path=path,
+                    tickers=list(cfg.tickers),
+                    start=cfg.start,
+                    end=cfg.end,
+                    test_frac=cfg.test_frac,
+                    forward_steps=cfg.forward_steps,
+                    tolerance=cfg.tolerance,
+                    r=cfg.r,
+                    metrics_dir=cfg.output_dir / "evaluations",
+                    outputs_prefix=f"{path.stem}_eval",
+                    save_predictions=True,
+                    perm_repeats=5,
+                    perm_sample=5000,
+                    db_path=cfg.db_path,
+                    target_col=name.replace("pooled_", ""),  # Extract target name
+                    save_report=True,
+                )
+                eval_results[name] = evaluation
+                print(f"  ✓ {name}: RMSE={evaluation['metrics']['RMSE']:.6f}, R²={evaluation['metrics']['R2']:.3f}")
+            except Exception as e:
+                print(f"  ✗ Failed to evaluate {name}: {e}")
+                eval_results[name] = {"error": str(e)}
 
     # Save aggregated results including evaluation
     metrics_path = save_results(cfg, pooled_results, peer_results, eval_results)
@@ -462,6 +445,7 @@ def parse_arguments() -> RunConfig:
         db_path=args.db_path,
         output_dir=args.output_dir,
         auto_fetch=not args.no_auto_fetch,
+        drop_zero_iv_ret=True,  
         debug=args.debug,
     )
 
@@ -469,17 +453,8 @@ def parse_arguments() -> RunConfig:
 # Example usage
 if __name__ == "__main__":
     
-    # Simple configuration
-    config = RunConfig(
-        tickers=["QUBT", "QBTS", "RGTI", "IONQ"],
-        start="2025-08-02",
-        end="2025-08-06",
-        forward_steps=15,
-        test_frac=0.2,
-        peer_targets=["QUBT", "QBTS", "RGTI", "IONQ"],  # Subset for peer effects
-        peer_target_kinds=["iv_ret", "iv_ret_fwd", "iv_ret_fwd_abs", "iv"],  # Both return and level
-        drop_zero_iv_ret=True,
-    )
+    # Parse command line arguments
+    config = parse_arguments()
     
     # Run pipeline
     try:

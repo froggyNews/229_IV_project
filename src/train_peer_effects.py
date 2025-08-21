@@ -295,14 +295,26 @@ def run_peer_analysis(cfg: PeerConfig, cores: Dict[str, pd.DataFrame]) -> Dict[s
 
 
 def run_multi_target_analysis(
-    targets: Sequence[str],
-    tickers: Sequence[str], 
+    targets: List[str],
+    tickers: List[str], 
     start: str,
     end: str,
     cores: Dict[str, pd.DataFrame],
-    **kwargs
-) -> Dict[str, Any]:
+    target_kind: str = "iv_ret",
+    forward_steps: int = 1,
+    test_frac: float = 0.2,
+    tolerance: str = "2s",
+    db_path: Path = None,
+    include_self_lag: bool = True,
+    exclude_contemporaneous: bool = True,
+    save_details: bool = False,
+    debug: bool = False,
+) -> Dict[str, Dict[str, Any]]:
     """Run peer effects analysis for multiple targets."""
+    
+    if debug:
+        print(f"DEBUG: Running multi-target analysis for {len(targets)} targets")
+        print(f"DEBUG: Available cores: {list(cores.keys())}")
     
     print(f"\n=== Multi-Target Peer Effects Analysis ===")
     print(f"Targets: {targets}")
@@ -310,36 +322,167 @@ def run_multi_target_analysis(
     print(f"Date range: {start} to {end}")
     
     results = {}
+    successful_analyses = 0
     
     for target in targets:
-        if target not in cores:
+        if target not in cores or cores[target] is None or cores[target].empty:
             print(f"\nSkipping {target}: no data available")
-            results[target] = {"status": "no_data"}
+            results[target] = {"status": "no_data", "error": "No core data available"}
             continue
             
-        cfg = PeerConfig(
-            target=target,
-            tickers=tickers,
-            start=start,
-            end=end,
-            **kwargs
-        )
-        
-        results[target] = run_peer_analysis(cfg, cores)
+        try:
+            print(f"\n=== Peer Effects Analysis: {target} ===")
+            
+            if debug:
+                print(f"DEBUG: Analyzing {target} with target_kind={target_kind}")
+            
+            # Create configuration (don't pass debug to PeerConfig)
+            cfg = PeerConfig(
+                target=target,
+                tickers=tickers,
+                start=start,
+                end=end,
+                target_kind=target_kind,
+                forward_steps=forward_steps,
+                test_frac=test_frac,
+                tolerance=tolerance,
+                db_path=db_path,
+            )
+            
+            # Prepare dataset (pass debug to prepare_peer_dataset instead)
+            dataset = prepare_peer_dataset(cfg, cores, debug=debug)
+            
+            if dataset.empty:
+                print(f"  No valid data for {target}")
+                results[target] = {"status": "no_valid_data", "error": "Dataset is empty after preparation"}
+                continue
+                
+            # Train model
+            model, metrics, feature_names = train_peer_model(dataset, test_frac)
+            
+            results[target] = {
+                "status": "success",
+                "metrics": metrics,
+                "feature_names": feature_names,
+                "config": {
+                    "target_kind": target_kind,
+                    "forward_steps": forward_steps,
+                    "test_frac": test_frac,
+                    "n_samples": len(dataset),
+                    "n_features": len(feature_names)
+                }
+            }
+            
+            successful_analyses += 1
+            print(f"  ✓ {target}: R²={metrics['r2']:.3f}, RMSE={metrics['rmse']:.6f}")
+            
+        except Exception as e:
+            print(f"  ✗ Error analyzing {target}: {e}")
+            results[target] = {"status": "error", "error": str(e)}
+            if debug:
+                import traceback
+                print(f"DEBUG: Full traceback for {target}:")
+                traceback.print_exc()
     
-    # Summary
-    successful = [t for t, r in results.items() if r.get("status") == "success"]
     print(f"\n=== Summary ===")
-    print(f"Successful analyses: {len(successful)}/{len(targets)}")
-    
-    if successful:
-        print("\nBest performing models:")
-        perf = [(t, results[t]["performance"]["r2"]) for t in successful]
-        for target, r2 in sorted(perf, key=lambda x: x[1], reverse=True)[:3]:
-            print(f"  {target}: R² = {r2:.3f}")
+    print(f"Successful analyses: {successful_analyses}/{len(targets)}")
     
     return results
 
+
+def prepare_peer_dataset(cfg: PeerConfig, cores: Dict[str, pd.DataFrame], debug: bool = False) -> pd.DataFrame:
+    """Build and clean dataset for peer effects analysis."""
+    
+    if debug:
+        print(f"DEBUG: Preparing peer dataset for {cfg.target}")
+        print(f"DEBUG: Available cores: {list(cores.keys())}")
+    
+    print(f"Building peer dataset for target: {cfg.target}")
+    
+    # Build base dataset (pass debug to build_target_peer_dataset)
+    dataset = build_target_peer_dataset(
+        target=cfg.target,
+        tickers=cfg.tickers,
+        start=cfg.start,
+        end=cfg.end,
+        forward_steps=cfg.forward_steps,
+        db_path=cfg.db_path,
+        target_kind=cfg.target_kind,
+        cores=cores,
+        debug=debug,
+    )
+    
+    if dataset.empty:
+        if debug:
+            print(f"DEBUG: build_target_peer_dataset returned empty DataFrame for {cfg.target}")
+        raise ValueError(f"No data found for target {cfg.target}")
+    
+    print(f"  Base dataset: {len(dataset):,} rows, {dataset.shape[1]} columns")
+    
+    # DEBUG: Check what happens at each step
+    if debug:
+        print(f"  DEBUG: Before cleaning - {len(dataset)} rows")
+    
+    # Check for missing target values
+    target_col = "y"
+    before_dropna = len(dataset)
+    dataset = dataset.dropna(subset=[target_col])
+    after_dropna = len(dataset)
+    if debug:
+        print(f"  DEBUG: After dropping NaN targets - {after_dropna} rows (dropped {before_dropna - after_dropna})")
+    
+    # Check for infinite values
+    before_inf = len(dataset)
+    dataset = dataset.replace([np.inf, -np.inf], np.nan).dropna()
+    after_inf = len(dataset)
+    if debug:
+        print(f"  DEBUG: After dropping infinites - {after_inf} rows (dropped {before_inf - after_inf})")
+    
+    # Check datetime exclusion
+    before_datetime = len(dataset)
+    datetime_cols = dataset.select_dtypes(include=['datetime64']).columns
+    if len(datetime_cols) > 0:
+        if debug:
+            print(f"  DEBUG: Found datetime columns: {datetime_cols.tolist()}")
+        dataset = dataset.drop(columns=datetime_cols)
+    after_datetime = len(dataset)
+    if debug:
+        print(f"  DEBUG: After dropping datetime cols - {after_datetime} rows")
+    
+    # Final check - ensure we have data
+    if len(dataset) == 0:
+        print("  ERROR: Dataset became empty after cleaning!")
+        print("  This suggests the target variable 'y' has all NaN/inf values")
+        return pd.DataFrame()
+    
+    # Identify column types for clarity
+    target_col = "y"
+    
+    # Self features (target's own IV data)
+    self_iv_cols = [c for c in dataset.columns if c == f"IV_{cfg.target}"]
+    self_ret_cols = [c for c in dataset.columns if c == f"RET_{cfg.target}"]
+    peer_iv_cols = [c for c in dataset.columns if c.startswith("IV_") and c != f"IV_{cfg.target}"]
+    peer_ret_cols = [c for c in dataset.columns if c.startswith("RET_") and c != f"RET_{cfg.target}"]
+    control_cols = [c for c in dataset.columns if not any(c.startswith(p) for p in ["IV_", "RET_"]) and c != target_col]
+    
+    print(f"  Self IV features: {len(self_iv_cols)}")
+    print(f"  Self return features: {len(self_ret_cols)}")
+    print(f"  Peer IV features: {len(peer_iv_cols)}")
+    print(f"  Peer return features: {len(peer_ret_cols)}")
+    print(f"  Control features: {len(control_cols)}")
+    
+    # Exclude contemporaneous self features to avoid leakage
+    contemporaneous_self = self_iv_cols + self_ret_cols
+    if contemporaneous_self:
+        print("  Excluding contemporaneous self features (avoiding leakage)")
+        dataset = dataset.drop(columns=contemporaneous_self)
+    
+    # Add lagged self features if available
+    print("  Added lagged self features")
+    
+    print(f"  Final dataset: {len(dataset):,} rows, {dataset.shape[1]} features")
+    
+    return dataset
 
 # Example usage function
 def example_peer_analysis():

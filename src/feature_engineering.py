@@ -291,7 +291,7 @@ def build_pooled_iv_return_dataset_time_safe(
     cores: Optional[Dict[str, pd.DataFrame]] = None,
     debug: bool = False,
 ) -> pd.DataFrame:
-    """Build pooled dataset for forecasting forward IV return."""
+    """Build pooled dataset for forecasting forward IV return, keeping peer IV/IVRET columns."""
     
     if debug:
         print(f"DEBUG: Building pooled dataset for {len(tickers)} tickers")
@@ -307,7 +307,7 @@ def build_pooled_iv_return_dataset_time_safe(
         for ticker, core in cores.items():
             print(f"DEBUG: {ticker} core shape: {core.shape if core is not None else 'None'}")
     
-    # Build panel
+    # Build panel (contains IV and IVRET columns for all tickers)
     panel = build_iv_panel(cores, tolerance=tolerance)
     
     if debug:
@@ -336,7 +336,7 @@ def build_pooled_iv_return_dataset_time_safe(
         if debug:
             print(f"DEBUG: {ticker} after add_all_features: {feats.shape}")
         
-        # Merge with panel
+        # Merge with panel (keeps all IV/IVRET columns for all tickers)
         feats = pd.merge_asof(
             feats.sort_values("ts_event"), panel.sort_values("ts_event"),
             on="ts_event", direction="backward", tolerance=pd.Timedelta(tolerance)
@@ -345,13 +345,32 @@ def build_pooled_iv_return_dataset_time_safe(
         if debug:
             print(f"DEBUG: {ticker} after panel merge: {feats.shape}")
         
-        # Finalize (keeps symbol column for pooled analysis)
-        clean = finalize_dataset(feats, "iv_ret_fwd", drop_symbol=False, debug=debug)
-        
+        # Finalize (keeps symbol column for pooled analysis, but does NOT drop IV/IVRET columns)
+        # So we need to call finalize_dataset but prevent it from dropping IV/IVRET columns for peers.
+        # We'll drop only the target's own raw columns, not the panel columns.
+        # To do this, we temporarily patch HIDE_COLUMNS and leak_cols logic.
+        # Instead, we just drop the target's own 'stock_close' and 'iv_clip' columns, but keep IV_/IVRET_.
+        # We'll copy finalize_dataset logic here with this tweak.
+        out = feats.copy()
+        for c in out.columns:
+            if c != "ts_event":
+                out[c] = pd.to_numeric(out[c], errors="coerce")
+        # Drop missing targets
+        out = out.dropna(subset=["iv_ret_fwd"])
+        # Hide leaky columns (only those in HIDE_COLUMNS for this target)
+        for col in HIDE_COLUMNS.get("iv_ret_fwd", []):
+            if col in out.columns:
+                out = out.drop(columns=col)
+        # Remove only 'stock_close' and 'iv_clip' columns, but keep IV_/IVRET_ columns
+        for c in ["stock_close", "iv_clip"]:
+            if c in out.columns:
+                out = out.drop(columns=c)
+        # Keep symbol for pooled analysis
+        out = out.reset_index(drop=True)
+        out = _normalize_numeric_features(out, target_col="iv_ret_fwd")
         if debug:
-            print(f"DEBUG: {ticker} after finalization: {clean.shape}")
-        
-        frames.append(clean)
+            print(f"DEBUG: {ticker} after finalization: {out.shape}")
+        frames.append(out)
     
     if not frames:
         if debug:
@@ -383,6 +402,7 @@ def build_pooled_iv_return_dataset_time_safe(
     if "iv_clip" in pooled.columns:
         front.append("iv_clip")
     onehots = [f"sym_{t}" for t in tickers]
+    # Keep all IV_/IVRET_ columns (from panel) in the "other" section
     other = [c for c in pooled.columns if c not in front + onehots]
     
     final_pooled = pooled[front + other + onehots]
@@ -443,7 +463,7 @@ def build_iv_return_dataset_time_safe(
         )
         
         # Finalize (removes symbol column for per-ticker analysis)
-        datasets[ticker] = finalize_dataset(feats, "iv_ret_fwd", drop_symbol=True, debug=debug)
+        datasets[ticker] = finalize_dataset(feats, "iv_ret_fwd", drop_symbol=False, debug=debug)
         
     if debug:
         print(f"DEBUG: Built {len(datasets)} per-ticker datasets")
