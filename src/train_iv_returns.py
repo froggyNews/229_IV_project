@@ -24,10 +24,42 @@ def train_xgb_iv_returns_time_safe_pooled(
         raise ValueError(f"Too few rows: {n}")
     split = int(n * (1 - test_frac))
     train_df, test_df = pooled.iloc[:split], pooled.iloc[split:]
+    
+    # Extract target variable
     y_tr = train_df["iv_ret_fwd"].astype(float).values
     y_te = test_df["iv_ret_fwd"].astype(float).values
-    X_tr = train_df.drop(columns=["iv_ret_fwd"]).astype(float)
-    X_te = test_df.drop(columns=["iv_ret_fwd"]).astype(float)
+    
+    # Prepare feature matrices - handle datetime and non-numeric columns
+    def prepare_features(df):
+        # Drop target column
+        X = df.drop(columns=["iv_ret_fwd"])
+        
+        # Identify and drop datetime columns
+        datetime_cols = X.select_dtypes(include=['datetime64']).columns.tolist()
+        if datetime_cols:
+            print(f"Dropping datetime columns: {datetime_cols}")
+            X = X.drop(columns=datetime_cols)
+        
+        # Identify and drop object columns that can't be converted to numeric
+        object_cols = X.select_dtypes(include=['object']).columns.tolist()
+        if object_cols:
+            print(f"Dropping object columns: {object_cols}")
+            X = X.drop(columns=object_cols)
+        
+        # Convert remaining columns to float, handling any issues
+        for col in X.columns:
+            X[col] = pd.to_numeric(X[col], errors='coerce')
+        
+        # Drop columns that are all NaN after conversion
+        X = X.dropna(axis=1, how='all')
+        
+        # Fill any remaining NaN values
+        X = X.fillna(0)
+        
+        return X.astype(float)
+    
+    X_tr = prepare_features(train_df)
+    X_te = prepare_features(test_df)
 
     if params is None:
         params = dict(objective="reg:squarederror",
@@ -39,6 +71,7 @@ def train_xgb_iv_returns_time_safe_pooled(
     pred = model.predict(X_te)
     metrics = dict(RMSE=float(np.sqrt(mean_squared_error(y_te, pred))),
                    R2=float(r2_score(y_te, pred)),
-                   n_train=int(len(X_tr)), n_test=int(len(X_te)))
+                   n_train=int(len(X_tr)), n_test=int(len(X_te)),
+                   n_features=int(X_tr.shape[1]))
     return model, metrics
 
