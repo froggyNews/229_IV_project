@@ -1,7 +1,3 @@
-"""
-Compare pooled vs isolated IV return forecasting models.
-"""
-
 import sys
 import os
 from pathlib import Path
@@ -14,6 +10,10 @@ project_root = src_dir.parent
 # Add src directory to path for imports
 if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Sequence, Dict, Any
+import pandas as pd
 
 # Now import the required modules
 from dataclasses import dataclass, field
