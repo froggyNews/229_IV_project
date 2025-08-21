@@ -1,25 +1,17 @@
 import sys
-import os
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Sequence, Dict, Any
+
+import pandas as pd
 
 # Add the parent directory (src) to Python path
 current_dir = Path(__file__).parent
 src_dir = current_dir.parent
 project_root = src_dir.parent
 
-# Add src directory to path for imports
 if str(src_dir) not in sys.path:
     sys.path.insert(0, str(src_dir))
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Sequence, Dict, Any
-import pandas as pd
-
-# Now import the required modules
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Sequence, Dict, Any
-import pandas as pd
 
 from feature_engineering import (
     build_pooled_iv_return_dataset_time_safe,
@@ -27,11 +19,8 @@ from feature_engineering import (
 )
 from data_loader_coordinator import load_cores_with_auto_fetch
 from train_iv_returns import train_xgb_iv_returns_time_safe_pooled
-from train_peer_effects import (
-    PeerConfig,
-    prepare_peer_dataset,
-    train_peer_model,
-)
+from train_peer_effects import PeerConfig, run_peer_analysis
+from model_evaluation import evaluate_pooled_model
 
 
 @dataclass
@@ -109,18 +98,57 @@ def run_experiment(cfg: ExperimentConfig) -> Dict[str, Any]:
 
     results: Dict[str, Any] = {"isolated": {}, "peer": {}}
 
-    # Train one model per ticker (isolated)
+    model_dir = project_root / "models"
+    model_dir.mkdir(exist_ok=True)
+
+    # Train and evaluate one model per ticker (isolated)
     for ticker, df in isolated_dfs.items():
-        _, metrics = train_xgb_iv_returns_time_safe_pooled(
+        model, _ = train_xgb_iv_returns_time_safe_pooled(
             df, test_frac=cfg.test_frac
         )
-        results["isolated"][ticker] = metrics
+        model_path = model_dir / f"isolated_{ticker}.json"
+        model.save_model(model_path)
+        evaluation = evaluate_pooled_model(
+            model_path=model_path,
+            tickers=[ticker],
+            start=cfg.start,
+            end=cfg.end,
+            test_frac=cfg.test_frac,
+            forward_steps=cfg.forward_steps,
+            tolerance=cfg.tolerance,
+            r=cfg.r,
+            db_path=cfg.db_path,
+            target_col="iv_ret_fwd",
+            metrics_dir=None,
+            save_report=False,
+            save_predictions=False,
+            perm_repeats=0,
+        )
+        results["isolated"][ticker] = evaluation["metrics"]
 
-    # Train pooled model on combined dataset
-    _, pooled_metrics = train_xgb_iv_returns_time_safe_pooled(
+    # Train pooled model on combined dataset and evaluate
+    pooled_model, _ = train_xgb_iv_returns_time_safe_pooled(
         pooled_df, test_frac=cfg.test_frac
     )
-    results["pooled"] = pooled_metrics
+    pooled_model_path = model_dir / "pooled.json"
+    pooled_model.save_model(pooled_model_path)
+    pooled_eval = evaluate_pooled_model(
+        model_path=pooled_model_path,
+        tickers=list(cfg.tickers),
+        start=cfg.start,
+        end=cfg.end,
+        test_frac=cfg.test_frac,
+        forward_steps=cfg.forward_steps,
+        tolerance=cfg.tolerance,
+        r=cfg.r,
+        db_path=cfg.db_path,
+        target_col="iv_ret_fwd",
+        metrics_dir=None,
+        save_report=False,
+        save_predictions=False,
+        perm_repeats=0,
+    )
+    results["pooled"] = pooled_eval["metrics"]
 
     # Peer-effects models (one model per target ticker)
     cores = load_cores_with_auto_fetch(cfg.tickers, cfg.start, cfg.end, cfg.db_path)
@@ -134,9 +162,8 @@ def run_experiment(cfg: ExperimentConfig) -> Dict[str, Any]:
             forward_steps=cfg.forward_steps,
             test_frac=cfg.test_frac,
         )
-        peer_ds = prepare_peer_dataset(peer_cfg, cores)
-        _, peer_metrics, _ = train_peer_model(peer_ds, peer_cfg.test_frac)
-        results["peer"][target] = peer_metrics
+        peer_result = run_peer_analysis(peer_cfg, cores)
+        results["peer"][target] = peer_result.get("performance", {})
 
     return results
 
