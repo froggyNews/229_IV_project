@@ -5,7 +5,7 @@ import time
 import math
 from pathlib import Path
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 import numpy as np
 import pandas as pd
@@ -23,6 +23,7 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from feature_engineering import build_pooled_iv_return_dataset_time_safe
+from data_loader_coordinator import load_cores_with_auto_fetch
 
 
 
@@ -39,6 +40,8 @@ class ExpConfig:
     n_splits: int = 4
     r: float = 0.045
     tolerance: str = "2s"
+    cores: Optional[Dict[str, pd.DataFrame]] = None
+    auto_fetch: bool = True
 
 
 def _time_cv_splits(n: int, n_splits: int) -> List[Tuple[np.ndarray, np.ndarray]]:
@@ -50,6 +53,11 @@ def _time_cv_splits(n: int, n_splits: int) -> List[Tuple[np.ndarray, np.ndarray]
 def _smape(y_true, y_pred):
     denom = (np.abs(y_true) + np.abs(y_pred))
     return np.mean(2.0 * np.abs(y_pred - y_true) / np.where(denom == 0, 1.0, denom))
+
+
+def _to_utc(ts):
+    ts = pd.Timestamp(ts)
+    return ts.tz_localize("UTC") if ts.tz is None else ts.tz_convert("UTC")
 
 
 def _diebold_mariano(e1: np.ndarray, e2: np.ndarray, power: int = 2) -> Tuple[float, float]:
@@ -118,32 +126,31 @@ def run_experiment(cfg: ExpConfig):
     print("🚀 Starting Group Transfer Learning Experiment")
     print(f"📊 Groups: {cfg.groups}")
     print(f"📅 Date range: {cfg.start} to {cfg.end}")
-    
-    # Convert dates to proper format for data loading
-    if isinstance(cfg.start, str):
-        start_for_loading = cfg.start
-    else:
-        start_for_loading = cfg.start.strftime("%Y-%m-%d")
-        
-    if isinstance(cfg.end, str):
-        end_for_loading = cfg.end
-    else:
-        end_for_loading = cfg.end.strftime("%Y-%m-%d")
-    
+
+    start_ts = _to_utc(cfg.start)
+    end_ts = _to_utc(cfg.end)
+
     # Get all tickers from all groups
     all_tickers = sum(cfg.groups.values(), [])
     print(f"📈 All tickers: {all_tickers}")
-    
+
+    cores = cfg.cores
+    if cores is None:
+        cores = load_cores_with_auto_fetch(
+            all_tickers, start_ts, end_ts, Path(cfg.db_path), auto_fetch=cfg.auto_fetch
+        )
+
     # Build pooled dataset
     print("🔗 Building pooled dataset...")
     df = build_pooled_iv_return_dataset_time_safe(
         tickers=all_tickers,
-        start=start_for_loading,  # Use string format
-        end=end_for_loading,      # Use string format
+        start=start_ts,
+        end=end_ts,
         r=cfg.r,
         forward_steps=cfg.forward_steps,
         tolerance=cfg.tolerance,
         db_path=cfg.db_path,
+        cores=cores,
     )
     
     if df.empty:
