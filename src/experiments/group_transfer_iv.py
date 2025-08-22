@@ -45,7 +45,31 @@ class ExpConfig:
 
 
 def _time_cv_splits(n: int, n_splits: int) -> List[Tuple[np.ndarray, np.ndarray]]:
-    """Forward-chaining TimeSeriesSplit wrapper."""
+    """Forward-chaining TimeSeriesSplit wrapper.
+
+    Parameters
+    ----------
+    n : int
+        Number of observations available.
+    n_splits : int
+        Desired number of splits.
+
+    Returns
+    -------
+    List[Tuple[np.ndarray, np.ndarray]]
+        List of ``(train_index, test_index)`` tuples.
+
+    Raises
+    ------
+    ValueError
+        If ``n`` is not large enough to accommodate ``n_splits`` folds.
+    """
+
+    if n <= n_splits:
+        raise ValueError(
+            f"Not enough samples ({n}) to create {n_splits} splits for TimeSeriesSplit"
+        )
+
     tscv = TimeSeriesSplit(n_splits=n_splits)
     return list(tscv.split(np.arange(n)))
 
@@ -160,6 +184,11 @@ def run_experiment(cfg: ExpConfig):
 
     # Derive ticker column from one-hot symbol columns if needed
     sym_cols = [c for c in df.columns if c.startswith("sym_")]
+    if sym_cols:
+        zero_rows = df[sym_cols].sum(axis=1) == 0
+        if zero_rows.any():
+            print(f"⚠️  Dropping {int(zero_rows.sum())} rows without ticker encoding")
+            df = df.loc[~zero_rows]
     if sym_cols and "ticker" not in df.columns:
         df["ticker"] = df[sym_cols].idxmax(axis=1).str.replace("sym_", "")
 
@@ -174,17 +203,38 @@ def run_experiment(cfg: ExpConfig):
         if col not in df.columns:
             raise ValueError(f"Required column {col} missing from dataset")
 
-    base_feats = None
-    group_frames = {}
+    # Prepare data for each group and track feature sets
+    group_frames: Dict[str, Tuple[pd.DataFrame, pd.Series]] = {}
+    feat_sets: List[set] = []
     for name, tickers in cfg.groups.items():
         X, y = _prep_group_frame(df, tickers, cfg.target)
+        if len(y) == 0:
+            print(f"⚠️  Skipping {name}: no samples for tickers {tickers}")
+            continue
         group_frames[name] = (X, y)
-        base_feats = set(X.columns) if base_feats is None else base_feats & set(X.columns)
-    base_feats = sorted(list(base_feats))
-    for k in group_frames:
-        X, y = group_frames[k]
+        feat_sets.append(set(X.columns))
+
+    if not group_frames:
+        raise ValueError("No groups have data for the specified tickers and date range")
+
+    base_feats = sorted(set.intersection(*feat_sets)) if feat_sets else []
+    for k, (X, y) in group_frames.items():
         group_frames[k] = (X[base_feats], y)
 
+    # Filter out groups without enough samples for the desired number of splits
+    valid_frames: Dict[str, Tuple[pd.DataFrame, pd.Series]] = {}
+    for name, (X, y) in group_frames.items():
+        if len(y) <= cfg.n_splits:
+            print(
+                f"⚠️  Skipping {name}: only {len(y)} samples (need > {cfg.n_splits} for CV)"
+            )
+            continue
+        valid_frames[name] = (X, y)
+
+    if not valid_frames:
+        raise ValueError("No groups have enough samples for cross-validation")
+
+    group_frames = valid_frames
     splits = {name: _time_cv_splits(len(y), cfg.n_splits) for name, (X, y) in group_frames.items()}
 
     results = []
