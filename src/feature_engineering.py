@@ -30,9 +30,9 @@ ANNUAL_MINUTES = 252 * 390
 
 # What to hide when predicting each target (preserved from original)
 HIDE_COLUMNS = {
-    "iv_ret_fwd": ["iv_ret_fwd_abs"],
-    "iv_ret_fwd_abs": ["iv_ret_fwd"], 
-    "iv_clip": ["iv_ret_fwd", "iv_ret_fwd_abs"]
+    "iv_ret_fwd": ["iv_ret_fwd_abs", "core_iv_ret_fwd_abs"],
+    "iv_ret_fwd_abs": ["iv_ret_fwd"],
+    "iv_clip": ["iv_ret_fwd", "iv_ret_fwd_abs", "core_iv_ret_fwd_abs"],
 }
 
 # Core features (preserved from original)
@@ -368,6 +368,10 @@ def build_pooled_iv_return_dataset_time_safe(
     
     # Build panel (contains IV and IVRET columns for all tickers)
     panel = build_iv_panel(cores, tolerance=tolerance)
+    if panel is not None and not panel.empty:
+        panel = panel.rename(
+            columns={c: (f"panel_{c}" if c != "ts_event" else c) for c in panel.columns}
+        )
     
     if debug:
         print(f"DEBUG: IV panel shape: {panel.shape}")
@@ -389,12 +393,19 @@ def build_pooled_iv_return_dataset_time_safe(
         if debug:
             print(f"DEBUG: Processing {ticker}")
             
-        # Add features
+        # Add features and prefix with source label
         feats = add_all_features(cores[ticker], forward_steps=forward_steps, r=r)
-        
+        rename_map = {
+            c: f"core_{c}" for c in feats.columns
+            if c not in {"ts_event", "iv_ret_fwd", "iv_ret_fwd_abs", "symbol"}
+        }
+        feats = feats.rename(columns=rename_map)
+        if "iv_ret_fwd_abs" in feats.columns:
+            feats = feats.rename(columns={"iv_ret_fwd_abs": "core_iv_ret_fwd_abs"})
+
         if debug:
             print(f"DEBUG: {ticker} after add_all_features: {feats.shape}")
-        
+
         # Merge with panel (keeps all IV/IVRET columns for all tickers)
         feats = pd.merge_asof(
             feats.sort_values("ts_event"), panel.sort_values("ts_event"),
@@ -420,8 +431,8 @@ def build_pooled_iv_return_dataset_time_safe(
         for col in HIDE_COLUMNS.get("iv_ret_fwd", []):
             if col in out.columns:
                 out = out.drop(columns=col)
-        # Remove only 'stock_close' and 'iv_clip' columns, but keep IV_/IVRET_ columns
-        for c in ["stock_close", "iv_clip"]:
+        # Remove only raw price/IV columns from core data, keep panel features
+        for c in ["stock_close", "iv_clip", "core_stock_close", "core_iv_clip"]:
             if c in out.columns:
                 out = out.drop(columns=c)
         # Keep symbol for pooled analysis
@@ -456,8 +467,8 @@ def build_pooled_iv_return_dataset_time_safe(
     
     # Column ordering (preserves original order)
     front = ["iv_ret_fwd"]
-    if "iv_ret_fwd_abs" in pooled.columns:
-        front.append("iv_ret_fwd_abs")
+    if "core_iv_ret_fwd_abs" in pooled.columns:
+        front.append("core_iv_ret_fwd_abs")
     if "iv_clip" in pooled.columns:
         front.append("iv_clip")
     onehots = [f"sym_{t}" for t in tickers]

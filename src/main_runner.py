@@ -178,7 +178,7 @@ def train_pooled_models(cfg: RunConfig, cores: Dict[str, pd.DataFrame]) -> Dict[
         data=pooled,
         target="iv_ret_fwd",
         test_frac=cfg.test_frac,
-        drop_cols=["iv_ret_fwd_abs", "iv_clip"],  # Avoid leakage
+        drop_cols=["iv_ret_fwd_abs", "core_iv_ret_fwd_abs", "iv_clip"],  # Avoid leakage
         params=get_default_xgb_params()
     )
     models["iv_ret_fwd"] = model_ret
@@ -191,7 +191,7 @@ def train_pooled_models(cfg: RunConfig, cores: Dict[str, pd.DataFrame]) -> Dict[
             data=pooled,
             target="iv_clip",
             test_frac=cfg.test_frac,
-            drop_cols=["iv_ret_fwd", "iv_ret_fwd_abs"],  # Avoid leakage
+            drop_cols=["iv_ret_fwd", "iv_ret_fwd_abs", "core_iv_ret_fwd_abs"],  # Avoid leakage
             params=get_default_xgb_params()
         )
         models["iv_clip"] = model_level
