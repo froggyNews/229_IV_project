@@ -9,12 +9,10 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import TimeSeriesSplit
-from sklearn.metrics import r2_score, mean_absolute_error
-from sklearn.inspection import permutation_importance
-from xgboost import XGBRegressor
 import shap
 from scipy.stats import spearmanr, t
+from sklearn.metrics import mean_absolute_error
+from sklearn.model_selection import TimeSeriesSplit
 
 # Add the parent directory (src) to Python path for module imports
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -23,6 +21,7 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from feature_engineering import build_pooled_iv_return_dataset_time_safe
+
 
 
 @dataclass
@@ -108,20 +107,46 @@ def _prep_group_frame(df: pd.DataFrame, tickers: List[str], target_col: str) -> 
 
 
 def run_experiment(cfg: ExpConfig):
-    outdir = Path(cfg.output_dir)
-    outdir.mkdir(parents=True, exist_ok=True)
-    ts = time.strftime("%Y%m%d_%H%M%S")
-
+    """Run the group transfer learning experiment."""
+    
+    print("🚀 Starting Group Transfer Learning Experiment")
+    print(f"📊 Groups: {cfg.groups}")
+    print(f"📅 Date range: {cfg.start} to {cfg.end}")
+    
+    # Convert dates to proper format for data loading
+    if isinstance(cfg.start, str):
+        start_for_loading = cfg.start
+    else:
+        start_for_loading = cfg.start.strftime("%Y-%m-%d")
+        
+    if isinstance(cfg.end, str):
+        end_for_loading = cfg.end
+    else:
+        end_for_loading = cfg.end.strftime("%Y-%m-%d")
+    
+    # Get all tickers from all groups
+    all_tickers = sum(cfg.groups.values(), [])
+    print(f"📈 All tickers: {all_tickers}")
+    
+    # Build pooled dataset
+    print("🔗 Building pooled dataset...")
     df = build_pooled_iv_return_dataset_time_safe(
-        tickers=sum(cfg.groups.values(), []),
-        start=pd.Timestamp(cfg.start, tz="UTC"),
-        end=pd.Timestamp(cfg.end, tz="UTC"),
+        tickers=all_tickers,
+        start=start_for_loading,  # Use string format
+        end=end_for_loading,      # Use string format
         r=cfg.r,
         forward_steps=cfg.forward_steps,
         tolerance=cfg.tolerance,
         db_path=cfg.db_path,
     )
-
+    
+    if df.empty:
+        raise ValueError("No data found for the specified tickers and date range")
+    
+    print(f"📊 Dataset shape: {df.shape}")
+    print(f"📊 Available symbols: {df['symbol'].unique().tolist()}")
+    
+    # Continue with rest of experiment...
     sym_cols = [c for c in df.columns if c.startswith("sym_")]
     if sym_cols:
         df["ticker"] = df[sym_cols].idxmax(axis=1).str.replace("sym_", "")
@@ -210,3 +235,27 @@ def run_experiment(cfg: ExpConfig):
         json.dump(sim_report, f, indent=2)
 
     return res_df, imp_df, shap_df, sim_report
+
+if __name__ == "__main__":
+    # Example usage
+    config = ExpConfig(
+        groups={
+            "group1": ["QUBT", "RGTI"],
+            "group2": ["QBTS", "IONQ"]
+        },
+        db_path="data/iv_data_1m.db",
+        start="2025-08-02",
+        end="2025-08-06",
+        forward_steps=5,
+        output_dir="output",
+        xgb_params={
+            "objective": "reg:squarederror",
+            "n_estimators": 350,
+            "learning_rate": 0.05,
+            "max_depth": 6,
+            "subsample": 0.9,
+            "colsample_bytree": 0.9,
+            "random_state": 42
+        }
+    )
+    run_experiment(config)

@@ -9,7 +9,7 @@ train_peer_effects.py.
 import os
 import sqlite3
 from pathlib import Path
-from typing import Dict, Sequence, Optional
+from typing import Dict, Sequence, Optional, List, Union
 
 import numpy as np
 import pandas as pd
@@ -312,171 +312,190 @@ class DataCoordinator:
     
     def load_cores_with_fetch(
         self,
-        tickers: Sequence[str],
-        start: str,
-        end: str,
+        tickers: List[str],
+        start: Union[str, pd.Timestamp],
+        end: Union[str, pd.Timestamp],
         auto_fetch: bool = True,
-        drop_zero_iv_ret: bool = False,
+        drop_zero_iv_ret: bool = True,
     ) -> Dict[str, pd.DataFrame]:
-        """
-        Load ticker cores, automatically fetching missing data if possible.
-
-        Parameters
-        ----------
-        drop_zero_iv_ret: bool, optional
-            If True, rows where the instantaneous IV return is exactly zero
-            are removed from each core. The return is computed as the first
-            difference of log(iv_clip).
-        """
-        cores = {}
+        """Load cores with optional auto-fetch and proper timezone handling."""
+        
+        # Enhanced timezone handling
+        def normalize_timestamp(ts, label=""):
+            """Convert any timestamp input to UTC timezone."""
+            if isinstance(ts, pd.Timestamp):
+                if ts.tz is None:
+                    # Naive timestamp, assume UTC
+                    return ts.tz_localize("UTC")
+                else:
+                    # Already has timezone, convert to UTC
+                    return ts.tz_convert("UTC")
+            elif isinstance(ts, str):
+                # String input, parse as UTC
+                return pd.Timestamp(ts, tz="UTC")
+            else:
+                # Try to convert to timestamp first
+                try:
+                    temp_ts = pd.Timestamp(ts)
+                    return temp_ts.tz_localize("UTC")
+                except Exception as e:
+                    raise ValueError(f"Cannot convert {label} timestamp: {ts}, error: {e}")
+        
+        try:
+            start_ts = normalize_timestamp(start, "start")
+            end_ts = normalize_timestamp(end, "end")
+        except Exception as e:
+            print(f"❌ Timestamp conversion error: {e}")
+            return {}
+        
+        print(f"📊 Loading cores for {len(tickers)} tickers from {start_ts.date()} to {end_ts.date()}")
+        
+        # Check what data we have vs what we need
+        available_cores = {}
         missing_tickers = []
         
-        print(f"Loading cores for {len(tickers)} tickers...")
-        
-        # First, try to populate ATM slices from existing processed data
-        # Only do this once at the beginning
-        self.populate_missing_atm_slices(tickers)
-        
-        # First pass: try to load existing data
         for ticker in tickers:
             try:
-                # Call the module-level function
-                core = load_ticker_core(ticker, start=start, end=end, db_path=self.db_path)
-                if not core.empty:
-                    if drop_zero_iv_ret and "iv_clip" in core.columns:
-                        iv_ret = np.log(core["iv_clip"].astype(float)).diff()
-                        mask = (iv_ret != 0) & (~iv_ret.isna())
-                        dropped = int(len(core) - mask.sum())
-                        core = core[mask].copy()
-                        if dropped:
-                            print(f"    • {ticker}: dropped {dropped} rows with iv_ret=0")
-                    cores[ticker] = core
-                    print(f"  ✓ {ticker}: {len(core):,} rows")
+                core = load_ticker_core(ticker, start_ts, end_ts, db_path=self.db_path)
+                if core is not None and not core.empty:
+                    available_cores[ticker] = core
+                    print(f"  ✅ {ticker}: {len(core):,} rows")
                 else:
                     missing_tickers.append(ticker)
-                    print(f"  ✗ {ticker}: no data found")
+                    print(f"  ❌ {ticker}: No data available")
             except Exception as e:
-                print(f"  ✗ {ticker}: error loading ({e})")
                 missing_tickers.append(ticker)
+                print(f"  ❌ {ticker}: Error loading - {e}")
         
-        # Second pass: fetch missing data if enabled and API key available
-        if missing_tickers and auto_fetch:
-            print(f"Auto-fetching {len(missing_tickers)} missing tickers...")
-            
-            start_ts = pd.Timestamp(start, tz="UTC")
-            end_ts = pd.Timestamp(end, tz="UTC")
+        # Auto-fetch missing data if enabled
+        if auto_fetch and missing_tickers:
+            print(f"🔄 Auto-fetching {len(missing_tickers)} missing tickers...")
+            fetched_count = 0
             
             for ticker in missing_tickers:
                 print(f"  Fetching {ticker}...")
-                
                 if self._safe_fetch_data(ticker, start_ts, end_ts):
-                    # Retry loading after fetch
-                    try:
-                        core = load_ticker_core(ticker, start=start, end=end, db_path=self.db_path)
-                        if not core.empty:
-                            if drop_zero_iv_ret and "iv_clip" in core.columns:
-                                iv_ret = np.log(core["iv_clip"].astype(float)).diff()
-                                mask = (iv_ret != 0) & (~iv_ret.isna())
-                                dropped = int(len(core) - mask.sum())
-                                core = core[mask].copy()
-                                if dropped:
-                                    print(f"      • {ticker}: dropped {dropped} rows with iv_ret=0")
-                            cores[ticker] = core
-                            print(f"    ✓ Fetched {ticker}: {len(core):,} rows")
-                        else:
-                            print(f"    ✗ {ticker}: no data even after fetch")
-                    except Exception as e:
-                        print(f"    ✗ {ticker}: error loading after fetch ({e})")
-                else:
-                    print(f"    ✗ {ticker}: could not fetch data")
-                    
-        elif missing_tickers and not auto_fetch:
-            print(f"Skipping auto-fetch for {len(missing_tickers)} missing tickers (auto_fetch=False)")
+                    fetched_count += 1
+                
+            print(f"📥 Successfully fetched data for {fetched_count} tickers")
             
-        print(f"Final result: {len(cores)}/{len(tickers)} tickers loaded")
-        return cores
-
+            # Try loading the newly fetched data
+            for ticker in missing_tickers:
+                try:
+                    core = load_ticker_core(ticker, start_ts, end_ts, db_path=self.db_path)
+                    if core is not None and not core.empty:
+                        available_cores[ticker] = core
+                        print(f"  ✅ {ticker}: {len(core):,} rows (newly fetched)")
+                except Exception as e:
+                    print(f"  ❌ {ticker}: Still failed after fetch - {e}")
+        
+        if not available_cores:
+            print("⚠️  No data loaded for any ticker")
+        else:
+            print(f"✅ Successfully loaded data for {len(available_cores)} tickers")
+        
+        return available_cores
+    
     def validate_cores_for_analysis(
         self,
         cores: Dict[str, pd.DataFrame],
         analysis_type: str = "general",
         drop_zero_iv_ret: bool = False,
     ) -> Dict[str, pd.DataFrame]:
-        """Validate cores are suitable for specific analysis types."""
-        valid_cores = {}
-
-        for ticker, core in cores.items():
+        """
+        Validate and clean core data for analysis.
+        
+        Parameters
+        ----------
+        cores : Dict[str, pd.DataFrame]
+            Dictionary mapping ticker to core dataframe
+        analysis_type : str
+            Type of analysis (affects validation criteria)
+        drop_zero_iv_ret : bool
+            Whether to drop rows with zero IV returns
+            
+        Returns
+        -------
+        Dict[str, pd.DataFrame]
+            Validated cores dictionary
+        """
+        validated_cores = {}
+        
+        for ticker, df in cores.items():
+            if df.empty:
+                print(f"  ⚠️  {ticker}: Empty dataframe, skipping")
+                continue
+                
             # Basic validation
-            if core is None or core.empty:
-                print(f"Skipping {ticker}: empty core")
+            required_cols = ["ts_event", "iv", "symbol"]
+            missing_cols = [col for col in required_cols if col not in df.columns]
+            if missing_cols:
+                print(f"  ❌ {ticker}: Missing required columns: {missing_cols}")
+                continue
+            
+            # Make a copy for validation
+            clean_df = df.copy()
+            
+            # Drop NaN IV values
+            initial_rows = len(clean_df)
+            clean_df = clean_df.dropna(subset=["iv"])
+            if len(clean_df) < initial_rows:
+                print(f"  🧹 {ticker}: Dropped {initial_rows - len(clean_df)} NaN IV rows")
+            
+            # Optional: drop zero IV returns
+            if drop_zero_iv_ret and "iv_ret" in clean_df.columns:
+                pre_filter = len(clean_df)
+                clean_df = clean_df[clean_df["iv_ret"] != 0]
+                if len(clean_df) < pre_filter:
+                    print(f"  🧹 {ticker}: Dropped {pre_filter - len(clean_df)} zero IV return rows")
+            
+            # Ensure proper sorting
+            if "ts_event" in clean_df.columns:
+                clean_df = clean_df.sort_values("ts_event").reset_index(drop=True)
+            
+            if clean_df.empty:
+                print(f"  ❌ {ticker}: No valid data after cleaning")
                 continue
                 
-            if not {"ts_event", "iv_clip"}.issubset(core.columns):
-                print(f"Skipping {ticker}: missing required columns")
-                continue
-                
-            # Analysis-specific validation
-            if drop_zero_iv_ret and "iv_clip" in core.columns:
-                iv_ret = np.log(core["iv_clip"].astype(float)).diff()
-                mask = (iv_ret != 0) & (~iv_ret.isna())
-                dropped = int(len(core) - mask.sum())
-                core = core[mask].copy()
-                if dropped:
-                    print(f"  • {ticker}: dropped {dropped} rows with iv_ret=0")
-
-            if analysis_type == "peer_effects":
-                if len(core) < 100:
-                    print(f"Skipping {ticker}: insufficient data for peer effects ({len(core)} rows)")
-                    continue
-                    
-            elif analysis_type == "pooled":
-                if len(core) < 50:
-                    print(f"Skipping {ticker}: insufficient data for pooling ({len(core)} rows)")
-                    continue
-            
-            valid_cores[ticker] = core
-
-        return valid_cores
-    
-    def get_analysis_summary(self, cores: Dict[str, pd.DataFrame]) -> Dict:
-        """Get summary statistics for loaded cores."""
-        if not cores:
-            return {"status": "no_data"}
-            
-        summary = {
-            "n_tickers": len(cores),
-            "tickers": list(cores.keys()),
-            "total_rows": sum(len(df) for df in cores.values()),
-            "date_ranges": {},
-            "avg_rows_per_ticker": sum(len(df) for df in cores.values()) // len(cores)
-        }
+            validated_cores[ticker] = clean_df
+            print(f"  ✅ {ticker}: {len(clean_df):,} valid rows")
         
-        # Get date ranges for each ticker
-        for ticker, core in cores.items():
-            if not core.empty and "ts_event" in core.columns:
-                dates = pd.to_datetime(core["ts_event"])
-                summary["date_ranges"][ticker] = {
-                    "start": dates.min().strftime("%Y-%m-%d"),
-                    "end": dates.max().strftime("%Y-%m-%d"),
-                    "rows": len(core)
-                }
-        
-        return summary
+        return validated_cores
 
 
-# Convenience functions for backward compatibility
 def load_cores_with_auto_fetch(
-    tickers: Sequence[str],
-    start: str,
-    end: str,
-    db_path: Optional[Path] = None,
+    tickers: List[str],
+    start: Union[str, pd.Timestamp],
+    end: Union[str, pd.Timestamp],
+    db_path: Path,
     auto_fetch: bool = True,
-    drop_zero_iv_ret: bool = False,
+    drop_zero_iv_ret: bool = True,
 ) -> Dict[str, pd.DataFrame]:
-    """Convenience function that wraps DataCoordinator for simple usage."""
+    """
+    Load core data with automatic fetching of missing data.
+    
+    Parameters
+    ----------
+    tickers : List[str]
+        List of ticker symbols
+    start : Union[str, pd.Timestamp]
+        Start date/timestamp
+    end : Union[str, pd.Timestamp]
+        End date/timestamp  
+    db_path : Path
+        Path to database
+    auto_fetch : bool
+        Whether to auto-fetch missing data
+    drop_zero_iv_ret : bool
+        Whether to drop zero IV return rows
+        
+    Returns
+    -------
+    Dict[str, pd.DataFrame]
+        Dictionary mapping ticker to core dataframe
+    """
     coordinator = DataCoordinator(db_path)
     return coordinator.load_cores_with_fetch(tickers, start, end, auto_fetch, drop_zero_iv_ret)
-
 
 def validate_cores(
     cores: Dict[str, pd.DataFrame],
