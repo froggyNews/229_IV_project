@@ -9,9 +9,11 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
-import shap
+import xgboost as xgb
+from xgboost import XGBRegressor
 from scipy.stats import spearmanr, t
-from sklearn.metrics import mean_absolute_error
+from sklearn.inspection import permutation_importance
+from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.model_selection import TimeSeriesSplit
 
 # Add the parent directory (src) to Python path for module imports
@@ -83,10 +85,14 @@ def _fit_eval_one(X, y, params, splits):
     )
     perm_imp = pd.Series(perm.importances_mean, index=X.columns)
 
-    bg = shap.sample(X.iloc[tr], min(500, len(tr)), random_state=42)
-    explainer = shap.TreeExplainer(model, bg)
-    shap_vals = explainer.shap_values(X.iloc[te], check_additivity=False)
-    shap_abs_mean = pd.Series(np.abs(shap_vals).mean(axis=0), index=X.columns)
+    # Use XGBoost's built-in SHAP value computation to avoid external dependency
+    shap_vals = model.get_booster().predict(
+        xgb.DMatrix(X.iloc[te]), pred_contribs=True
+    )
+    # Drop the last column which corresponds to the bias term
+    shap_abs_mean = pd.Series(
+        np.abs(shap_vals[:, :-1]).mean(axis=0), index=X.columns
+    )
 
     metrics = {
         "r2": r2_score(y[oos_idx], pd.Series(oos_pred[oos_idx], index=y.index[oos_idx])),
