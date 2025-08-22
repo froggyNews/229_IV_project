@@ -173,7 +173,11 @@ def evaluate_pooled_model(
     if target_col is None:
         name = Path(model_path).name.lower()
         if "abs" in name and "ret" in name:
-            target_col = "iv_ret_fwd_abs"
+            target_col = (
+                "core_iv_ret_fwd_abs"
+                if "core_iv_ret_fwd_abs" in pooled.columns
+                else "iv_ret_fwd_abs"
+            )
         elif "ret" in name:
             target_col = "iv_ret_fwd"
         elif "clip" in name or "level" in name:
@@ -190,11 +194,14 @@ def evaluate_pooled_model(
     if target_col == "iv_clip":
         if "iv_ret_fwd" in pooled.columns:
             drop_cols.append("iv_ret_fwd")
-        if "iv_ret_fwd_abs" in pooled.columns:
-            drop_cols.append("iv_ret_fwd_abs")
-    elif target_col == "iv_ret_fwd" and "iv_ret_fwd_abs" in pooled.columns:
-        drop_cols.append("iv_ret_fwd_abs")
-    elif target_col == "iv_ret_fwd_abs" and "iv_ret_fwd" in pooled.columns:
+        for col in ["iv_ret_fwd_abs", "core_iv_ret_fwd_abs"]:
+            if col in pooled.columns:
+                drop_cols.append(col)
+    elif target_col == "iv_ret_fwd":
+        for col in ["iv_ret_fwd_abs", "core_iv_ret_fwd_abs"]:
+            if col in pooled.columns:
+                drop_cols.append(col)
+    elif target_col in ["iv_ret_fwd_abs", "core_iv_ret_fwd_abs"] and "iv_ret_fwd" in pooled.columns:
         drop_cols.append("iv_ret_fwd")
     X = pooled.drop(columns=[c for c in drop_cols if c in pooled.columns])
     X = _ensure_numeric(X)               # your existing helper
