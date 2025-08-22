@@ -359,7 +359,7 @@ def build_pooled_iv_return_dataset_time_safe(
     # If cores not provided, need to load them (fallback for backward compatibility)
     if cores is None:
         from data_loader_coordinator import load_cores_with_auto_fetch
-        cores = load_cores_with_auto_fetch(tickers, start, end, db_path)
+        cores = load_cores_with_auto_fetch(tickers, start, end, Path(db_path) if db_path is not None else Path("data/iv_data_1m.db"))
     
     if debug:
         print(f"DEBUG: Cores loaded for tickers: {list(cores.keys())}")
@@ -423,7 +423,7 @@ def build_pooled_iv_return_dataset_time_safe(
         # We'll copy finalize_dataset logic here with this tweak.
         out = feats.copy()
         for c in out.columns:
-            if c != "ts_event":
+            if c not in {"ts_event", "symbol"}:
                 out[c] = pd.to_numeric(out[c], errors="coerce")
         # Drop missing targets
         out = out.dropna(subset=["iv_ret_fwd"])
