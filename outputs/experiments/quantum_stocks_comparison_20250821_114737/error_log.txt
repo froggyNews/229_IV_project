@@ -1,0 +1,8 @@
+Experiment failed at 2025-08-21 11:48:06.357326
+Error: Unknown format code 'f' for object of type 'str'
+Traceback:
+Traceback (most recent call last):
+  File "c:\Users\kkar\OneDrive - Group One Trading\Desktop\Kavita_Projects\Correlated_Opt_Price_229\src\experiments\pooled_vs_isolated.py", line 444, in run_experiment
+    print(f"    {ticker} - Test RMSE: {metrics.get('test_rmse', 'N/A'):.6f}")
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: Unknown format code 'f' for object of type 'str'

@@ -2,6 +2,8 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Sequence, Dict, Any
+import json
+from datetime import datetime
 
 import pandas as pd
 
@@ -30,7 +32,7 @@ class ExperimentConfig:
     tickers: Sequence[str] = field(
         default_factory=lambda: ["QUBT", "QBTS", "RGTI", "IONQ"]
     )
-    start: str = "2025-08-02"
+    start: str = "2025-06-02"
     end: str = "2025-08-06"
 
     # Model settings
@@ -41,6 +43,56 @@ class ExperimentConfig:
 
     # Data location
     db_path: Path = Path("data/iv_data_1m.db")
+    
+    # Saving settings
+    save_models: bool = True
+    save_reports: bool = True
+    save_predictions: bool = True
+    save_experiment_summary: bool = True
+    perm_repeats: int = 10
+
+
+def setup_experiment_directories(cfg: ExperimentConfig) -> Dict[str, Path]:
+    """Create directory structure for experiment outputs."""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    experiment_name = f"iv_returns_experiment_{timestamp}"
+    
+    base_dir = project_root / "experiments" / experiment_name
+    
+    directories = {
+        "base": base_dir,
+        "models": base_dir / "models",
+        "metrics": base_dir / "metrics", 
+        "reports": base_dir / "reports",
+        "predictions": base_dir / "predictions",
+        "config": base_dir / "config"
+    }
+    
+    for dir_path in directories.values():
+        dir_path.mkdir(parents=True, exist_ok=True)
+    
+    # Save experiment configuration
+    if cfg.save_experiment_summary:
+        config_dict = {
+            "tickers": list(cfg.tickers),
+            "start": cfg.start,
+            "end": cfg.end,
+            "forward_steps": cfg.forward_steps,
+            "test_frac": cfg.test_frac,
+            "tolerance": cfg.tolerance,
+            "r": cfg.r,
+            "db_path": str(cfg.db_path),
+            "timestamp": timestamp,
+            "save_models": cfg.save_models,
+            "save_reports": cfg.save_reports,
+            "save_predictions": cfg.save_predictions,
+            "perm_repeats": cfg.perm_repeats
+        }
+        
+        with open(directories["config"] / "experiment_config.json", "w") as f:
+            json.dump(config_dict, f, indent=2)
+    
+    return directories
 
 
 def load_datasets(cfg: ExperimentConfig, auto_fetch: bool = True) -> Dict[str, pd.DataFrame]:
@@ -78,7 +130,7 @@ def load_datasets(cfg: ExperimentConfig, auto_fetch: bool = True) -> Dict[str, p
 
 
 def run_experiment(cfg: ExperimentConfig) -> Dict[str, Any]:
-    """Train isolated, pooled, and peer models.
+    """Train isolated, pooled, and peer models with proper saving.
 
     Parameters
     ----------
@@ -91,25 +143,35 @@ def run_experiment(cfg: ExperimentConfig) -> Dict[str, Any]:
         Metrics for pooled, isolated and peer-effect models.
     """
 
+    # Setup experiment directories
+    directories = setup_experiment_directories(cfg)
+    
     # Build datasets (this will auto-fetch cores if necessary)
     datasets = load_datasets(cfg, auto_fetch=True)
     pooled_df: pd.DataFrame = datasets["pooled"]
     isolated_dfs: Dict[str, pd.DataFrame] = datasets["isolated"]
 
-    results: Dict[str, Any] = {"isolated": {}, "peer": {}}
-
-    model_dir = project_root / "models"
-    model_dir.mkdir(exist_ok=True)
+    results: Dict[str, Any] = {"isolated": {}, "peer": {}, "experiment_info": {}}
+    results["experiment_info"]["directories"] = {k: str(v) for k, v in directories.items()}
 
     # Train and evaluate one model per ticker (isolated)
+    print("Training isolated models...")
     for ticker, df in isolated_dfs.items():
-        model, _ = train_xgb_iv_returns_time_safe_pooled(
+        print(f"  Training isolated model for {ticker}...")
+        
+        model, train_metrics = train_xgb_iv_returns_time_safe_pooled(
             df, test_frac=cfg.test_frac
         )
-        model_path = model_dir / f"isolated_{ticker}.json"
-        model.save_model(model_path)
+        
+        # Save model
+        model_path = None
+        if cfg.save_models:
+            model_path = directories["models"] / f"isolated_{ticker}.json"
+            model.save_model(model_path)
+        
+        # Evaluate model
         evaluation = evaluate_pooled_model(
-            model_path=model_path,
+            model_path=model_path if cfg.save_models else model,
             tickers=[ticker],
             start=cfg.start,
             end=cfg.end,
@@ -119,21 +181,47 @@ def run_experiment(cfg: ExperimentConfig) -> Dict[str, Any]:
             r=cfg.r,
             db_path=cfg.db_path,
             target_col="iv_ret_fwd",
-            metrics_dir=None,
-            save_report=False,
-            save_predictions=False,
-            perm_repeats=0,
+            metrics_dir=directories["metrics"] if cfg.save_reports else None,
+            save_report=cfg.save_reports,
+            save_predictions=cfg.save_predictions,
+            perm_repeats=cfg.perm_repeats,
         )
+        
+        # Save additional model-specific reports
+        if cfg.save_reports:
+            report_path = directories["reports"] / f"isolated_{ticker}_report.json"
+            isolated_report = {
+                "ticker": ticker,
+                "model_type": "isolated",
+                "train_metrics": train_metrics,
+                "evaluation_metrics": evaluation["metrics"],
+                "model_path": str(model_path) if model_path else None,
+                "dataset_info": {
+                    "total_samples": len(df),
+                    "features": list(df.columns),
+                    "date_range": [df.index.min(), df.index.max()]
+                }
+            }
+            with open(report_path, "w") as f:
+                json.dump(isolated_report, f, indent=2, default=str)
+        
         results["isolated"][ticker] = evaluation["metrics"]
 
     # Train pooled model on combined dataset and evaluate
-    pooled_model, _ = train_xgb_iv_returns_time_safe_pooled(
+    print("Training pooled model...")
+    pooled_model, pooled_train_metrics = train_xgb_iv_returns_time_safe_pooled(
         pooled_df, test_frac=cfg.test_frac
     )
-    pooled_model_path = model_dir / "pooled.json"
-    pooled_model.save_model(pooled_model_path)
+    
+    # Save pooled model
+    pooled_model_path = None
+    if cfg.save_models:
+        pooled_model_path = directories["models"] / "pooled.json"
+        pooled_model.save_model(pooled_model_path)
+    
+    # Evaluate pooled model
     pooled_eval = evaluate_pooled_model(
-        model_path=pooled_model_path,
+        model_path=pooled_model_path if cfg.save_models else pooled_model,
         tickers=list(cfg.tickers),
         start=cfg.start,
         end=cfg.end,
@@ -143,16 +231,38 @@ def run_experiment(cfg: ExperimentConfig) -> Dict[str, Any]:
         r=cfg.r,
         db_path=cfg.db_path,
         target_col="iv_ret_fwd",
-        metrics_dir=None,
-        save_report=False,
-        save_predictions=False,
-        perm_repeats=0,
+        metrics_dir=directories["metrics"] if cfg.save_reports else None,
+        save_report=cfg.save_reports,
+        save_predictions=cfg.save_predictions,
+        perm_repeats=cfg.perm_repeats,
     )
+    
+    # Save pooled model report
+    if cfg.save_reports:
+        pooled_report_path = directories["reports"] / "pooled_model_report.json"
+        pooled_report = {
+            "model_type": "pooled",
+            "tickers": list(cfg.tickers),
+            "train_metrics": pooled_train_metrics,
+            "evaluation_metrics": pooled_eval["metrics"],
+            "model_path": str(pooled_model_path) if pooled_model_path else None,
+            "dataset_info": {
+                "total_samples": len(pooled_df),
+                "features": list(pooled_df.columns),
+                "date_range": [pooled_df.index.min(), pooled_df.index.max()]
+            }
+        }
+        with open(pooled_report_path, "w") as f:
+            json.dump(pooled_report, f, indent=2, default=str)
+    
     results["pooled"] = pooled_eval["metrics"]
 
     # Peer-effects models (one model per target ticker)
+    print("Training peer-effects models...")
     cores = load_cores_with_auto_fetch(cfg.tickers, cfg.start, cfg.end, cfg.db_path)
     for target in cfg.tickers:
+        print(f"  Training peer model for {target}...")
+        
         peer_cfg = PeerConfig(
             target=target,
             tickers=list(cfg.tickers),
@@ -163,12 +273,60 @@ def run_experiment(cfg: ExperimentConfig) -> Dict[str, Any]:
             test_frac=cfg.test_frac,
         )
         peer_result = run_peer_analysis(peer_cfg, cores)
+        
+        # Save peer model reports
+        if cfg.save_reports and peer_result:
+            peer_report_path = directories["reports"] / f"peer_{target}_report.json"
+            peer_report = {
+                "target_ticker": target,
+                "model_type": "peer_effects",
+                "peer_tickers": [t for t in cfg.tickers if t != target],
+                "results": peer_result
+            }
+            with open(peer_report_path, "w") as f:
+                json.dump(peer_report, f, indent=2, default=str)
+        
         results["peer"][target] = peer_result.get("performance", {})
+
+    # Save experiment summary
+    if cfg.save_experiment_summary:
+        summary_path = directories["base"] / "experiment_summary.json"
+        summary = {
+            "experiment_type": "pooled_vs_isolated_iv_returns",
+            "config": {
+                "tickers": list(cfg.tickers),
+                "date_range": [cfg.start, cfg.end],
+                "forward_steps": cfg.forward_steps,
+                "test_frac": cfg.test_frac
+            },
+            "results_summary": {
+                "isolated_models": len(results["isolated"]),
+                "pooled_model": "trained" if "pooled" in results else "failed",
+                "peer_models": len(results["peer"])
+            },
+            "directories": results["experiment_info"]["directories"],
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        with open(summary_path, "w") as f:
+            json.dump(summary, f, indent=2, default=str)
+        
+        print(f"\nExperiment completed. Results saved to: {directories['base']}")
+        print(f"Summary saved to: {summary_path}")
 
     return results
 
 
 if __name__ == "__main__":
-    cfg = ExperimentConfig()
+    cfg = ExperimentConfig(
+        # Enable saving
+        save_models=True,
+        save_reports=True, 
+        save_predictions=True,
+        save_experiment_summary=True,
+        perm_repeats=10
+    )
+    
     metrics = run_experiment(cfg)
-    print(metrics)
+    print("\nFinal metrics summary:")
+    print(json.dumps(metrics, indent=2, default=str))

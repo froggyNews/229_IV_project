@@ -1,0 +1,129 @@
+{
+  "target_ticker": "QUBT",
+  "model_type": "peer_effects",
+  "peer_tickers": [
+    "QBTS",
+    "RGTI",
+    "IONQ"
+  ],
+  "results": {
+    "target": "QUBT",
+    "target_kind": "iv_ret",
+    "config": {
+      "forward_steps": 15,
+      "include_self_lag": true,
+      "exclude_contemporaneous": true
+    },
+    "performance": {
+      "rmse": 0.6315902042763407,
+      "r2": 0.3945691630572735,
+      "n_train": 2545,
+      "n_test": 637,
+      "n_features": 19
+    },
+    "peer_analysis": {
+      "peer_rankings": {},
+      "self_lag_effects": {},
+      "control_effects": {
+        "expiry_date": 0.17212863266468048,
+        "delta": 0.16033172607421875,
+        "option_type": 0.12385863810777664,
+        "gamma": 0.10546637326478958,
+        "ts_event": 0.06847452372312546,
+        "iv": 0.04888399317860603,
+        "time_to_expiry": 0.04885298013687134,
+        "opt_volume": 0.044833019375801086,
+        "stock_volume": 0.03668895363807678,
+        "option_type_enc": 0.03637043014168739,
+        "sabr_beta": 0.02868037298321724,
+        "opt_vol_roll_15m": 0.02809796668589115,
+        "vega": 0.02418161742389202,
+        "opt_vol_change_1m": 0.02417519874870777,
+        "rv_30m": 0.020300600677728653,
+        "sabr_rho": 0.014367200434207916,
+        "days_to_expiry": 0.014307839795947075,
+        "strike_price": 0.0,
+        "sabr_alpha": 0.0
+      },
+      "detailed_features": [
+        {
+          "feature": "expiry_date",
+          "importance": 0.17212863266468048
+        },
+        {
+          "feature": "delta",
+          "importance": 0.16033172607421875
+        },
+        {
+          "feature": "option_type",
+          "importance": 0.12385863810777664
+        },
+        {
+          "feature": "gamma",
+          "importance": 0.10546637326478958
+        },
+        {
+          "feature": "ts_event",
+          "importance": 0.06847452372312546
+        },
+        {
+          "feature": "iv",
+          "importance": 0.04888399317860603
+        },
+        {
+          "feature": "time_to_expiry",
+          "importance": 0.04885298013687134
+        },
+        {
+          "feature": "opt_volume",
+          "importance": 0.044833019375801086
+        },
+        {
+          "feature": "stock_volume",
+          "importance": 0.03668895363807678
+        },
+        {
+          "feature": "option_type_enc",
+          "importance": 0.03637043014168739
+        },
+        {
+          "feature": "sabr_beta",
+          "importance": 0.02868037298321724
+        },
+        {
+          "feature": "opt_vol_roll_15m",
+          "importance": 0.02809796668589115
+        },
+        {
+          "feature": "vega",
+          "importance": 0.02418161742389202
+        },
+        {
+          "feature": "opt_vol_change_1m",
+          "importance": 0.02417519874870777
+        },
+        {
+          "feature": "rv_30m",
+          "importance": 0.020300600677728653
+        },
+        {
+          "feature": "sabr_rho",
+          "importance": 0.014367200434207916
+        },
+        {
+          "feature": "days_to_expiry",
+          "importance": 0.014307839795947075
+        },
+        {
+          "feature": "strike_price",
+          "importance": 0.0
+        },
+        {
+          "feature": "sabr_alpha",
+          "importance": 0.0
+        }
+      ]
+    },
+    "status": "success"
+  }
+}
