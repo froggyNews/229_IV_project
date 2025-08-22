@@ -15,6 +15,11 @@ from scipy.stats import spearmanr, t
 from sklearn.inspection import permutation_importance
 from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.model_selection import TimeSeriesSplit
+from pandas.api.types import (
+    is_datetime64_any_dtype,
+    is_object_dtype,
+    is_categorical_dtype,
+)
 
 # Add the parent directory (src) to Python path for module imports
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -99,31 +104,41 @@ def _diebold_mariano(e1: np.ndarray, e2: np.ndarray, power: int = 2) -> Tuple[fl
 
 def _fit_eval_one(X, y, params, splits):
     """Train once with forward-chaining CV; return OOS preds & feature importance."""
+    X_proc = X.copy()
+
+    for col in X_proc.columns:
+        if is_datetime64_any_dtype(X_proc[col]):
+            X_proc[col] = X_proc[col].astype("int64")
+        elif is_object_dtype(X_proc[col]):
+            X_proc[col] = X_proc[col].astype("category")
+
+    enable_cat = any(is_categorical_dtype(X_proc[c]) for c in X_proc.columns)
+    if enable_cat:
+        params = {**params, "enable_categorical": True}
+
     model = XGBRegressor(**params)
     oos_idx = np.zeros(len(y), dtype=bool)
     oos_pred = np.full(len(y), np.nan)
     last_fold = None
 
     for tr, te in splits:
-        model.fit(X.iloc[tr], y.iloc[tr])
-        yhat = model.predict(X.iloc[te])
+        model.fit(X_proc.iloc[tr], y.iloc[tr])
+        yhat = model.predict(X_proc.iloc[te])
         oos_pred[te] = yhat
         oos_idx[te] = True
         last_fold = (tr, te)
 
     tr, te = last_fold
     perm = permutation_importance(
-        model, X.iloc[te], y.iloc[te], n_repeats=10, random_state=42, scoring="r2"
+        model, X_proc.iloc[te], y.iloc[te], n_repeats=10, random_state=42, scoring="r2"
     )
-    perm_imp = pd.Series(perm.importances_mean, index=X.columns)
+    perm_imp = pd.Series(perm.importances_mean, index=X_proc.columns)
 
-    # Use XGBoost's built-in SHAP value computation to avoid external dependency
     shap_vals = model.get_booster().predict(
-        xgb.DMatrix(X.iloc[te]), pred_contribs=True
+        xgb.DMatrix(X_proc.iloc[te], enable_categorical=enable_cat), pred_contribs=True
     )
-    # Drop the last column which corresponds to the bias term
     shap_abs_mean = pd.Series(
-        np.abs(shap_vals[:, :-1]).mean(axis=0), index=X.columns
+        np.abs(shap_vals[:, :-1]).mean(axis=0), index=X_proc.columns
     )
 
     metrics = {
