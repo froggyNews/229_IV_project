@@ -155,14 +155,20 @@ def run_experiment(cfg: ExpConfig):
     
     if df.empty:
         raise ValueError("No data found for the specified tickers and date range")
-    
+
     print(f"📊 Dataset shape: {df.shape}")
-    print(f"📊 Available symbols: {df['symbol'].unique().tolist()}")
-    
-    # Continue with rest of experiment...
+
+    # Derive ticker column from one-hot symbol columns if needed
     sym_cols = [c for c in df.columns if c.startswith("sym_")]
-    if sym_cols:
+    if sym_cols and "ticker" not in df.columns:
         df["ticker"] = df[sym_cols].idxmax(axis=1).str.replace("sym_", "")
+
+    if "ticker" not in df.columns:
+        raise ValueError("Dataset lacks ticker information")
+
+    print(f"📊 Available tickers: {sorted(df['ticker'].unique().tolist())}")
+
+    # Continue with rest of experiment...
 
     for col in ["ticker", cfg.target]:
         if col not in df.columns:
