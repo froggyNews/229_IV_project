@@ -246,14 +246,11 @@ def run_experiment(cfg: ExpConfig):
     res_df = pd.DataFrame(results)
     imp_df = pd.DataFrame(imps)
     shap_df = pd.DataFrame(shap_rows)
-    Path(cfg.output_dir).mkdir(parents=True, exist_ok=True)
-    timestamp = pd.Timestamp.utcnow().strftime("%Y%m%d_%H%M%S")
 
-
-    res_df.to_csv(Path(cfg.output_dir, f"transfer_matrix_{timestamp}.csv"), index=False)
-    imp_df.to_csv(Path(cfg.output_dir, f"feature_importance_{timestamp}.csv"), index=False)
-    shap_df.to_csv(Path(cfg.output_dir, f"shap_summary_{timestamp}.csv"), index=False)
-    with open(Path(cfg.output_dir, f"similarity_report_{timestamp}.json"), "w") as f:
+    res_df.to_csv(Path(cfg.output_dir, f"transfer_matrix_{ts}.csv"), index=False)
+    imp_df.to_csv(Path(cfg.output_dir, f"feature_importance_{ts}.csv"), index=False)
+    shap_df.to_csv(Path(cfg.output_dir, f"shap_summary_{ts}.csv"), index=False)
+    with open(Path(cfg.output_dir, f"similarity_report_{ts}.json"), "w") as f:
         json.dump(sim_report, f, indent=2)
 
     return res_df, imp_df, shap_df, sim_report
