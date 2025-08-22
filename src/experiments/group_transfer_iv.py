@@ -18,7 +18,6 @@ from sklearn.model_selection import TimeSeriesSplit
 from pandas.api.types import (
     is_datetime64_any_dtype,
     is_object_dtype,
-    is_categorical_dtype,
 )
 
 # Add the parent directory (src) to Python path for module imports
@@ -111,8 +110,9 @@ def _fit_eval_one(X, y, params, splits):
             X_proc[col] = X_proc[col].astype("int64")
         elif is_object_dtype(X_proc[col]):
             X_proc[col] = X_proc[col].astype("category")
-
-    enable_cat = any(is_categorical_dtype(X_proc[c]) for c in X_proc.columns)
+    enable_cat = any(
+        isinstance(X_proc[c].dtype, pd.CategoricalDtype) for c in X_proc.columns
+    )
     if enable_cat:
         params = {**params, "enable_categorical": True}
 
@@ -155,6 +155,11 @@ def _prep_group_frame(df: pd.DataFrame, tickers: List[str], target_col: str) -> 
     X = g.drop(columns=[target_col] + drop, errors="ignore")
     y = g[target_col]
     X = X.replace([np.inf, -np.inf], np.nan).dropna(axis=1, how="all")
+    for col in X.columns:
+        if is_datetime64_any_dtype(X[col]):
+            X[col] = X[col].astype("int64")
+        elif is_object_dtype(X[col]):
+            X[col] = X[col].astype("category")
     valid = ~X.isna().any(axis=1) & y.notna()
     return X.loc[valid], y.loc[valid]
 
