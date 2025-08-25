@@ -40,7 +40,7 @@ class RunConfig:
     """Configuration for the main pipeline run."""
     
     # Core settings
-    tickers: Sequence[str] = field(default_factory=lambda: ["QUBT", "QBTS", "RGTI", "IONQ"])
+    tickers: Sequence[str] = field(default_factory=lambda: ["ASTS", "VZ", "T", "SATS"])
     start: str = "2025-08-02"
     end: str = "2025-08-06"
     
@@ -51,7 +51,7 @@ class RunConfig:
     r: float = 0.045
     
     # Peer effects settings
-    peer_targets: Sequence[str] = field(default_factory=lambda: ["QUBT", "QBTS"])
+    peer_targets: Sequence[str] = field(default_factory=lambda: ["ASTS", "VZ", "T", "SATS"])
     peer_target_kinds: Sequence[str] = field(default_factory=lambda: ["iv_ret", "iv"])
     
     # Paths
@@ -411,7 +411,7 @@ def parse_arguments() -> RunConfig:
     parser = argparse.ArgumentParser(description="Run IV return forecasting pipeline")
     
     # Data settings
-    parser.add_argument("--tickers", nargs="+", default=["QUBT", "QBTS", "RGTI", "IONQ"],
+    parser.add_argument("--tickers", nargs="+", default=["ASTS", "VZ", "T", "SATS"],
                         help="List of tickers to analyze")
     parser.add_argument("--start", default="2025-06-02", help="Start date (YYYY-MM-DD)")
     parser.add_argument("--end", default="2025-08-06", help="End date (YYYY-MM-DD)")
@@ -425,7 +425,7 @@ def parse_arguments() -> RunConfig:
     parser.add_argument("--r", type=float, default=0.045, help="Risk-free rate")
     
     # Peer effects settings
-    parser.add_argument("--peer-targets", nargs="+", default=["QUBT", "QBTS"],
+    parser.add_argument("--peer-targets", nargs="+", default=["ASTS", "VZ", "T", "SATS"],
                         help="Target tickers for peer effects analysis")
     parser.add_argument("--peer-target-kinds", nargs="+", default=["iv_ret", "iv"],
                         help="Types of targets for peer effects")
