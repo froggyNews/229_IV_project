@@ -1,0 +1,25 @@
+PEER GROUP ANALYSIS SUMMARY REPORT
+==================================================
+
+Analysis Timestamp: 20250825_134308
+Date Range: 2025-08-02 to 2025-08-06
+Total Tickers: 11
+Total Groups: 4
+
+GROUPS:
+  satellite: ASTS, SATS
+  telecom: VZ, T
+  quantum: QUBT, QBTS, RGTI, IONQ
+  crypto_miners: MARA, WULF, IREN
+
+INTRA-GROUP CORRELATIONS:
+  satellite: IV=-0.053, Returns=0.010
+  telecom: IV=0.005, Returns=0.009
+  quantum: IV=0.005, Returns=-0.006
+
+INTER-GROUP CORRELATIONS:
+  satellite_vs_telecom: IV=-0.029, Returns=-0.015
+  satellite_vs_quantum: IV=-0.061, Returns=-0.004
+  telecom_vs_quantum: IV=-0.004, Returns=0.005
+
+Detailed results saved in: outputs\peer_groups\20250825_134308

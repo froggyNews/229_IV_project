@@ -1,0 +1,50 @@
+{
+  "satellite_from_telecom": {
+    "target_group": "satellite",
+    "peer_group": "telecom",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "satellite_from_quantum": {
+    "target_group": "satellite",
+    "peer_group": "quantum",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "telecom_from_satellite": {
+    "target_group": "telecom",
+    "peer_group": "satellite",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "telecom_from_quantum": {
+    "target_group": "telecom",
+    "peer_group": "quantum",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "quantum_from_satellite": {
+    "target_group": "quantum",
+    "peer_group": "satellite",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "quantum_from_telecom": {
+    "target_group": "quantum",
+    "peer_group": "telecom",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  }
+}

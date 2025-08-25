@@ -1,0 +1,80 @@
+{
+  "satellite": {
+    "tickers": [
+      "ASTS",
+      "SATS"
+    ],
+    "ret_corr_matrix": {
+      "IVRET_ASTS": {
+        "IVRET_ASTS": 1.0,
+        "IVRET_SATS": 0.009659898196142845
+      },
+      "IVRET_SATS": {
+        "IVRET_ASTS": 0.009659898196142845,
+        "IVRET_SATS": 0.9999999999999999
+      }
+    },
+    "mean": 0.009659898196142845,
+    "std": 0.0,
+    "min": 0.009659898196142845,
+    "max": 0.009659898196142845
+  },
+  "telecom": {
+    "tickers": [
+      "VZ",
+      "T"
+    ],
+    "ret_corr_matrix": {
+      "IVRET_VZ": {
+        "IVRET_VZ": 1.0,
+        "IVRET_T": 0.009169973142125767
+      },
+      "IVRET_T": {
+        "IVRET_VZ": 0.009169973142125767,
+        "IVRET_T": 0.9999999999999999
+      }
+    },
+    "mean": 0.009169973142125767,
+    "std": 0.0,
+    "min": 0.009169973142125767,
+    "max": 0.009169973142125767
+  },
+  "quantum": {
+    "tickers": [
+      "QUBT",
+      "QBTS",
+      "RGTI",
+      "IONQ"
+    ],
+    "ret_corr_matrix": {
+      "IVRET_QUBT": {
+        "IVRET_QUBT": 1.0,
+        "IVRET_QBTS": 0.0027518170881009577,
+        "IVRET_RGTI": 0.00269578834264909,
+        "IVRET_IONQ": -0.0027038455169487515
+      },
+      "IVRET_QBTS": {
+        "IVRET_QUBT": 0.0027518170881009572,
+        "IVRET_QBTS": 1.0,
+        "IVRET_RGTI": 0.002907681512599709,
+        "IVRET_IONQ": 0.002122834153142917
+      },
+      "IVRET_RGTI": {
+        "IVRET_QUBT": 0.0026957883426490894,
+        "IVRET_QBTS": 0.0029076815125997084,
+        "IVRET_RGTI": 1.0,
+        "IVRET_IONQ": -0.04578461031820182
+      },
+      "IVRET_IONQ": {
+        "IVRET_QUBT": -0.002703845516948751,
+        "IVRET_QBTS": 0.002122834153142917,
+        "IVRET_RGTI": -0.045784610318201815,
+        "IVRET_IONQ": 1.0
+      }
+    },
+    "mean": -0.006335055789776316,
+    "std": 0.01775079594509702,
+    "min": -0.04578461031820182,
+    "max": 0.002907681512599709
+  }
+}

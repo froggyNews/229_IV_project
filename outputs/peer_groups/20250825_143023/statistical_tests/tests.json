@@ -1,0 +1,39 @@
+{
+  "correlation_tests": {
+    "satellite": {
+      "z_mean": 0.009660198679698763
+    },
+    "telecom": {
+      "z_mean": 0.009170230184573691
+    },
+    "quantum": {
+      "z_mean": -0.006340391410843182
+    }
+  },
+  "peer_effect_tests": {
+    "satellite": {
+      "iv_ret": {
+        "avg_effect": NaN
+      },
+      "iv": {
+        "avg_effect": NaN
+      }
+    },
+    "telecom": {
+      "iv_ret": {
+        "avg_effect": NaN
+      },
+      "iv": {
+        "avg_effect": NaN
+      }
+    },
+    "quantum": {
+      "iv_ret": {
+        "avg_effect": NaN
+      },
+      "iv": {
+        "avg_effect": NaN
+      }
+    }
+  }
+}

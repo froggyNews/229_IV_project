@@ -1,0 +1,24 @@
+PEER GROUP ANALYSIS SUMMARY REPORT
+==================================================
+
+Analysis Timestamp: 20250825_133930
+Date Range: 2025-08-02 to 2025-08-06
+Total Tickers: 6
+Total Groups: 3
+
+GROUPS:
+  satellite: ASTS, SATS
+  telecom: VZ, T
+  quantum: QUBT, QBTS
+
+INTRA-GROUP CORRELATIONS:
+  satellite: IV=-0.053, Returns=0.010
+  telecom: IV=0.005, Returns=0.009
+  quantum: IV=0.022, Returns=0.003
+
+INTER-GROUP CORRELATIONS:
+  satellite_vs_telecom: IV=-0.029, Returns=-0.015
+  satellite_vs_quantum: IV=-0.049, Returns=-0.007
+  telecom_vs_quantum: IV=-0.011, Returns=0.004
+
+Detailed results saved in: outputs\peer_groups\20250825_133930

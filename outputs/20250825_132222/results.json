@@ -1,0 +1,1605 @@
+{
+  "config": {
+    "tickers": [
+      "ASTS",
+      "VZ",
+      "T",
+      "SATS"
+    ],
+    "start": "2025-08-02",
+    "end": "2025-08-06",
+    "forward_steps": 15,
+    "test_frac": 0.2,
+    "timestamp": "20250825_132222",
+    "db_path": "data\\iv_data_1m.db",
+    "output_dir": "outputs",
+    "xgb_params": {
+      "objective": "reg:squarederror",
+      "n_estimators": 350,
+      "learning_rate": 0.05,
+      "max_depth": 6,
+      "subsample": 0.9,
+      "colsample_bytree": 0.9,
+      "random_state": 42,
+      "n_jobs": -1,
+      "tree_method": "hist"
+    },
+    "peer_targets": [
+      "ASTS",
+      "VZ",
+      "T",
+      "SATS"
+    ],
+    "peer_target_kinds": [
+      "iv_ret",
+      "iv"
+    ],
+    "tolerance": "2s",
+    "drop_zero_iv_ret": true,
+    "save_per_row": false
+  },
+  "pooled_models": {
+    "iv_ret_fwd": {
+      "rmse": 0.7914072301427229,
+      "r2": 0.35267122158570763,
+      "n_train": 6812,
+      "n_test": 1703,
+      "features": [
+        "core_expiry_date",
+        "core_iv",
+        "core_opt_volume",
+        "core_stock_volume",
+        "core_time_to_expiry",
+        "core_strike_price",
+        "core_option_type",
+        "core_delta",
+        "core_gamma",
+        "core_vega",
+        "core_days_to_expiry",
+        "core_option_type_enc",
+        "core_rv_30m",
+        "core_opt_vol_change_1m",
+        "core_opt_vol_roll_15m",
+        "core_sabr_alpha",
+        "core_sabr_beta",
+        "core_sabr_rho",
+        "core_sabr_nu",
+        "panel_IV_ASTS",
+        "panel_IVRET_ASTS",
+        "panel_IV_VZ",
+        "panel_IVRET_VZ",
+        "panel_IV_T",
+        "panel_IVRET_T",
+        "panel_IV_SATS",
+        "panel_IVRET_SATS",
+        "sym_ASTS",
+        "sym_VZ",
+        "sym_T",
+        "sym_SATS"
+      ]
+    },
+    "iv_clip": {
+      "rmse": 0.5520190330096396,
+      "r2": 0.7351441017836733,
+      "n_train": 6812,
+      "n_test": 1703,
+      "features": [
+        "core_expiry_date",
+        "core_iv",
+        "core_opt_volume",
+        "core_stock_volume",
+        "core_time_to_expiry",
+        "core_strike_price",
+        "core_option_type",
+        "core_delta",
+        "core_gamma",
+        "core_vega",
+        "core_days_to_expiry",
+        "core_option_type_enc",
+        "core_rv_30m",
+        "core_opt_vol_change_1m",
+        "core_opt_vol_roll_15m",
+        "core_sabr_alpha",
+        "core_sabr_beta",
+        "core_sabr_rho",
+        "core_sabr_nu",
+        "panel_IV_ASTS",
+        "panel_IVRET_ASTS",
+        "panel_IV_VZ",
+        "panel_IVRET_VZ",
+        "panel_IV_T",
+        "panel_IVRET_T",
+        "panel_IV_SATS",
+        "panel_IVRET_SATS",
+        "sym_ASTS",
+        "sym_VZ",
+        "sym_T",
+        "sym_SATS"
+      ]
+    }
+  },
+  "peer_effects": {
+    "ASTS_iv_ret": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.194929672234898,
+        "r2": -0.043314630317281555,
+        "n_train": 2719,
+        "n_test": 680,
+        "n_features": 19
+      },
+      "feature_names": [
+        "expiry_date",
+        "iv",
+        "opt_volume",
+        "stock_volume",
+        "time_to_expiry",
+        "strike_price",
+        "option_type",
+        "delta",
+        "gamma",
+        "vega",
+        "days_to_expiry",
+        "option_type_enc",
+        "rv_30m",
+        "opt_vol_change_1m",
+        "opt_vol_roll_15m",
+        "sabr_alpha",
+        "sabr_beta",
+        "sabr_rho",
+        "sabr_nu"
+      ],
+      "config": {
+        "target_kind": "iv_ret",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 3399,
+        "n_features": 19
+      }
+    },
+    "VZ_iv_ret": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.34134253607290904,
+        "r2": -0.02938481848336827,
+        "n_train": 2113,
+        "n_test": 529,
+        "n_features": 19
+      },
+      "feature_names": [
+        "expiry_date",
+        "iv",
+        "opt_volume",
+        "stock_volume",
+        "time_to_expiry",
+        "strike_price",
+        "option_type",
+        "delta",
+        "gamma",
+        "vega",
+        "days_to_expiry",
+        "option_type_enc",
+        "rv_30m",
+        "opt_vol_change_1m",
+        "opt_vol_roll_15m",
+        "sabr_alpha",
+        "sabr_beta",
+        "sabr_rho",
+        "sabr_nu"
+      ],
+      "config": {
+        "target_kind": "iv_ret",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 2642,
+        "n_features": 19
+      }
+    },
+    "T_iv_ret": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.45347603213231247,
+        "r2": -1.7712017375076208,
+        "n_train": 1741,
+        "n_test": 436,
+        "n_features": 19
+      },
+      "feature_names": [
+        "expiry_date",
+        "iv",
+        "opt_volume",
+        "stock_volume",
+        "time_to_expiry",
+        "strike_price",
+        "option_type",
+        "delta",
+        "gamma",
+        "vega",
+        "days_to_expiry",
+        "option_type_enc",
+        "rv_30m",
+        "opt_vol_change_1m",
+        "opt_vol_roll_15m",
+        "sabr_alpha",
+        "sabr_beta",
+        "sabr_rho",
+        "sabr_nu"
+      ],
+      "config": {
+        "target_kind": "iv_ret",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 2177,
+        "n_features": 19
+      }
+    },
+    "SATS_iv_ret": {
+      "status": "success",
+      "metrics": {
+        "rmse": 3.101119993039629,
+        "r2": -0.008073768321377184,
+        "n_train": 237,
+        "n_test": 60,
+        "n_features": 19
+      },
+      "feature_names": [
+        "expiry_date",
+        "iv",
+        "opt_volume",
+        "stock_volume",
+        "time_to_expiry",
+        "strike_price",
+        "option_type",
+        "delta",
+        "gamma",
+        "vega",
+        "days_to_expiry",
+        "option_type_enc",
+        "rv_30m",
+        "opt_vol_change_1m",
+        "opt_vol_roll_15m",
+        "sabr_alpha",
+        "sabr_beta",
+        "sabr_rho",
+        "sabr_nu"
+      ],
+      "config": {
+        "target_kind": "iv_ret",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 297,
+        "n_features": 19
+      }
+    },
+    "ASTS_iv": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.03690808731505781,
+        "r2": 0.9378948376880001,
+        "n_train": 2731,
+        "n_test": 683,
+        "n_features": 19
+      },
+      "feature_names": [
+        "expiry_date",
+        "iv",
+        "opt_volume",
+        "stock_volume",
+        "time_to_expiry",
+        "strike_price",
+        "option_type",
+        "delta",
+        "gamma",
+        "vega",
+        "days_to_expiry",
+        "option_type_enc",
+        "rv_30m",
+        "opt_vol_change_1m",
+        "opt_vol_roll_15m",
+        "sabr_alpha",
+        "sabr_beta",
+        "sabr_rho",
+        "sabr_nu"
+      ],
+      "config": {
+        "target_kind": "iv",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 3414,
+        "n_features": 19
+      }
+    },
+    "VZ_iv": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.0480794969218128,
+        "r2": 0.290791803711027,
+        "n_train": 2125,
+        "n_test": 532,
+        "n_features": 19
+      },
+      "feature_names": [
+        "expiry_date",
+        "iv",
+        "opt_volume",
+        "stock_volume",
+        "time_to_expiry",
+        "strike_price",
+        "option_type",
+        "delta",
+        "gamma",
+        "vega",
+        "days_to_expiry",
+        "option_type_enc",
+        "rv_30m",
+        "opt_vol_change_1m",
+        "opt_vol_roll_15m",
+        "sabr_alpha",
+        "sabr_beta",
+        "sabr_rho",
+        "sabr_nu"
+      ],
+      "config": {
+        "target_kind": "iv",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 2657,
+        "n_features": 19
+      }
+    },
+    "T_iv": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.0026795183605248826,
+        "r2": 0.9976584080735894,
+        "n_train": 1753,
+        "n_test": 439,
+        "n_features": 19
+      },
+      "feature_names": [
+        "expiry_date",
+        "iv",
+        "opt_volume",
+        "stock_volume",
+        "time_to_expiry",
+        "strike_price",
+        "option_type",
+        "delta",
+        "gamma",
+        "vega",
+        "days_to_expiry",
+        "option_type_enc",
+        "rv_30m",
+        "opt_vol_change_1m",
+        "opt_vol_roll_15m",
+        "sabr_alpha",
+        "sabr_beta",
+        "sabr_rho",
+        "sabr_nu"
+      ],
+      "config": {
+        "target_kind": "iv",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 2192,
+        "n_features": 19
+      }
+    },
+    "SATS_iv": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.14939130291433114,
+        "r2": 0.6117742762503723,
+        "n_train": 249,
+        "n_test": 63,
+        "n_features": 19
+      },
+      "feature_names": [
+        "expiry_date",
+        "iv",
+        "opt_volume",
+        "stock_volume",
+        "time_to_expiry",
+        "strike_price",
+        "option_type",
+        "delta",
+        "gamma",
+        "vega",
+        "days_to_expiry",
+        "option_type_enc",
+        "rv_30m",
+        "opt_vol_change_1m",
+        "opt_vol_roll_15m",
+        "sabr_alpha",
+        "sabr_beta",
+        "sabr_rho",
+        "sabr_nu"
+      ],
+      "config": {
+        "target_kind": "iv",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 312,
+        "n_features": 19
+      }
+    }
+  },
+  "baseline_correlations": {
+    "iv_levels": {
+      "correlation_matrix": {
+        "ASTS": {
+          "ASTS": 1.0,
+          "VZ": -0.03763324621154571,
+          "T": 0.021648225194132946,
+          "SATS": -0.05320298404053517
+        },
+        "VZ": {
+          "ASTS": -0.03763324621154571,
+          "VZ": 1.0,
+          "T": 0.04550795581496864,
+          "SATS": -0.021668530863563833
+        },
+        "T": {
+          "ASTS": 0.021648225194132946,
+          "VZ": 0.04550795581496864,
+          "T": 1.0,
+          "SATS": -0.0794833650592218
+        },
+        "SATS": {
+          "ASTS": -0.05320298404053517,
+          "VZ": -0.021668530863563833,
+          "T": -0.0794833650592218,
+          "SATS": 1.0
+        }
+      },
+      "description": "Historical correlation matrix of IV levels",
+      "n_tickers": 4
+    },
+    "iv_returns": {
+      "correlation_matrix": {
+        "ASTS": {
+          "ASTS": 1.0,
+          "VZ": -0.014940483156288823,
+          "T": 0.0008336225254389257,
+          "SATS": 0.00965989819614285
+        },
+        "VZ": {
+          "ASTS": -0.014940483156288823,
+          "VZ": 1.0,
+          "T": 0.046382895655504075,
+          "SATS": -0.021866982858768966
+        },
+        "T": {
+          "ASTS": 0.0008336225254389257,
+          "VZ": 0.046382895655504075,
+          "T": 1.0,
+          "SATS": -0.024752399526482123
+        },
+        "SATS": {
+          "ASTS": 0.00965989819614285,
+          "VZ": -0.021866982858768966,
+          "T": -0.024752399526482123,
+          "SATS": 1.0
+        }
+      },
+      "description": "Historical correlation matrix of IV returns",
+      "n_tickers": 4
+    }
+  },
+  "evaluation": {
+    "pooled_iv_ret_fwd": {
+      "metrics": {
+        "RMSE": 0.7914072301427229,
+        "R2": 0.35267122158570763,
+        "n_train": 6812,
+        "n_test": 1703,
+        "n_features": 31,
+        "tickers": [
+          "ASTS",
+          "VZ",
+          "T",
+          "SATS"
+        ],
+        "start": "2025-08-02T00:00:00+00:00",
+        "end": "2025-08-06T00:00:00+00:00",
+        "forward_steps": 15,
+        "tolerance": "2s",
+        "test_frac": 0.2,
+        "model_path": "outputs\\models\\pooled_iv_ret_fwd_20250825_132222.json"
+      },
+      "xgb_importances": [
+        {
+          "feature": "core_iv",
+          "gain": 8.278518676757812,
+          "weight": 1290.0,
+          "cover": 1300.11474609375,
+          "total_gain": 10679.2890625,
+          "total_cover": 1677148.0
+        },
+        {
+          "feature": "core_expiry_date",
+          "gain": 8.17935562133789,
+          "weight": 1054.0,
+          "cover": 80.45161437988281,
+          "total_gain": 8621.041015625,
+          "total_cover": 84796.0
+        },
+        {
+          "feature": "core_vega",
+          "gain": 4.239090442657471,
+          "weight": 464.0,
+          "cover": 680.0108032226562,
+          "total_gain": 1966.9378662109375,
+          "total_cover": 315525.0
+        },
+        {
+          "feature": "core_option_type_enc",
+          "gain": 2.7862045764923096,
+          "weight": 121.0,
+          "cover": 654.2149047851562,
+          "total_gain": 337.1307678222656,
+          "total_cover": 79160.0
+        },
+        {
+          "feature": "core_sabr_alpha",
+          "gain": 1.9212476015090942,
+          "weight": 851.0,
+          "cover": 835.4664916992188,
+          "total_gain": 1634.981689453125,
+          "total_cover": 710982.0
+        },
+        {
+          "feature": "core_opt_vol_change_1m",
+          "gain": 1.9162260293960571,
+          "weight": 840.0,
+          "cover": 967.0821533203125,
+          "total_gain": 1609.6298828125,
+          "total_cover": 812349.0
+        },
+        {
+          "feature": "core_sabr_rho",
+          "gain": 1.8423289060592651,
+          "weight": 363.0,
+          "cover": 792.1487426757812,
+          "total_gain": 668.765380859375,
+          "total_cover": 287550.0
+        },
+        {
+          "feature": "panel_IV_T",
+          "gain": 1.7219432592391968,
+          "weight": 621.0,
+          "cover": 900.1884155273438,
+          "total_gain": 1069.3267822265625,
+          "total_cover": 559017.0
+        },
+        {
+          "feature": "core_delta",
+          "gain": 1.5848532915115356,
+          "weight": 721.0,
+          "cover": 946.5714111328125,
+          "total_gain": 1142.67919921875,
+          "total_cover": 682478.0
+        },
+        {
+          "feature": "core_gamma",
+          "gain": 1.534519076347351,
+          "weight": 555.0,
+          "cover": 777.0162353515625,
+          "total_gain": 851.6580810546875,
+          "total_cover": 431244.0
+        },
+        {
+          "feature": "panel_IVRET_T",
+          "gain": 1.5338140726089478,
+          "weight": 668.0,
+          "cover": 1098.8023681640625,
+          "total_gain": 1024.5877685546875,
+          "total_cover": 734000.0
+        },
+        {
+          "feature": "core_opt_volume",
+          "gain": 1.4240097999572754,
+          "weight": 735.0,
+          "cover": 353.71563720703125,
+          "total_gain": 1046.647216796875,
+          "total_cover": 259981.0
+        },
+        {
+          "feature": "core_opt_vol_roll_15m",
+          "gain": 1.386827826499939,
+          "weight": 956.0,
+          "cover": 1228.0565185546875,
+          "total_gain": 1325.807373046875,
+          "total_cover": 1174022.0
+        },
+        {
+          "feature": "core_strike_price",
+          "gain": 1.2799078226089478,
+          "weight": 417.0,
+          "cover": 724.7410278320312,
+          "total_gain": 533.7215576171875,
+          "total_cover": 302217.0
+        },
+        {
+          "feature": "panel_IVRET_ASTS",
+          "gain": 1.2754101753234863,
+          "weight": 558.0,
+          "cover": 1175.878173828125,
+          "total_gain": 711.6788940429688,
+          "total_cover": 656140.0
+        },
+        {
+          "feature": "sym_ASTS",
+          "gain": 1.2417584657669067,
+          "weight": 48.0,
+          "cover": 1070.1875,
+          "total_gain": 59.60440444946289,
+          "total_cover": 51369.0
+        },
+        {
+          "feature": "panel_IVRET_VZ",
+          "gain": 1.0827932357788086,
+          "weight": 451.0,
+          "cover": 854.6895751953125,
+          "total_gain": 488.3397521972656,
+          "total_cover": 385465.0
+        },
+        {
+          "feature": "core_time_to_expiry",
+          "gain": 1.0537508726119995,
+          "weight": 589.0,
+          "cover": 1103.0255126953125,
+          "total_gain": 620.6592407226562,
+          "total_cover": 649682.0
+        },
+        {
+          "feature": "panel_IVRET_SATS",
+          "gain": 0.9622071981430054,
+          "weight": 279.0,
+          "cover": 1150.5770263671875,
+          "total_gain": 268.455810546875,
+          "total_cover": 321011.0
+        },
+        {
+          "feature": "core_rv_30m",
+          "gain": 0.9525164365768433,
+          "weight": 650.0,
+          "cover": 676.2769165039062,
+          "total_gain": 619.1356811523438,
+          "total_cover": 439580.0
+        },
+        {
+          "feature": "panel_IV_VZ",
+          "gain": 0.9153507947921753,
+          "weight": 473.0,
+          "cover": 690.484130859375,
+          "total_gain": 432.9609375,
+          "total_cover": 326599.0
+        },
+        {
+          "feature": "core_stock_volume",
+          "gain": 0.7667309641838074,
+          "weight": 722.0,
+          "cover": 652.987548828125,
+          "total_gain": 553.5797729492188,
+          "total_cover": 471457.0
+        },
+        {
+          "feature": "core_sabr_nu",
+          "gain": 0.6662303805351257,
+          "weight": 730.0,
+          "cover": 939.7999877929688,
+          "total_gain": 486.3481750488281,
+          "total_cover": 686054.0
+        },
+        {
+          "feature": "panel_IV_ASTS",
+          "gain": 0.6615067720413208,
+          "weight": 487.0,
+          "cover": 896.9589233398438,
+          "total_gain": 322.15380859375,
+          "total_cover": 436819.0
+        },
+        {
+          "feature": "sym_VZ",
+          "gain": 0.5473082661628723,
+          "weight": 35.0,
+          "cover": 593.4285888671875,
+          "total_gain": 19.15578842163086,
+          "total_cover": 20770.0
+        },
+        {
+          "feature": "sym_T",
+          "gain": 0.4550495743751526,
+          "weight": 17.0,
+          "cover": 1262.2940673828125,
+          "total_gain": 7.735842704772949,
+          "total_cover": 21459.0
+        },
+        {
+          "feature": "panel_IV_SATS",
+          "gain": 0.412663996219635,
+          "weight": 295.0,
+          "cover": 848.084716796875,
+          "total_gain": 121.73587799072266,
+          "total_cover": 250185.0
+        },
+        {
+          "feature": "core_days_to_expiry",
+          "gain": 0.38398829102516174,
+          "weight": 37.0,
+          "cover": 955.5134887695312,
+          "total_gain": 14.207566261291504,
+          "total_cover": 35354.0
+        }
+      ],
+      "permutation_importances": [
+        {
+          "feature": "core_iv",
+          "perm_importance_mean": 0.44155056002201,
+          "perm_importance_std": 0.04579753744002919
+        },
+        {
+          "feature": "core_expiry_date",
+          "perm_importance_mean": 0.12061269823975133,
+          "perm_importance_std": 0.026622548213028317
+        },
+        {
+          "feature": "core_sabr_rho",
+          "perm_importance_mean": 0.012058272016151839,
+          "perm_importance_std": 0.0008209808704945105
+        },
+        {
+          "feature": "panel_IVRET_ASTS",
+          "perm_importance_mean": 0.010829055025343037,
+          "perm_importance_std": 0.014025543467675735
+        },
+        {
+          "feature": "core_vega",
+          "perm_importance_mean": 0.006359503717666537,
+          "perm_importance_std": 0.0003115943461167415
+        },
+        {
+          "feature": "core_opt_vol_roll_15m",
+          "perm_importance_mean": 0.005148844388678908,
+          "perm_importance_std": 0.0077405689302221655
+        },
+        {
+          "feature": "panel_IV_ASTS",
+          "perm_importance_mean": 0.0038277502274022047,
+          "perm_importance_std": 0.0007506583853485956
+        },
+        {
+          "feature": "core_strike_price",
+          "perm_importance_mean": 0.003164162337522436,
+          "perm_importance_std": 0.003776259632994744
+        },
+        {
+          "feature": "core_time_to_expiry",
+          "perm_importance_mean": 0.002583212040538041,
+          "perm_importance_std": 0.0014422229302182691
+        },
+        {
+          "feature": "core_stock_volume",
+          "perm_importance_mean": 0.0010907603234298513,
+          "perm_importance_std": 0.000913139383921675
+        },
+        {
+          "feature": "panel_IVRET_SATS",
+          "perm_importance_mean": 0.0009674893636817617,
+          "perm_importance_std": 0.00024898560730060533
+        },
+        {
+          "feature": "core_opt_vol_change_1m",
+          "perm_importance_mean": 0.0006105187800810264,
+          "perm_importance_std": 0.0006895733808070051
+        },
+        {
+          "feature": "panel_IVRET_VZ",
+          "perm_importance_mean": 0.000449190857500481,
+          "perm_importance_std": 0.0008888280663328406
+        },
+        {
+          "feature": "core_delta",
+          "perm_importance_mean": 0.0003696951589192032,
+          "perm_importance_std": 0.001080654243751421
+        },
+        {
+          "feature": "core_rv_30m",
+          "perm_importance_mean": 0.00030423882700858496,
+          "perm_importance_std": 0.0014524433189498779
+        },
+        {
+          "feature": "sym_ASTS",
+          "perm_importance_mean": 0.0,
+          "perm_importance_std": 0.0
+        },
+        {
+          "feature": "core_sabr_beta",
+          "perm_importance_mean": 0.0,
+          "perm_importance_std": 0.0
+        },
+        {
+          "feature": "sym_SATS",
+          "perm_importance_mean": 0.0,
+          "perm_importance_std": 0.0
+        },
+        {
+          "feature": "sym_VZ",
+          "perm_importance_mean": 0.0,
+          "perm_importance_std": 0.0
+        },
+        {
+          "feature": "core_option_type",
+          "perm_importance_mean": 0.0,
+          "perm_importance_std": 0.0
+        },
+        {
+          "feature": "sym_T",
+          "perm_importance_mean": -1.311665259173811e-05,
+          "perm_importance_std": 5.2769250058856985e-05
+        },
+        {
+          "feature": "panel_IV_SATS",
+          "perm_importance_mean": -0.00012301658987525776,
+          "perm_importance_std": 0.0004658022374536431
+        },
+        {
+          "feature": "panel_IVRET_T",
+          "perm_importance_mean": -0.00022319921469551307,
+          "perm_importance_std": 0.0012340708570764767
+        },
+        {
+          "feature": "panel_IV_VZ",
+          "perm_importance_mean": -0.00029124495771526426,
+          "perm_importance_std": 0.0006545957569385095
+        },
+        {
+          "feature": "core_days_to_expiry",
+          "perm_importance_mean": -0.0003168252804226945,
+          "perm_importance_std": 6.828117698063974e-05
+        },
+        {
+          "feature": "core_sabr_nu",
+          "perm_importance_mean": -0.0004980335753711262,
+          "perm_importance_std": 0.003291874698330765
+        },
+        {
+          "feature": "panel_IV_T",
+          "perm_importance_mean": -0.0007792949806669335,
+          "perm_importance_std": 0.0023591475842729016
+        },
+        {
+          "feature": "core_opt_volume",
+          "perm_importance_mean": -0.0009709406184795766,
+          "perm_importance_std": 0.0014555697830751673
+        },
+        {
+          "feature": "core_sabr_alpha",
+          "perm_importance_mean": -0.001116258410057225,
+          "perm_importance_std": 0.001592978924062694
+        },
+        {
+          "feature": "core_gamma",
+          "perm_importance_mean": -0.0017700073995188914,
+          "perm_importance_std": 0.0032579868793318058
+        },
+        {
+          "feature": "core_option_type_enc",
+          "perm_importance_mean": -0.0032923354671194225,
+          "perm_importance_std": 0.005203405531131152
+        }
+      ],
+      "feature_shap_avg": [
+        {
+          "feature": "core_opt_vol_change_1m",
+          "avg_contrib": 0.013037418015301228
+        },
+        {
+          "feature": "core_iv",
+          "avg_contrib": 0.011121544055640697
+        },
+        {
+          "feature": "core_time_to_expiry",
+          "avg_contrib": 0.007105848751962185
+        },
+        {
+          "feature": "core_strike_price",
+          "avg_contrib": 0.006985810585319996
+        },
+        {
+          "feature": "core_expiry_date",
+          "avg_contrib": 0.004935679491609335
+        },
+        {
+          "feature": "panel_IVRET_T",
+          "avg_contrib": 0.003080371767282486
+        },
+        {
+          "feature": "core_opt_volume",
+          "avg_contrib": 0.002325392561033368
+        },
+        {
+          "feature": "core_rv_30m",
+          "avg_contrib": 0.0017025956185534596
+        },
+        {
+          "feature": "core_sabr_alpha",
+          "avg_contrib": 0.0016133441822603345
+        },
+        {
+          "feature": "sym_VZ",
+          "avg_contrib": 0.0016113811871036887
+        },
+        {
+          "feature": "panel_IV_SATS",
+          "avg_contrib": 0.0009461712907068431
+        },
+        {
+          "feature": "panel_IVRET_SATS",
+          "avg_contrib": 0.0007759553263895214
+        },
+        {
+          "feature": "core_days_to_expiry",
+          "avg_contrib": 0.0005402345559559762
+        },
+        {
+          "feature": "panel_IV_ASTS",
+          "avg_contrib": 0.0004233555227983743
+        },
+        {
+          "feature": "core_option_type",
+          "avg_contrib": 0.0
+        },
+        {
+          "feature": "core_sabr_beta",
+          "avg_contrib": 0.0
+        },
+        {
+          "feature": "sym_SATS",
+          "avg_contrib": 0.0
+        },
+        {
+          "feature": "core_sabr_nu",
+          "avg_contrib": -0.00011857128993142396
+        },
+        {
+          "feature": "core_delta",
+          "avg_contrib": -0.00020539737306535244
+        },
+        {
+          "feature": "panel_IV_VZ",
+          "avg_contrib": -0.0003862178709823638
+        },
+        {
+          "feature": "panel_IVRET_VZ",
+          "avg_contrib": -0.0004008078249171376
+        },
+        {
+          "feature": "sym_T",
+          "avg_contrib": -0.00197241292335093
+        },
+        {
+          "feature": "core_stock_volume",
+          "avg_contrib": -0.0023202458396553993
+        },
+        {
+          "feature": "core_sabr_rho",
+          "avg_contrib": -0.002557440660893917
+        },
+        {
+          "feature": "panel_IV_T",
+          "avg_contrib": -0.00406511640176177
+        },
+        {
+          "feature": "core_gamma",
+          "avg_contrib": -0.005077838432043791
+        },
+        {
+          "feature": "sym_ASTS",
+          "avg_contrib": -0.005112380720674992
+        },
+        {
+          "feature": "core_opt_vol_roll_15m",
+          "avg_contrib": -0.005613764747977257
+        },
+        {
+          "feature": "core_option_type_enc",
+          "avg_contrib": -0.005962585099041462
+        },
+        {
+          "feature": "core_vega",
+          "avg_contrib": -0.006136939395219088
+        },
+        {
+          "feature": "panel_IVRET_ASTS",
+          "avg_contrib": -0.016479935497045517
+        }
+      ],
+      "sym_shap_avg": [
+        {
+          "feature": "sym_VZ",
+          "avg_shap": 0.0016113811871036887,
+          "ticker": "VZ",
+          "direction": "\u2191"
+        },
+        {
+          "feature": "sym_SATS",
+          "avg_shap": 0.0,
+          "ticker": "SATS",
+          "direction": "\u2191"
+        },
+        {
+          "feature": "sym_T",
+          "avg_shap": -0.00197241292335093,
+          "ticker": "T",
+          "direction": "\u2193"
+        },
+        {
+          "feature": "sym_ASTS",
+          "avg_shap": -0.005112380720674992,
+          "ticker": "ASTS",
+          "direction": "\u2193"
+        }
+      ],
+      "eval_path": "outputs\\evaluations\\pooled_iv_ret_fwd_20250825_132222_eval_evaluation.json"
+    },
+    "pooled_iv_clip": {
+      "metrics": {
+        "RMSE": 0.5520190330096396,
+        "R2": 0.7351441017836733,
+        "n_train": 6812,
+        "n_test": 1703,
+        "n_features": 31,
+        "tickers": [
+          "ASTS",
+          "VZ",
+          "T",
+          "SATS"
+        ],
+        "start": "2025-08-02T00:00:00+00:00",
+        "end": "2025-08-06T00:00:00+00:00",
+        "forward_steps": 15,
+        "tolerance": "2s",
+        "test_frac": 0.2,
+        "model_path": "outputs\\models\\pooled_iv_clip_20250825_132222.json"
+      },
+      "xgb_importances": [
+        {
+          "feature": "core_iv",
+          "gain": 16.441831588745117,
+          "weight": 3093.0,
+          "cover": 1675.3233642578125,
+          "total_gain": 50854.5859375,
+          "total_cover": 5181775.0
+        },
+        {
+          "feature": "core_strike_price",
+          "gain": 4.054538249969482,
+          "weight": 799.0,
+          "cover": 2309.720947265625,
+          "total_gain": 3239.575927734375,
+          "total_cover": 1845467.0
+        },
+        {
+          "feature": "core_sabr_rho",
+          "gain": 2.713414430618286,
+          "weight": 305.0,
+          "cover": 1557.4393310546875,
+          "total_gain": 827.5914306640625,
+          "total_cover": 475019.0
+        },
+        {
+          "feature": "core_expiry_date",
+          "gain": 2.274134635925293,
+          "weight": 964.0,
+          "cover": 439.7603759765625,
+          "total_gain": 2192.265869140625,
+          "total_cover": 423929.0
+        },
+        {
+          "feature": "core_option_type_enc",
+          "gain": 2.1818606853485107,
+          "weight": 124.0,
+          "cover": 960.0645141601562,
+          "total_gain": 270.55072021484375,
+          "total_cover": 119048.0
+        },
+        {
+          "feature": "core_vega",
+          "gain": 1.8496122360229492,
+          "weight": 734.0,
+          "cover": 1333.103515625,
+          "total_gain": 1357.6153564453125,
+          "total_cover": 978498.0
+        },
+        {
+          "feature": "core_rv_30m",
+          "gain": 1.6731865406036377,
+          "weight": 298.0,
+          "cover": 229.6140899658203,
+          "total_gain": 498.6095886230469,
+          "total_cover": 68425.0
+        },
+        {
+          "feature": "core_delta",
+          "gain": 0.9591641426086426,
+          "weight": 583.0,
+          "cover": 1172.670654296875,
+          "total_gain": 559.1926879882812,
+          "total_cover": 683667.0
+        },
+        {
+          "feature": "core_days_to_expiry",
+          "gain": 0.7686085104942322,
+          "weight": 36.0,
+          "cover": 1530.5555419921875,
+          "total_gain": 27.669906616210938,
+          "total_cover": 55100.0
+        },
+        {
+          "feature": "core_gamma",
+          "gain": 0.7639501690864563,
+          "weight": 511.0,
+          "cover": 900.4266357421875,
+          "total_gain": 390.3785400390625,
+          "total_cover": 460118.0
+        },
+        {
+          "feature": "core_time_to_expiry",
+          "gain": 0.7060889601707458,
+          "weight": 475.0,
+          "cover": 1119.475830078125,
+          "total_gain": 335.3922424316406,
+          "total_cover": 531751.0
+        },
+        {
+          "feature": "core_sabr_alpha",
+          "gain": 0.654455304145813,
+          "weight": 564.0,
+          "cover": 1473.242919921875,
+          "total_gain": 369.11279296875,
+          "total_cover": 830909.0
+        },
+        {
+          "feature": "panel_IVRET_T",
+          "gain": 0.6390271186828613,
+          "weight": 221.0,
+          "cover": 343.8551940917969,
+          "total_gain": 141.22499084472656,
+          "total_cover": 75992.0
+        },
+        {
+          "feature": "core_stock_volume",
+          "gain": 0.44208794832229614,
+          "weight": 422.0,
+          "cover": 268.1966857910156,
+          "total_gain": 186.5611114501953,
+          "total_cover": 113179.0
+        },
+        {
+          "feature": "panel_IV_T",
+          "gain": 0.15790574252605438,
+          "weight": 242.0,
+          "cover": 194.1776885986328,
+          "total_gain": 38.21318817138672,
+          "total_cover": 46991.0
+        },
+        {
+          "feature": "panel_IV_ASTS",
+          "gain": 0.14054080843925476,
+          "weight": 282.0,
+          "cover": 446.3475036621094,
+          "total_gain": 39.63250732421875,
+          "total_cover": 125870.0
+        },
+        {
+          "feature": "core_opt_volume",
+          "gain": 0.10158760845661163,
+          "weight": 351.0,
+          "cover": 27.1680908203125,
+          "total_gain": 35.657249450683594,
+          "total_cover": 9536.0
+        },
+        {
+          "feature": "panel_IV_VZ",
+          "gain": 0.0963093563914299,
+          "weight": 204.0,
+          "cover": 443.5833435058594,
+          "total_gain": 19.64710807800293,
+          "total_cover": 90491.0
+        },
+        {
+          "feature": "core_opt_vol_change_1m",
+          "gain": 0.0648367702960968,
+          "weight": 195.0,
+          "cover": 181.74359130859375,
+          "total_gain": 12.643170356750488,
+          "total_cover": 35440.0
+        },
+        {
+          "feature": "sym_VZ",
+          "gain": 0.0629497617483139,
+          "weight": 33.0,
+          "cover": 491.3636474609375,
+          "total_gain": 2.0773420333862305,
+          "total_cover": 16215.0
+        },
+        {
+          "feature": "sym_ASTS",
+          "gain": 0.06128790229558945,
+          "weight": 33.0,
+          "cover": 521.8181762695312,
+          "total_gain": 2.02250075340271,
+          "total_cover": 17220.0
+        },
+        {
+          "feature": "core_opt_vol_roll_15m",
+          "gain": 0.040396902710199356,
+          "weight": 233.0,
+          "cover": 258.0772399902344,
+          "total_gain": 9.41247844696045,
+          "total_cover": 60132.0
+        },
+        {
+          "feature": "panel_IVRET_SATS",
+          "gain": 0.032580774277448654,
+          "weight": 81.0,
+          "cover": 359.69134521484375,
+          "total_gain": 2.639042615890503,
+          "total_cover": 29135.0
+        },
+        {
+          "feature": "sym_T",
+          "gain": 0.026595648378133774,
+          "weight": 82.0,
+          "cover": 774.6097412109375,
+          "total_gain": 2.1808431148529053,
+          "total_cover": 63518.0
+        },
+        {
+          "feature": "panel_IVRET_ASTS",
+          "gain": 0.024578042328357697,
+          "weight": 261.0,
+          "cover": 311.1187744140625,
+          "total_gain": 6.4148688316345215,
+          "total_cover": 81202.0
+        },
+        {
+          "feature": "core_sabr_nu",
+          "gain": 0.015574724413454533,
+          "weight": 399.0,
+          "cover": 585.8471069335938,
+          "total_gain": 6.214314937591553,
+          "total_cover": 233753.0
+        },
+        {
+          "feature": "panel_IV_SATS",
+          "gain": 0.01291329599916935,
+          "weight": 163.0,
+          "cover": 282.8282165527344,
+          "total_gain": 2.1048672199249268,
+          "total_cover": 46101.0
+        },
+        {
+          "feature": "panel_IVRET_VZ",
+          "gain": 0.00944084394723177,
+          "weight": 240.0,
+          "cover": 506.32501220703125,
+          "total_gain": 2.2658026218414307,
+          "total_cover": 121518.0
+        }
+      ],
+      "permutation_importances": [
+        {
+          "feature": "core_iv",
+          "perm_importance_mean": 0.9708398126263242,
+          "perm_importance_std": 0.04147018480011069
+        },
+        {
+          "feature": "core_opt_vol_change_1m",
+          "perm_importance_mean": 0.009694402746436204,
+          "perm_importance_std": 0.0027342190645351324
+        },
+        {
+          "feature": "core_stock_volume",
+          "perm_importance_mean": 0.009433664734495029,
+          "perm_importance_std": 0.007467776213851327
+        },
+        {
+          "feature": "core_delta",
+          "perm_importance_mean": 0.0036029274329363757,
+          "perm_importance_std": 0.0034944162994333754
+        },
+        {
+          "feature": "panel_IV_ASTS",
+          "perm_importance_mean": 0.0034760560344942125,
+          "perm_importance_std": 0.0008978638200835344
+        },
+        {
+          "feature": "core_sabr_rho",
+          "perm_importance_mean": 0.0023707287597767523,
+          "perm_importance_std": 0.0007829102979392318
+        },
+        {
+          "feature": "core_gamma",
+          "perm_importance_mean": 0.002130748875914601,
+          "perm_importance_std": 0.0005819580190033125
+        },
+        {
+          "feature": "core_opt_volume",
+          "perm_importance_mean": 0.0008808001227423423,
+          "perm_importance_std": 0.0004097760489971354
+        },
+        {
+          "feature": "core_opt_vol_roll_15m",
+          "perm_importance_mean": 0.00040084657394243715,
+          "perm_importance_std": 0.0005261108681755653
+        },
+        {
+          "feature": "core_option_type_enc",
+          "perm_importance_mean": 0.00021576585616136512,
+          "perm_importance_std": 0.0001257980247198762
+        },
+        {
+          "feature": "panel_IVRET_SATS",
+          "perm_importance_mean": 0.0002135093018537537,
+          "perm_importance_std": 0.0005912866438482658
+        },
+        {
+          "feature": "sym_T",
+          "perm_importance_mean": 9.116615381752347e-05,
+          "perm_importance_std": 1.2571321860376318e-05
+        },
+        {
+          "feature": "core_option_type",
+          "perm_importance_mean": 0.0,
+          "perm_importance_std": 0.0
+        },
+        {
+          "feature": "sym_ASTS",
+          "perm_importance_mean": 0.0,
+          "perm_importance_std": 0.0
+        },
+        {
+          "feature": "sym_VZ",
+          "perm_importance_mean": 0.0,
+          "perm_importance_std": 0.0
+        },
+        {
+          "feature": "core_sabr_beta",
+          "perm_importance_mean": 0.0,
+          "perm_importance_std": 0.0
+        },
+        {
+          "feature": "sym_SATS",
+          "perm_importance_mean": 0.0,
+          "perm_importance_std": 0.0
+        },
+        {
+          "feature": "panel_IV_VZ",
+          "perm_importance_mean": -0.00014598522498847631,
+          "perm_importance_std": 0.00043434622201031546
+        },
+        {
+          "feature": "panel_IVRET_VZ",
+          "perm_importance_mean": -0.0005841576240285251,
+          "perm_importance_std": 0.0003672798351106166
+        },
+        {
+          "feature": "panel_IV_SATS",
+          "perm_importance_mean": -0.000636974272481905,
+          "perm_importance_std": 0.000400072930335937
+        },
+        {
+          "feature": "panel_IVRET_ASTS",
+          "perm_importance_mean": -0.001322924518659363,
+          "perm_importance_std": 0.001320794346110308
+        },
+        {
+          "feature": "panel_IV_T",
+          "perm_importance_mean": -0.0016413681633766109,
+          "perm_importance_std": 0.006765303935721361
+        },
+        {
+          "feature": "core_sabr_nu",
+          "perm_importance_mean": -0.0023259256632812255,
+          "perm_importance_std": 0.001356513159881978
+        },
+        {
+          "feature": "core_days_to_expiry",
+          "perm_importance_mean": -0.0028848743633730135,
+          "perm_importance_std": 0.0010297412714352448
+        },
+        {
+          "feature": "panel_IVRET_T",
+          "perm_importance_mean": -0.004475173090738793,
+          "perm_importance_std": 0.0009626817219179721
+        },
+        {
+          "feature": "core_sabr_alpha",
+          "perm_importance_mean": -0.010724050017763997,
+          "perm_importance_std": 0.005171405247115768
+        },
+        {
+          "feature": "core_time_to_expiry",
+          "perm_importance_mean": -0.012879752463628713,
+          "perm_importance_std": 0.003774038155768683
+        },
+        {
+          "feature": "core_vega",
+          "perm_importance_mean": -0.015050190622326598,
+          "perm_importance_std": 0.0025915963470954225
+        },
+        {
+          "feature": "core_expiry_date",
+          "perm_importance_mean": -0.029854452398404008,
+          "perm_importance_std": 0.010729862678245152
+        },
+        {
+          "feature": "core_rv_30m",
+          "perm_importance_mean": -0.03298810013410004,
+          "perm_importance_std": 0.022831914638478373
+        },
+        {
+          "feature": "core_strike_price",
+          "perm_importance_mean": -0.12069506772869079,
+          "perm_importance_std": 0.00315551279714433
+        }
+      ],
+      "feature_shap_avg": [
+        {
+          "feature": "core_iv",
+          "avg_contrib": 0.020482059568166733
+        },
+        {
+          "feature": "core_rv_30m",
+          "avg_contrib": 0.0068600657396018505
+        },
+        {
+          "feature": "core_delta",
+          "avg_contrib": 0.006122818682342768
+        },
+        {
+          "feature": "core_option_type_enc",
+          "avg_contrib": 0.005303171928972006
+        },
+        {
+          "feature": "core_time_to_expiry",
+          "avg_contrib": 0.003595316782593727
+        },
+        {
+          "feature": "core_strike_price",
+          "avg_contrib": 0.0017909089801833034
+        },
+        {
+          "feature": "core_stock_volume",
+          "avg_contrib": 0.0013745299074798822
+        },
+        {
+          "feature": "core_days_to_expiry",
+          "avg_contrib": 0.0011194811668246984
+        },
+        {
+          "feature": "panel_IVRET_T",
+          "avg_contrib": 0.001081948634237051
+        },
+        {
+          "feature": "core_sabr_alpha",
+          "avg_contrib": 0.0009640317293815315
+        },
+        {
+          "feature": "core_sabr_nu",
+          "avg_contrib": 0.0005456701037473977
+        },
+        {
+          "feature": "panel_IV_VZ",
+          "avg_contrib": 0.00021983169426675886
+        },
+        {
+          "feature": "panel_IVRET_ASTS",
+          "avg_contrib": 0.0001337286812486127
+        },
+        {
+          "feature": "panel_IV_SATS",
+          "avg_contrib": 5.58348729100544e-05
+        },
+        {
+          "feature": "panel_IV_T",
+          "avg_contrib": 3.941658724215813e-05
+        },
+        {
+          "feature": "panel_IVRET_SATS",
+          "avg_contrib": 1.0480753189767711e-05
+        },
+        {
+          "feature": "sym_SATS",
+          "avg_contrib": 0.0
+        },
+        {
+          "feature": "core_option_type",
+          "avg_contrib": 0.0
+        },
+        {
+          "feature": "core_sabr_beta",
+          "avg_contrib": 0.0
+        },
+        {
+          "feature": "panel_IVRET_VZ",
+          "avg_contrib": -7.910283602541313e-05
+        },
+        {
+          "feature": "sym_VZ",
+          "avg_contrib": -0.0001988175354199484
+        },
+        {
+          "feature": "panel_IV_ASTS",
+          "avg_contrib": -0.0002557713014539331
+        },
+        {
+          "feature": "sym_ASTS",
+          "avg_contrib": -0.00027841891278512776
+        },
+        {
+          "feature": "core_opt_vol_roll_15m",
+          "avg_contrib": -0.0004608315066434443
+        },
+        {
+          "feature": "core_opt_volume",
+          "avg_contrib": -0.0005775729077868164
+        },
+        {
+          "feature": "sym_T",
+          "avg_contrib": -0.0006143262144178152
+        },
+        {
+          "feature": "core_sabr_rho",
+          "avg_contrib": -0.0008185554761439562
+        },
+        {
+          "feature": "core_opt_vol_change_1m",
+          "avg_contrib": -0.0013613312039524317
+        },
+        {
+          "feature": "core_gamma",
+          "avg_contrib": -0.004712836816906929
+        },
+        {
+          "feature": "core_vega",
+          "avg_contrib": -0.005243984051048756
+        },
+        {
+          "feature": "core_expiry_date",
+          "avg_contrib": -0.009598669596016407
+        }
+      ],
+      "sym_shap_avg": [
+        {
+          "feature": "sym_SATS",
+          "avg_shap": 0.0,
+          "ticker": "SATS",
+          "direction": "\u2191"
+        },
+        {
+          "feature": "sym_VZ",
+          "avg_shap": -0.0001988175354199484,
+          "ticker": "VZ",
+          "direction": "\u2193"
+        },
+        {
+          "feature": "sym_ASTS",
+          "avg_shap": -0.00027841891278512776,
+          "ticker": "ASTS",
+          "direction": "\u2193"
+        },
+        {
+          "feature": "sym_T",
+          "avg_shap": -0.0006143262144178152,
+          "ticker": "T",
+          "direction": "\u2193"
+        }
+      ],
+      "eval_path": "outputs\\evaluations\\pooled_iv_clip_20250825_132222_eval_evaluation.json"
+    }
+  }
+}

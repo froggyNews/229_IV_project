@@ -1,0 +1,89 @@
+{
+  "config": {
+    "groups": {
+      "satellite": [
+        "ASTS",
+        "SATS"
+      ],
+      "telecom": [
+        "VZ",
+        "T"
+      ],
+      "quantum": [
+        "QUBT",
+        "QBTS",
+        "RGTI",
+        "IONQ"
+      ],
+      "crypto_miners": [
+        "MARA",
+        "WULF",
+        "IREN"
+      ]
+    },
+    "start": "2025-08-02",
+    "end": "2025-08-06",
+    "target_kinds": [
+      "iv_ret",
+      "iv"
+    ],
+    "forward_steps": 15,
+    "test_frac": 0.2,
+    "tolerance": "2s",
+    "r": 0.045,
+    "correlation_significance_level": 0.05,
+    "peer_effect_significance_level": 0.05,
+    "bootstrap_samples": 1000,
+    "db_path": "data\\iv_data_1m.db",
+    "auto_fetch": true,
+    "timestamp": "20250825_134308",
+    "save_detailed_results": true,
+    "debug": true
+  },
+  "timestamp": "20250825_134308",
+  "all_tickers": [
+    "ASTS",
+    "IONQ",
+    "IREN",
+    "MARA",
+    "QBTS",
+    "QUBT",
+    "RGTI",
+    "SATS",
+    "T",
+    "VZ",
+    "WULF"
+  ],
+  "groups": {
+    "satellite": [
+      "ASTS",
+      "SATS"
+    ],
+    "telecom": [
+      "VZ",
+      "T"
+    ],
+    "quantum": [
+      "QUBT",
+      "QBTS",
+      "RGTI",
+      "IONQ"
+    ],
+    "crypto_miners": [
+      "MARA",
+      "WULF",
+      "IREN"
+    ]
+  },
+  "analysis_summary": {
+    "total_groups": 4,
+    "total_tickers": 11,
+    "analysis_components": [
+      "intra_group_correlations",
+      "inter_group_correlations",
+      "intra_group_peer_effects",
+      "inter_group_peer_effects",
+      "statistical_tests"
+    ]
+  }
+}

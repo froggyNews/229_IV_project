@@ -1,0 +1,18 @@
+{
+  "quantum_from_satellite": {
+    "target_group": "quantum",
+    "peer_group": "satellite",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "satellite_from_quantum": {
+    "target_group": "satellite",
+    "peer_group": "quantum",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  }
+}

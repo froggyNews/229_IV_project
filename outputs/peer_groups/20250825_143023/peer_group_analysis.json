@@ -1,0 +1,312 @@
+{
+  "intra_correlations": {
+    "satellite": {
+      "tickers": [
+        "ASTS",
+        "SATS"
+      ],
+      "ret_corr_matrix": {
+        "IVRET_ASTS": {
+          "IVRET_ASTS": 1.0,
+          "IVRET_SATS": 0.009659898196142845
+        },
+        "IVRET_SATS": {
+          "IVRET_ASTS": 0.009659898196142845,
+          "IVRET_SATS": 0.9999999999999999
+        }
+      },
+      "mean": 0.009659898196142845,
+      "std": 0.0,
+      "min": 0.009659898196142845,
+      "max": 0.009659898196142845
+    },
+    "telecom": {
+      "tickers": [
+        "VZ",
+        "T"
+      ],
+      "ret_corr_matrix": {
+        "IVRET_VZ": {
+          "IVRET_VZ": 1.0,
+          "IVRET_T": 0.009169973142125767
+        },
+        "IVRET_T": {
+          "IVRET_VZ": 0.009169973142125767,
+          "IVRET_T": 0.9999999999999999
+        }
+      },
+      "mean": 0.009169973142125767,
+      "std": 0.0,
+      "min": 0.009169973142125767,
+      "max": 0.009169973142125767
+    },
+    "quantum": {
+      "tickers": [
+        "QUBT",
+        "QBTS",
+        "RGTI",
+        "IONQ"
+      ],
+      "ret_corr_matrix": {
+        "IVRET_QUBT": {
+          "IVRET_QUBT": 1.0,
+          "IVRET_QBTS": 0.0027518170881009577,
+          "IVRET_RGTI": 0.00269578834264909,
+          "IVRET_IONQ": -0.0027038455169487515
+        },
+        "IVRET_QBTS": {
+          "IVRET_QUBT": 0.0027518170881009572,
+          "IVRET_QBTS": 1.0,
+          "IVRET_RGTI": 0.002907681512599709,
+          "IVRET_IONQ": 0.002122834153142917
+        },
+        "IVRET_RGTI": {
+          "IVRET_QUBT": 0.0026957883426490894,
+          "IVRET_QBTS": 0.0029076815125997084,
+          "IVRET_RGTI": 1.0,
+          "IVRET_IONQ": -0.04578461031820182
+        },
+        "IVRET_IONQ": {
+          "IVRET_QUBT": -0.002703845516948751,
+          "IVRET_QBTS": 0.002122834153142917,
+          "IVRET_RGTI": -0.045784610318201815,
+          "IVRET_IONQ": 1.0
+        }
+      },
+      "mean": -0.006335055789776316,
+      "std": 0.01775079594509702,
+      "min": -0.04578461031820182,
+      "max": 0.002907681512599709
+    }
+  },
+  "inter_correlations": {
+    "satellite_vs_telecom": {
+      "group1": "satellite",
+      "group2": "telecom",
+      "mean": -0.01392717086548936,
+      "std": 0.01383024889920852,
+      "min": -0.02278542823241411,
+      "max": 0.010006150692851561
+    },
+    "satellite_vs_quantum": {
+      "group1": "satellite",
+      "group2": "quantum",
+      "mean": -0.006977694449324306,
+      "std": 0.010400128478315517,
+      "min": -0.02552607392184194,
+      "max": 0.008705208619393955
+    },
+    "telecom_vs_quantum": {
+      "group1": "telecom",
+      "group2": "quantum",
+      "mean": 0.004675284753260232,
+      "std": 0.011866964379078655,
+      "min": -0.014665117648622892,
+      "max": 0.025926155013064358
+    }
+  },
+  "intra_peer_effects": {
+    "satellite": {
+      "iv_ret": {
+        "targets": {
+          "ASTS": {},
+          "SATS": {}
+        },
+        "summary": {}
+      },
+      "iv": {
+        "targets": {
+          "ASTS": {},
+          "SATS": {}
+        },
+        "summary": {}
+      }
+    },
+    "telecom": {
+      "iv_ret": {
+        "targets": {
+          "VZ": {},
+          "T": {}
+        },
+        "summary": {}
+      },
+      "iv": {
+        "targets": {
+          "VZ": {},
+          "T": {}
+        },
+        "summary": {}
+      }
+    },
+    "quantum": {
+      "iv_ret": {
+        "targets": {
+          "QUBT": {},
+          "QBTS": {},
+          "RGTI": {},
+          "IONQ": {}
+        },
+        "summary": {}
+      },
+      "iv": {
+        "targets": {
+          "QUBT": {},
+          "QBTS": {},
+          "RGTI": {},
+          "IONQ": {}
+        },
+        "summary": {}
+      }
+    }
+  },
+  "inter_peer_effects": {
+    "satellite_from_telecom": {
+      "target_group": "satellite",
+      "peer_group": "telecom",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "satellite_from_quantum": {
+      "target_group": "satellite",
+      "peer_group": "quantum",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "telecom_from_satellite": {
+      "target_group": "telecom",
+      "peer_group": "satellite",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "telecom_from_quantum": {
+      "target_group": "telecom",
+      "peer_group": "quantum",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "quantum_from_satellite": {
+      "target_group": "quantum",
+      "peer_group": "satellite",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "quantum_from_telecom": {
+      "target_group": "quantum",
+      "peer_group": "telecom",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    }
+  },
+  "statistical_tests": {
+    "correlation_tests": {
+      "satellite": {
+        "z_mean": 0.009660198679698763
+      },
+      "telecom": {
+        "z_mean": 0.009170230184573691
+      },
+      "quantum": {
+        "z_mean": -0.006340391410843182
+      }
+    },
+    "peer_effect_tests": {
+      "satellite": {
+        "iv_ret": {
+          "avg_effect": NaN
+        },
+        "iv": {
+          "avg_effect": NaN
+        }
+      },
+      "telecom": {
+        "iv_ret": {
+          "avg_effect": NaN
+        },
+        "iv": {
+          "avg_effect": NaN
+        }
+      },
+      "quantum": {
+        "iv_ret": {
+          "avg_effect": NaN
+        },
+        "iv": {
+          "avg_effect": NaN
+        }
+      }
+    }
+  },
+  "metadata": {
+    "config": {
+      "groups": {
+        "satellite": [
+          "ASTS",
+          "SATS"
+        ],
+        "telecom": [
+          "VZ",
+          "T"
+        ],
+        "quantum": [
+          "QUBT",
+          "QBTS",
+          "RGTI",
+          "IONQ"
+        ]
+      },
+      "start": "2025-08-02",
+      "end": "2025-08-06",
+      "target_kinds": [
+        "iv_ret",
+        "iv"
+      ],
+      "forward_steps": 15,
+      "test_frac": 0.2,
+      "tolerance": "2s",
+      "r": 0.045,
+      "db_path": "data\\iv_data_1m.db",
+      "auto_fetch": true,
+      "timestamp": "20250825_143023",
+      "debug": true
+    },
+    "timestamp": "20250825_143023",
+    "groups": {
+      "satellite": [
+        "ASTS",
+        "SATS"
+      ],
+      "telecom": [
+        "VZ",
+        "T"
+      ],
+      "quantum": [
+        "QUBT",
+        "QBTS",
+        "RGTI",
+        "IONQ"
+      ]
+    },
+    "tickers": [
+      "ASTS",
+      "IONQ",
+      "QBTS",
+      "QUBT",
+      "RGTI",
+      "SATS",
+      "T",
+      "VZ"
+    ]
+  }
+}

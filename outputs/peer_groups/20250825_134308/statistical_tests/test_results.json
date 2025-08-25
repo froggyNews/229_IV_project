@@ -1,0 +1,11 @@
+{
+  "correlation_tests": {
+    "note": "Correlation significance testing not yet implemented"
+  },
+  "peer_effect_tests": {
+    "note": "Peer effect significance testing not yet implemented"
+  },
+  "group_comparison_tests": {
+    "note": "Group difference testing not yet implemented"
+  }
+}

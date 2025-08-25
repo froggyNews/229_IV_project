@@ -25,8 +25,9 @@ def suppress_runtime_warnings():
         yield
 
 # Config
-DEFAULT_DB_PATH = Path(os.getenv("IV_DB_PATH", "data/iv_data_1m.db"))
-ANNUAL_MINUTES = 252 * 390
+DEFAULT_DB_PATH = Path(os.getenv("IV_DB_PATH", "data/iv_data_1h.db"))  # Updated for 1-hour data
+ANNUAL_HOURS = 252 * 6.5  # 252 trading days * 6.5 hours per day
+ANNUAL_MINUTES = 252 * 390  # Legacy for backward compatibility
 
 # What to hide when predicting each target (preserved from original)
 HIDE_COLUMNS = {
@@ -37,8 +38,18 @@ HIDE_COLUMNS = {
 
 # Core features (preserved from original)
 CORE_FEATURE_COLS = [
-    "opt_volume", "time_to_expiry", "days_to_expiry", "strike_price",
-    "option_type_enc", "delta", "gamma", "vega", "hour", "minute", "day_of_week"
+    # Basic option characteristics
+    "opt_volume", "time_to_expiry", "days_to_expiry", "strike_price", "option_type_enc",
+    # Greeks
+    "delta", "gamma", "vega",
+    # Time features
+    "hour", "minute", "day_of_week",
+    # SABR features
+    "sabr_alpha", "sabr_rho", "sabr_nu", "moneyness", "log_moneyness",
+    # Volatility features (updated for 1-hour timeframe)
+    "rv_30h", "iv_ret_1h", "iv_ret_3h", "iv_ret_6h", "iv_sma_3h", "iv_sma_6h", "iv_std_6h", "iv_rsi_6h", "iv_zscore_6h",
+    # Volume features (updated for 1-hour timeframe)
+    "opt_vol_change_1h", "opt_vol_roll_3h", "opt_vol_roll_6h", "opt_vol_roll_24h", "opt_vol_zscore_6h"
 ]
 
 
@@ -149,28 +160,67 @@ def _add_sabr_features(df: pd.DataFrame, beta: float = 0.5) -> pd.DataFrame:
     if F_series is None or K_series is None or T_series is None or sigma_series is None:
         return df
 
-    F = F_series.astype(float).to_numpy()
-    K = K_series.astype(float).to_numpy()
-    T = np.maximum(T_series.astype(float).to_numpy(), 1e-9)
-    sigma = sigma_series.astype(float).to_numpy()
+    try:
+        F = F_series.astype(float).to_numpy()
+        K = K_series.astype(float).to_numpy()
+        T = np.maximum(T_series.astype(float).to_numpy(), 1e-9)
+        sigma = sigma_series.astype(float).to_numpy()
 
-    # Heuristic estimates for rho and nu
-    moneyness = (K / F) - 1.0
-    rho = np.tanh(moneyness * 5.0)
-    nu_series = (
-        df["iv_clip"].astype(float).rolling(30).std() * np.sqrt(ANNUAL_MINUTES / 30)
-    ).shift(1)
-    nu = nu_series.to_numpy()
+        # More robust heuristic estimates for rho and nu
+        moneyness = np.clip((K / F) - 1.0, -2.0, 2.0)  # Clip extreme moneyness
+        rho = np.tanh(moneyness * 3.0)  # Reduced sensitivity
+        
+        # Improved nu estimation with better fallback (adjusted for 1-hour data)
+        nu_series = (
+            df["iv_clip"].astype(float).rolling(30, min_periods=5).std() * np.sqrt(ANNUAL_HOURS / 30)
+        ).shift(1)
+        nu = nu_series.fillna(0.3).to_numpy()  # Fallback to reasonable default
+        nu = np.clip(nu, 0.01, 3.0)  # Clip to reasonable range
 
-    alpha = np.array([
-        _solve_sabr_alpha(sig, f, k, t, beta, r, n)
-        for sig, f, k, t, r, n in zip(sigma, F, K, T, rho, nu)
-    ])
+        # Vectorized SABR alpha calculation with better error handling
+        alpha = np.full(len(sigma), np.nan)
+        
+        # Only calculate for valid data points
+        valid_mask = (
+            np.isfinite(sigma) & np.isfinite(F) & np.isfinite(K) & np.isfinite(T) &
+            np.isfinite(rho) & np.isfinite(nu) &
+            (sigma > 0) & (F > 0) & (K > 0) & (T > 0) & (nu > 0) &
+            (np.abs(rho) < 0.99)  # Avoid extreme correlations
+        )
+        
+        if np.any(valid_mask):
+            for i in np.where(valid_mask)[0]:
+                try:
+                    alpha[i] = _solve_sabr_alpha(sigma[i], F[i], K[i], T[i], beta, rho[i], nu[i])
+                except:
+                    alpha[i] = np.nan
+        
+        # Fallback for failed SABR calculations
+        failed_mask = ~np.isfinite(alpha)
+        if np.any(failed_mask):
+            # Simple fallback: use ATM IV scaled by moneyness effect
+            fallback_alpha = sigma * (F ** (1 - beta))
+            alpha[failed_mask] = fallback_alpha[failed_mask]
 
-    df["sabr_alpha"] = alpha
-    df["sabr_beta"] = beta
-    df["sabr_rho"] = rho
-    df["sabr_nu"] = nu
+        df["sabr_alpha"] = alpha
+        df["sabr_beta"] = beta
+        df["sabr_rho"] = rho
+        df["sabr_nu"] = nu
+        
+        # Add SABR-based features
+        df["moneyness"] = moneyness
+        df["log_moneyness"] = np.log(K / F)
+        
+    except Exception as e:
+        print(f"Warning: SABR feature calculation failed: {e}")
+        # Create dummy SABR features
+        n_rows = len(df)
+        df["sabr_alpha"] = np.full(n_rows, 0.2)
+        df["sabr_beta"] = beta
+        df["sabr_rho"] = np.zeros(n_rows)
+        df["sabr_nu"] = np.full(n_rows, 0.3)
+        df["moneyness"] = np.zeros(n_rows)
+        df["log_moneyness"] = np.zeros(n_rows)
 
     # Remove raw stock price information but keep iv_clip so it can be used as
     # a modeling target later in the pipeline.
@@ -178,9 +228,38 @@ def _add_sabr_features(df: pd.DataFrame, beta: float = 0.5) -> pd.DataFrame:
         df = df.drop(columns=["stock_close"])
     return df
 
-def add_all_features(df: pd.DataFrame, forward_steps: int = 1, r: float = 0.045) -> pd.DataFrame:
+def _validate_input_data(df: pd.DataFrame) -> pd.DataFrame:
+    """Validate and clean input data before feature engineering."""
+    required_cols = ["ts_event", "iv_clip", "strike_price", "time_to_expiry", "option_type"]
+    
+    # Check required columns
+    missing_cols = [col for col in required_cols if col not in df.columns]
+    if missing_cols:
+        raise ValueError(f"Missing required columns: {missing_cols}")
+    
+    # Basic data validation
+    initial_rows = len(df)
+    
+    # Remove rows with invalid core data
+    df = df.dropna(subset=["iv_clip", "strike_price", "time_to_expiry"])
+    df = df[df["iv_clip"] > 0]  # IV must be positive
+    df = df[df["strike_price"] > 0]  # Strike must be positive  
+    df = df[df["time_to_expiry"] > 0]  # Time to expiry must be positive
+    
+    cleaned_rows = len(df)
+    if cleaned_rows < initial_rows:
+        print(f"Data validation: Removed {initial_rows - cleaned_rows} invalid rows ({cleaned_rows} remaining)")
+    
+    return df
+
+
+def add_all_features(df: pd.DataFrame, forward_steps: int = 1, r: float = 0.045, validate: bool = True) -> pd.DataFrame:
     """Centralized feature engineering (preserves all original feature logic)."""
     df = df.copy()
+    
+    # Optional input validation
+    if validate:
+        df = _validate_input_data(df)
     
     # Forward returns (preserves original single log transform approach)
     log_col = np.log(df["iv_clip"].astype(float))
@@ -201,26 +280,70 @@ def add_all_features(df: pd.DataFrame, forward_steps: int = 1, r: float = 0.045)
     df["gamma"] = pdf / (S * sig * sqrtT)
     df["vega"] = S * pdf * sqrtT
     
-    # Time features (preserves original dtypes)
-    # df["hour"] = df["ts_event"].dt.hour.astype("int16")
-    # df["minute"] = df["ts_event"].dt.minute.astype("int16") 
-    # df["day_of_week"] = df["ts_event"].dt.dayofweek.astype("int16")
+    # Time features (fixed implementation)
+    if "ts_event" in df.columns:
+        # Ensure ts_event is datetime with timezone info
+        if not pd.api.types.is_datetime64_any_dtype(df["ts_event"]):
+            df["ts_event"] = pd.to_datetime(df["ts_event"], utc=True, errors="coerce")
+        
+        # Extract time features safely
+        try:
+            df["hour"] = df["ts_event"].dt.hour.astype("int16")
+            df["minute"] = df["ts_event"].dt.minute.astype("int16") 
+            df["day_of_week"] = df["ts_event"].dt.dayofweek.astype("int16")
+        except Exception as e:
+            print(f"Warning: Could not extract time features: {e}")
+            # Fallback: create dummy time features
+            df["hour"] = 15  # Default to mid-trading day
+            df["minute"] = 30
+            df["day_of_week"] = 1  # Default to Tuesday
+    
     df["days_to_expiry"] = (df["time_to_expiry"] * 365.0).astype("float32")
     df["option_type_enc"] = (df["option_type"].astype(str).str.upper().str[0]
                             .map({"P": 0, "C": 1}).astype("float32"))
     
-    # Equity context (preserves original logic)
+    # Equity context (adjusted for 1-hour data)
     if "stock_close" in df.columns:
         logS = np.log(df["stock_close"].astype(float))
-        ret_1m = logS.diff()
-        rv = ret_1m.rolling(30).std()
-        df["rv_30m"] = (rv * np.sqrt(ANNUAL_MINUTES / 30)).shift(1)
+        ret_1h = logS.diff()  # 1-hour returns
+        rv = ret_1h.rolling(30).std()  # 30-hour rolling volatility
+        df["rv_30h"] = (rv * np.sqrt(ANNUAL_HOURS / 30)).shift(1)  # Annualized realized vol
     
-    # Option flow (preserves original logic)
+    # Option flow (adjusted for 1-hour data)
     if "opt_volume" in df.columns:
         pct_change = df["opt_volume"].pct_change()
-        df["opt_vol_change_1m"] = (pct_change.replace([np.inf, -np.inf], np.nan).fillna(0.0))
-        df["opt_vol_roll_15m"] = df["opt_volume"].rolling(15).mean().shift(1)
+        df["opt_vol_change_1h"] = (pct_change.replace([np.inf, -np.inf], np.nan).fillna(0.0))
+        df["opt_vol_roll_6h"] = df["opt_volume"].rolling(6).mean().shift(1)  # 6-hour average
+        
+        # Enhanced volume features (adjusted for 1-hour timeframe)
+        df["opt_vol_roll_3h"] = df["opt_volume"].rolling(3, min_periods=1).mean().shift(1)
+        df["opt_vol_roll_24h"] = df["opt_volume"].rolling(24, min_periods=6).mean().shift(1)  # Daily average
+        df["opt_vol_zscore_6h"] = (
+            (df["opt_volume"] - df["opt_vol_roll_6h"]) / 
+            (df["opt_volume"].rolling(6, min_periods=3).std().shift(1) + 1e-8)
+        )
+    
+    # Enhanced volatility features (adjusted for 1-hour data)
+    if "iv_clip" in df.columns:
+        iv_log = np.log(df["iv_clip"])
+        
+        # IV momentum features (1-hour based)
+        df["iv_ret_1h"] = iv_log.diff()
+        df["iv_ret_3h"] = iv_log.diff(3)
+        df["iv_ret_6h"] = iv_log.diff(6)
+        
+        # IV rolling statistics (adjusted for 1-hour timeframe)
+        df["iv_sma_3h"] = df["iv_clip"].rolling(3, min_periods=2).mean().shift(1)
+        df["iv_sma_6h"] = df["iv_clip"].rolling(6, min_periods=3).mean().shift(1)
+        df["iv_std_6h"] = df["iv_clip"].rolling(6, min_periods=3).std().shift(1)
+        
+        # IV relative position
+        df["iv_rsi_6h"] = _calculate_rsi(df["iv_clip"], 6)
+        
+        # IV z-score
+        df["iv_zscore_6h"] = (
+            (df["iv_clip"] - df["iv_sma_6h"]) / (df["iv_std_6h"] + 1e-8)
+        )
 
     # SABR parameters and hide raw price/IV data
     df = _add_sabr_features(df)

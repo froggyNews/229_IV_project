@@ -1,0 +1,230 @@
+{
+  "satellite_from_telecom": {
+    "target_group": "satellite",
+    "peer_group": "telecom",
+    "target_tickers": [
+      "ASTS",
+      "SATS"
+    ],
+    "peer_tickers": [
+      "VZ",
+      "T"
+    ],
+    "results": {
+      "iv_ret": {
+        "peer_tickers": [
+          "VZ",
+          "T"
+        ],
+        "target_tickers": [
+          "ASTS",
+          "SATS"
+        ],
+        "cross_effect_summary": {},
+        "target_specific_effects": {}
+      },
+      "iv": {
+        "peer_tickers": [
+          "VZ",
+          "T"
+        ],
+        "target_tickers": [
+          "ASTS",
+          "SATS"
+        ],
+        "cross_effect_summary": {},
+        "target_specific_effects": {}
+      }
+    }
+  },
+  "satellite_from_quantum": {
+    "target_group": "satellite",
+    "peer_group": "quantum",
+    "target_tickers": [
+      "ASTS",
+      "SATS"
+    ],
+    "peer_tickers": [
+      "QUBT",
+      "QBTS"
+    ],
+    "results": {
+      "iv_ret": {
+        "peer_tickers": [
+          "QUBT",
+          "QBTS"
+        ],
+        "target_tickers": [
+          "ASTS",
+          "SATS"
+        ],
+        "cross_effect_summary": {},
+        "target_specific_effects": {}
+      },
+      "iv": {
+        "peer_tickers": [
+          "QUBT",
+          "QBTS"
+        ],
+        "target_tickers": [
+          "ASTS",
+          "SATS"
+        ],
+        "cross_effect_summary": {},
+        "target_specific_effects": {}
+      }
+    }
+  },
+  "telecom_from_satellite": {
+    "target_group": "telecom",
+    "peer_group": "satellite",
+    "target_tickers": [
+      "VZ",
+      "T"
+    ],
+    "peer_tickers": [
+      "ASTS",
+      "SATS"
+    ],
+    "results": {
+      "iv_ret": {
+        "peer_tickers": [
+          "ASTS",
+          "SATS"
+        ],
+        "target_tickers": [
+          "VZ",
+          "T"
+        ],
+        "cross_effect_summary": {},
+        "target_specific_effects": {}
+      },
+      "iv": {
+        "peer_tickers": [
+          "ASTS",
+          "SATS"
+        ],
+        "target_tickers": [
+          "VZ",
+          "T"
+        ],
+        "cross_effect_summary": {},
+        "target_specific_effects": {}
+      }
+    }
+  },
+  "telecom_from_quantum": {
+    "target_group": "telecom",
+    "peer_group": "quantum",
+    "target_tickers": [
+      "VZ",
+      "T"
+    ],
+    "peer_tickers": [
+      "QUBT",
+      "QBTS"
+    ],
+    "results": {
+      "iv_ret": {
+        "peer_tickers": [
+          "QUBT",
+          "QBTS"
+        ],
+        "target_tickers": [
+          "VZ",
+          "T"
+        ],
+        "cross_effect_summary": {},
+        "target_specific_effects": {}
+      },
+      "iv": {
+        "peer_tickers": [
+          "QUBT",
+          "QBTS"
+        ],
+        "target_tickers": [
+          "VZ",
+          "T"
+        ],
+        "cross_effect_summary": {},
+        "target_specific_effects": {}
+      }
+    }
+  },
+  "quantum_from_satellite": {
+    "target_group": "quantum",
+    "peer_group": "satellite",
+    "target_tickers": [
+      "QUBT",
+      "QBTS"
+    ],
+    "peer_tickers": [
+      "ASTS",
+      "SATS"
+    ],
+    "results": {
+      "iv_ret": {
+        "peer_tickers": [
+          "ASTS",
+          "SATS"
+        ],
+        "target_tickers": [
+          "QUBT",
+          "QBTS"
+        ],
+        "cross_effect_summary": {},
+        "target_specific_effects": {}
+      },
+      "iv": {
+        "peer_tickers": [
+          "ASTS",
+          "SATS"
+        ],
+        "target_tickers": [
+          "QUBT",
+          "QBTS"
+        ],
+        "cross_effect_summary": {},
+        "target_specific_effects": {}
+      }
+    }
+  },
+  "quantum_from_telecom": {
+    "target_group": "quantum",
+    "peer_group": "telecom",
+    "target_tickers": [
+      "QUBT",
+      "QBTS"
+    ],
+    "peer_tickers": [
+      "VZ",
+      "T"
+    ],
+    "results": {
+      "iv_ret": {
+        "peer_tickers": [
+          "VZ",
+          "T"
+        ],
+        "target_tickers": [
+          "QUBT",
+          "QBTS"
+        ],
+        "cross_effect_summary": {},
+        "target_specific_effects": {}
+      },
+      "iv": {
+        "peer_tickers": [
+          "VZ",
+          "T"
+        ],
+        "target_tickers": [
+          "QUBT",
+          "QBTS"
+        ],
+        "cross_effect_summary": {},
+        "target_specific_effects": {}
+      }
+    }
+  }
+}

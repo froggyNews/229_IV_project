@@ -1,0 +1,556 @@
+{
+  "metrics": {
+    "RMSE": 0.7914072301427229,
+    "R2": 0.35267122158570763,
+    "n_train": 6812,
+    "n_test": 1703,
+    "n_features": 31,
+    "tickers": [
+      "ASTS",
+      "VZ",
+      "T",
+      "SATS"
+    ],
+    "start": "2025-08-02T00:00:00+00:00",
+    "end": "2025-08-06T00:00:00+00:00",
+    "forward_steps": 15,
+    "tolerance": "2s",
+    "test_frac": 0.2,
+    "model_path": "outputs\\models\\pooled_iv_ret_fwd_20250825_132222.json"
+  },
+  "xgb_importances": [
+    {
+      "feature": "core_iv",
+      "gain": 8.278518676757812,
+      "weight": 1290.0,
+      "cover": 1300.11474609375,
+      "total_gain": 10679.2890625,
+      "total_cover": 1677148.0
+    },
+    {
+      "feature": "core_expiry_date",
+      "gain": 8.17935562133789,
+      "weight": 1054.0,
+      "cover": 80.45161437988281,
+      "total_gain": 8621.041015625,
+      "total_cover": 84796.0
+    },
+    {
+      "feature": "core_vega",
+      "gain": 4.239090442657471,
+      "weight": 464.0,
+      "cover": 680.0108032226562,
+      "total_gain": 1966.9378662109375,
+      "total_cover": 315525.0
+    },
+    {
+      "feature": "core_option_type_enc",
+      "gain": 2.7862045764923096,
+      "weight": 121.0,
+      "cover": 654.2149047851562,
+      "total_gain": 337.1307678222656,
+      "total_cover": 79160.0
+    },
+    {
+      "feature": "core_sabr_alpha",
+      "gain": 1.9212476015090942,
+      "weight": 851.0,
+      "cover": 835.4664916992188,
+      "total_gain": 1634.981689453125,
+      "total_cover": 710982.0
+    },
+    {
+      "feature": "core_opt_vol_change_1m",
+      "gain": 1.9162260293960571,
+      "weight": 840.0,
+      "cover": 967.0821533203125,
+      "total_gain": 1609.6298828125,
+      "total_cover": 812349.0
+    },
+    {
+      "feature": "core_sabr_rho",
+      "gain": 1.8423289060592651,
+      "weight": 363.0,
+      "cover": 792.1487426757812,
+      "total_gain": 668.765380859375,
+      "total_cover": 287550.0
+    },
+    {
+      "feature": "panel_IV_T",
+      "gain": 1.7219432592391968,
+      "weight": 621.0,
+      "cover": 900.1884155273438,
+      "total_gain": 1069.3267822265625,
+      "total_cover": 559017.0
+    },
+    {
+      "feature": "core_delta",
+      "gain": 1.5848532915115356,
+      "weight": 721.0,
+      "cover": 946.5714111328125,
+      "total_gain": 1142.67919921875,
+      "total_cover": 682478.0
+    },
+    {
+      "feature": "core_gamma",
+      "gain": 1.534519076347351,
+      "weight": 555.0,
+      "cover": 777.0162353515625,
+      "total_gain": 851.6580810546875,
+      "total_cover": 431244.0
+    },
+    {
+      "feature": "panel_IVRET_T",
+      "gain": 1.5338140726089478,
+      "weight": 668.0,
+      "cover": 1098.8023681640625,
+      "total_gain": 1024.5877685546875,
+      "total_cover": 734000.0
+    },
+    {
+      "feature": "core_opt_volume",
+      "gain": 1.4240097999572754,
+      "weight": 735.0,
+      "cover": 353.71563720703125,
+      "total_gain": 1046.647216796875,
+      "total_cover": 259981.0
+    },
+    {
+      "feature": "core_opt_vol_roll_15m",
+      "gain": 1.386827826499939,
+      "weight": 956.0,
+      "cover": 1228.0565185546875,
+      "total_gain": 1325.807373046875,
+      "total_cover": 1174022.0
+    },
+    {
+      "feature": "core_strike_price",
+      "gain": 1.2799078226089478,
+      "weight": 417.0,
+      "cover": 724.7410278320312,
+      "total_gain": 533.7215576171875,
+      "total_cover": 302217.0
+    },
+    {
+      "feature": "panel_IVRET_ASTS",
+      "gain": 1.2754101753234863,
+      "weight": 558.0,
+      "cover": 1175.878173828125,
+      "total_gain": 711.6788940429688,
+      "total_cover": 656140.0
+    },
+    {
+      "feature": "sym_ASTS",
+      "gain": 1.2417584657669067,
+      "weight": 48.0,
+      "cover": 1070.1875,
+      "total_gain": 59.60440444946289,
+      "total_cover": 51369.0
+    },
+    {
+      "feature": "panel_IVRET_VZ",
+      "gain": 1.0827932357788086,
+      "weight": 451.0,
+      "cover": 854.6895751953125,
+      "total_gain": 488.3397521972656,
+      "total_cover": 385465.0
+    },
+    {
+      "feature": "core_time_to_expiry",
+      "gain": 1.0537508726119995,
+      "weight": 589.0,
+      "cover": 1103.0255126953125,
+      "total_gain": 620.6592407226562,
+      "total_cover": 649682.0
+    },
+    {
+      "feature": "panel_IVRET_SATS",
+      "gain": 0.9622071981430054,
+      "weight": 279.0,
+      "cover": 1150.5770263671875,
+      "total_gain": 268.455810546875,
+      "total_cover": 321011.0
+    },
+    {
+      "feature": "core_rv_30m",
+      "gain": 0.9525164365768433,
+      "weight": 650.0,
+      "cover": 676.2769165039062,
+      "total_gain": 619.1356811523438,
+      "total_cover": 439580.0
+    },
+    {
+      "feature": "panel_IV_VZ",
+      "gain": 0.9153507947921753,
+      "weight": 473.0,
+      "cover": 690.484130859375,
+      "total_gain": 432.9609375,
+      "total_cover": 326599.0
+    },
+    {
+      "feature": "core_stock_volume",
+      "gain": 0.7667309641838074,
+      "weight": 722.0,
+      "cover": 652.987548828125,
+      "total_gain": 553.5797729492188,
+      "total_cover": 471457.0
+    },
+    {
+      "feature": "core_sabr_nu",
+      "gain": 0.6662303805351257,
+      "weight": 730.0,
+      "cover": 939.7999877929688,
+      "total_gain": 486.3481750488281,
+      "total_cover": 686054.0
+    },
+    {
+      "feature": "panel_IV_ASTS",
+      "gain": 0.6615067720413208,
+      "weight": 487.0,
+      "cover": 896.9589233398438,
+      "total_gain": 322.15380859375,
+      "total_cover": 436819.0
+    },
+    {
+      "feature": "sym_VZ",
+      "gain": 0.5473082661628723,
+      "weight": 35.0,
+      "cover": 593.4285888671875,
+      "total_gain": 19.15578842163086,
+      "total_cover": 20770.0
+    },
+    {
+      "feature": "sym_T",
+      "gain": 0.4550495743751526,
+      "weight": 17.0,
+      "cover": 1262.2940673828125,
+      "total_gain": 7.735842704772949,
+      "total_cover": 21459.0
+    },
+    {
+      "feature": "panel_IV_SATS",
+      "gain": 0.412663996219635,
+      "weight": 295.0,
+      "cover": 848.084716796875,
+      "total_gain": 121.73587799072266,
+      "total_cover": 250185.0
+    },
+    {
+      "feature": "core_days_to_expiry",
+      "gain": 0.38398829102516174,
+      "weight": 37.0,
+      "cover": 955.5134887695312,
+      "total_gain": 14.207566261291504,
+      "total_cover": 35354.0
+    }
+  ],
+  "permutation_importances": [
+    {
+      "feature": "core_iv",
+      "perm_importance_mean": 0.44155056002201,
+      "perm_importance_std": 0.04579753744002919
+    },
+    {
+      "feature": "core_expiry_date",
+      "perm_importance_mean": 0.12061269823975133,
+      "perm_importance_std": 0.026622548213028317
+    },
+    {
+      "feature": "core_sabr_rho",
+      "perm_importance_mean": 0.012058272016151839,
+      "perm_importance_std": 0.0008209808704945105
+    },
+    {
+      "feature": "panel_IVRET_ASTS",
+      "perm_importance_mean": 0.010829055025343037,
+      "perm_importance_std": 0.014025543467675735
+    },
+    {
+      "feature": "core_vega",
+      "perm_importance_mean": 0.006359503717666537,
+      "perm_importance_std": 0.0003115943461167415
+    },
+    {
+      "feature": "core_opt_vol_roll_15m",
+      "perm_importance_mean": 0.005148844388678908,
+      "perm_importance_std": 0.0077405689302221655
+    },
+    {
+      "feature": "panel_IV_ASTS",
+      "perm_importance_mean": 0.0038277502274022047,
+      "perm_importance_std": 0.0007506583853485956
+    },
+    {
+      "feature": "core_strike_price",
+      "perm_importance_mean": 0.003164162337522436,
+      "perm_importance_std": 0.003776259632994744
+    },
+    {
+      "feature": "core_time_to_expiry",
+      "perm_importance_mean": 0.002583212040538041,
+      "perm_importance_std": 0.0014422229302182691
+    },
+    {
+      "feature": "core_stock_volume",
+      "perm_importance_mean": 0.0010907603234298513,
+      "perm_importance_std": 0.000913139383921675
+    },
+    {
+      "feature": "panel_IVRET_SATS",
+      "perm_importance_mean": 0.0009674893636817617,
+      "perm_importance_std": 0.00024898560730060533
+    },
+    {
+      "feature": "core_opt_vol_change_1m",
+      "perm_importance_mean": 0.0006105187800810264,
+      "perm_importance_std": 0.0006895733808070051
+    },
+    {
+      "feature": "panel_IVRET_VZ",
+      "perm_importance_mean": 0.000449190857500481,
+      "perm_importance_std": 0.0008888280663328406
+    },
+    {
+      "feature": "core_delta",
+      "perm_importance_mean": 0.0003696951589192032,
+      "perm_importance_std": 0.001080654243751421
+    },
+    {
+      "feature": "core_rv_30m",
+      "perm_importance_mean": 0.00030423882700858496,
+      "perm_importance_std": 0.0014524433189498779
+    },
+    {
+      "feature": "sym_ASTS",
+      "perm_importance_mean": 0.0,
+      "perm_importance_std": 0.0
+    },
+    {
+      "feature": "core_sabr_beta",
+      "perm_importance_mean": 0.0,
+      "perm_importance_std": 0.0
+    },
+    {
+      "feature": "sym_SATS",
+      "perm_importance_mean": 0.0,
+      "perm_importance_std": 0.0
+    },
+    {
+      "feature": "sym_VZ",
+      "perm_importance_mean": 0.0,
+      "perm_importance_std": 0.0
+    },
+    {
+      "feature": "core_option_type",
+      "perm_importance_mean": 0.0,
+      "perm_importance_std": 0.0
+    },
+    {
+      "feature": "sym_T",
+      "perm_importance_mean": -1.311665259173811e-05,
+      "perm_importance_std": 5.2769250058856985e-05
+    },
+    {
+      "feature": "panel_IV_SATS",
+      "perm_importance_mean": -0.00012301658987525776,
+      "perm_importance_std": 0.0004658022374536431
+    },
+    {
+      "feature": "panel_IVRET_T",
+      "perm_importance_mean": -0.00022319921469551307,
+      "perm_importance_std": 0.0012340708570764767
+    },
+    {
+      "feature": "panel_IV_VZ",
+      "perm_importance_mean": -0.00029124495771526426,
+      "perm_importance_std": 0.0006545957569385095
+    },
+    {
+      "feature": "core_days_to_expiry",
+      "perm_importance_mean": -0.0003168252804226945,
+      "perm_importance_std": 6.828117698063974e-05
+    },
+    {
+      "feature": "core_sabr_nu",
+      "perm_importance_mean": -0.0004980335753711262,
+      "perm_importance_std": 0.003291874698330765
+    },
+    {
+      "feature": "panel_IV_T",
+      "perm_importance_mean": -0.0007792949806669335,
+      "perm_importance_std": 0.0023591475842729016
+    },
+    {
+      "feature": "core_opt_volume",
+      "perm_importance_mean": -0.0009709406184795766,
+      "perm_importance_std": 0.0014555697830751673
+    },
+    {
+      "feature": "core_sabr_alpha",
+      "perm_importance_mean": -0.001116258410057225,
+      "perm_importance_std": 0.001592978924062694
+    },
+    {
+      "feature": "core_gamma",
+      "perm_importance_mean": -0.0017700073995188914,
+      "perm_importance_std": 0.0032579868793318058
+    },
+    {
+      "feature": "core_option_type_enc",
+      "perm_importance_mean": -0.0032923354671194225,
+      "perm_importance_std": 0.005203405531131152
+    }
+  ],
+  "feature_shap_avg": [
+    {
+      "feature": "core_opt_vol_change_1m",
+      "avg_contrib": 0.013037418015301228
+    },
+    {
+      "feature": "core_iv",
+      "avg_contrib": 0.011121544055640697
+    },
+    {
+      "feature": "core_time_to_expiry",
+      "avg_contrib": 0.007105848751962185
+    },
+    {
+      "feature": "core_strike_price",
+      "avg_contrib": 0.006985810585319996
+    },
+    {
+      "feature": "core_expiry_date",
+      "avg_contrib": 0.004935679491609335
+    },
+    {
+      "feature": "panel_IVRET_T",
+      "avg_contrib": 0.003080371767282486
+    },
+    {
+      "feature": "core_opt_volume",
+      "avg_contrib": 0.002325392561033368
+    },
+    {
+      "feature": "core_rv_30m",
+      "avg_contrib": 0.0017025956185534596
+    },
+    {
+      "feature": "core_sabr_alpha",
+      "avg_contrib": 0.0016133441822603345
+    },
+    {
+      "feature": "sym_VZ",
+      "avg_contrib": 0.0016113811871036887
+    },
+    {
+      "feature": "panel_IV_SATS",
+      "avg_contrib": 0.0009461712907068431
+    },
+    {
+      "feature": "panel_IVRET_SATS",
+      "avg_contrib": 0.0007759553263895214
+    },
+    {
+      "feature": "core_days_to_expiry",
+      "avg_contrib": 0.0005402345559559762
+    },
+    {
+      "feature": "panel_IV_ASTS",
+      "avg_contrib": 0.0004233555227983743
+    },
+    {
+      "feature": "core_option_type",
+      "avg_contrib": 0.0
+    },
+    {
+      "feature": "core_sabr_beta",
+      "avg_contrib": 0.0
+    },
+    {
+      "feature": "sym_SATS",
+      "avg_contrib": 0.0
+    },
+    {
+      "feature": "core_sabr_nu",
+      "avg_contrib": -0.00011857128993142396
+    },
+    {
+      "feature": "core_delta",
+      "avg_contrib": -0.00020539737306535244
+    },
+    {
+      "feature": "panel_IV_VZ",
+      "avg_contrib": -0.0003862178709823638
+    },
+    {
+      "feature": "panel_IVRET_VZ",
+      "avg_contrib": -0.0004008078249171376
+    },
+    {
+      "feature": "sym_T",
+      "avg_contrib": -0.00197241292335093
+    },
+    {
+      "feature": "core_stock_volume",
+      "avg_contrib": -0.0023202458396553993
+    },
+    {
+      "feature": "core_sabr_rho",
+      "avg_contrib": -0.002557440660893917
+    },
+    {
+      "feature": "panel_IV_T",
+      "avg_contrib": -0.00406511640176177
+    },
+    {
+      "feature": "core_gamma",
+      "avg_contrib": -0.005077838432043791
+    },
+    {
+      "feature": "sym_ASTS",
+      "avg_contrib": -0.005112380720674992
+    },
+    {
+      "feature": "core_opt_vol_roll_15m",
+      "avg_contrib": -0.005613764747977257
+    },
+    {
+      "feature": "core_option_type_enc",
+      "avg_contrib": -0.005962585099041462
+    },
+    {
+      "feature": "core_vega",
+      "avg_contrib": -0.006136939395219088
+    },
+    {
+      "feature": "panel_IVRET_ASTS",
+      "avg_contrib": -0.016479935497045517
+    }
+  ],
+  "sym_shap_avg": [
+    {
+      "feature": "sym_VZ",
+      "avg_shap": 0.0016113811871036887,
+      "ticker": "VZ",
+      "direction": "\u2191"
+    },
+    {
+      "feature": "sym_SATS",
+      "avg_shap": 0.0,
+      "ticker": "SATS",
+      "direction": "\u2191"
+    },
+    {
+      "feature": "sym_T",
+      "avg_shap": -0.00197241292335093,
+      "ticker": "T",
+      "direction": "\u2193"
+    },
+    {
+      "feature": "sym_ASTS",
+      "avg_shap": -0.005112380720674992,
+      "ticker": "ASTS",
+      "direction": "\u2193"
+    }
+  ]
+}

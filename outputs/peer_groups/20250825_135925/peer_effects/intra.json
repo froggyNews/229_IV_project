@@ -1,0 +1,54 @@
+{
+  "satellite": {
+    "iv_ret": {
+      "targets": {
+        "ASTS": {},
+        "SATS": {}
+      },
+      "summary": {}
+    },
+    "iv": {
+      "targets": {
+        "ASTS": {},
+        "SATS": {}
+      },
+      "summary": {}
+    }
+  },
+  "telecom": {
+    "iv_ret": {
+      "targets": {
+        "VZ": {},
+        "T": {}
+      },
+      "summary": {}
+    },
+    "iv": {
+      "targets": {
+        "VZ": {},
+        "T": {}
+      },
+      "summary": {}
+    }
+  },
+  "quantum": {
+    "iv_ret": {
+      "targets": {
+        "QUBT": {},
+        "QBTS": {},
+        "RGTI": {},
+        "IONQ": {}
+      },
+      "summary": {}
+    },
+    "iv": {
+      "targets": {
+        "QUBT": {},
+        "QBTS": {},
+        "RGTI": {},
+        "IONQ": {}
+      },
+      "summary": {}
+    }
+  }
+}

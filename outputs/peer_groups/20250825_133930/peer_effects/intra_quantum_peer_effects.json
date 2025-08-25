@@ -1,0 +1,180 @@
+{
+  "tickers": [
+    "QUBT",
+    "QBTS"
+  ],
+  "results": {
+    "iv_ret": {
+      "target_count": 2,
+      "successful_targets": 2,
+      "failed_targets": 0,
+      "avg_r2": 0.3509089615510229,
+      "avg_rmse": 0.6665773037758782,
+      "peer_effect_summary": {},
+      "individual_results": {
+        "QUBT": {
+          "status": "success",
+          "metrics": {
+            "rmse": 0.6315902042763407,
+            "r2": 0.3945691630572735,
+            "n_train": 2545,
+            "n_test": 637,
+            "n_features": 19
+          },
+          "feature_names": [
+            "expiry_date",
+            "iv",
+            "opt_volume",
+            "stock_volume",
+            "time_to_expiry",
+            "strike_price",
+            "option_type",
+            "delta",
+            "gamma",
+            "vega",
+            "days_to_expiry",
+            "option_type_enc",
+            "rv_30m",
+            "opt_vol_change_1m",
+            "opt_vol_roll_15m",
+            "sabr_alpha",
+            "sabr_beta",
+            "sabr_rho",
+            "sabr_nu"
+          ],
+          "config": {
+            "target_kind": "iv_ret",
+            "forward_steps": 15,
+            "test_frac": 0.2,
+            "n_samples": 3182,
+            "n_features": 19
+          }
+        },
+        "QBTS": {
+          "status": "success",
+          "metrics": {
+            "rmse": 0.7015644032754158,
+            "r2": 0.3072487600447723,
+            "n_train": 3076,
+            "n_test": 769,
+            "n_features": 19
+          },
+          "feature_names": [
+            "expiry_date",
+            "iv",
+            "opt_volume",
+            "stock_volume",
+            "time_to_expiry",
+            "strike_price",
+            "option_type",
+            "delta",
+            "gamma",
+            "vega",
+            "days_to_expiry",
+            "option_type_enc",
+            "rv_30m",
+            "opt_vol_change_1m",
+            "opt_vol_roll_15m",
+            "sabr_alpha",
+            "sabr_beta",
+            "sabr_rho",
+            "sabr_nu"
+          ],
+          "config": {
+            "target_kind": "iv_ret",
+            "forward_steps": 15,
+            "test_frac": 0.2,
+            "n_samples": 3845,
+            "n_features": 19
+          }
+        }
+      }
+    },
+    "iv": {
+      "target_count": 2,
+      "successful_targets": 2,
+      "failed_targets": 0,
+      "avg_r2": 0.9959990784192347,
+      "avg_rmse": 0.02087466091990947,
+      "peer_effect_summary": {},
+      "individual_results": {
+        "QUBT": {
+          "status": "success",
+          "metrics": {
+            "rmse": 0.012539697569461515,
+            "r2": 0.9956402526312663,
+            "n_train": 2557,
+            "n_test": 640,
+            "n_features": 19
+          },
+          "feature_names": [
+            "expiry_date",
+            "iv",
+            "opt_volume",
+            "stock_volume",
+            "time_to_expiry",
+            "strike_price",
+            "option_type",
+            "delta",
+            "gamma",
+            "vega",
+            "days_to_expiry",
+            "option_type_enc",
+            "rv_30m",
+            "opt_vol_change_1m",
+            "opt_vol_roll_15m",
+            "sabr_alpha",
+            "sabr_beta",
+            "sabr_rho",
+            "sabr_nu"
+          ],
+          "config": {
+            "target_kind": "iv",
+            "forward_steps": 15,
+            "test_frac": 0.2,
+            "n_samples": 3197,
+            "n_features": 19
+          }
+        },
+        "QBTS": {
+          "status": "success",
+          "metrics": {
+            "rmse": 0.02920962427035743,
+            "r2": 0.996357904207203,
+            "n_train": 3088,
+            "n_test": 772,
+            "n_features": 19
+          },
+          "feature_names": [
+            "expiry_date",
+            "iv",
+            "opt_volume",
+            "stock_volume",
+            "time_to_expiry",
+            "strike_price",
+            "option_type",
+            "delta",
+            "gamma",
+            "vega",
+            "days_to_expiry",
+            "option_type_enc",
+            "rv_30m",
+            "opt_vol_change_1m",
+            "opt_vol_roll_15m",
+            "sabr_alpha",
+            "sabr_beta",
+            "sabr_rho",
+            "sabr_nu"
+          ],
+          "config": {
+            "target_kind": "iv",
+            "forward_steps": 15,
+            "test_frac": 0.2,
+            "n_samples": 3860,
+            "n_features": 19
+          }
+        }
+      }
+    }
+  }
+}

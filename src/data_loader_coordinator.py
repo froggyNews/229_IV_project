@@ -18,12 +18,21 @@ from scipy.optimize import brentq
 
 # Import existing functions with safe error handling
 try:
-    from fetch_data_sqlite import fetch_and_save, get_conn, init_schema
+    from fetch_data_sqlite import (
+        fetch_and_save, get_conn, init_schema, 
+        auto_fetch_missing_data, ensure_data_availability,
+        check_data_exists
+    )
+    FETCH_FUNCTIONS_AVAILABLE = True
 except ImportError as e:
     print(f"Warning: Could not import fetch_data_sqlite functions: {e}")
     fetch_and_save = None
     get_conn = None
     init_schema = None
+    auto_fetch_missing_data = None
+    ensure_data_availability = None
+    check_data_exists = None
+    FETCH_FUNCTIONS_AVAILABLE = False
 
 
 def _get_table_columns(conn: sqlite3.Connection, table_name: str) -> list:
@@ -271,7 +280,7 @@ class DataCoordinator:
             print(f"    ✗ No API key available for fetching {ticker}")
             return False
             
-        if fetch_and_save is None:
+        if not FETCH_FUNCTIONS_AVAILABLE:
             print(f"    ✗ fetch_data_sqlite functions not available for {ticker}")
             return False
             
@@ -294,6 +303,32 @@ class DataCoordinator:
         except Exception as e:
             print(f"    ✗ Fetch failed for {ticker}: {e}")
             return False
+
+    def ensure_all_data_available(self, tickers: List[str], start_ts: pd.Timestamp, end_ts: pd.Timestamp) -> bool:
+        """Ensure all required data is available, using enhanced fetch functionality."""
+        if not FETCH_FUNCTIONS_AVAILABLE:
+            print("⚠️  Enhanced fetch functions not available - falling back to basic method")
+            return self._fallback_data_check(tickers, start_ts, end_ts)
+        
+        try:
+            return ensure_data_availability(tickers, start_ts, end_ts, self.db_path, auto_fetch=True)
+        except Exception as e:
+            print(f"❌ Error in enhanced data availability check: {e}")
+            return self._fallback_data_check(tickers, start_ts, end_ts)
+    
+    def _fallback_data_check(self, tickers: List[str], start_ts: pd.Timestamp, end_ts: pd.Timestamp) -> bool:
+        """Fallback method for checking data availability."""
+        missing_count = 0
+        for ticker in tickers:
+            core = load_ticker_core(ticker, start_ts, end_ts, db_path=self.db_path)
+            if core.empty:
+                missing_count += 1
+                print(f"⚠️  {ticker}: No data available")
+        
+        if missing_count > 0:
+            print(f"⚠️  {missing_count}/{len(tickers)} tickers have missing data")
+            return False
+        return True
     
     def populate_missing_atm_slices(self, tickers: Sequence[str]) -> None:
         """Populate ATM slices for tickers that have processed data but missing ATM slices."""
@@ -350,7 +385,13 @@ class DataCoordinator:
         
         print(f"📊 Loading cores for {len(tickers)} tickers from {start_ts.date()} to {end_ts.date()}")
         
-        # Check what data we have vs what we need
+        # Use enhanced data availability checking if auto_fetch is enabled
+        if auto_fetch:
+            print("🔍 Ensuring all required data is available...")
+            if not self.ensure_all_data_available(tickers, start_ts, end_ts):
+                print("⚠️  Some data could not be fetched, proceeding with available data...")
+        
+        # Load available cores
         available_cores = {}
         missing_tickers = []
         
@@ -367,32 +408,29 @@ class DataCoordinator:
                 missing_tickers.append(ticker)
                 print(f"  ❌ {ticker}: Error loading - {e}")
         
-        # Auto-fetch missing data if enabled
-        if auto_fetch and missing_tickers:
-            print(f"🔄 Auto-fetching {len(missing_tickers)} missing tickers...")
-            fetched_count = 0
+        # Final fallback: try individual fetching for still-missing tickers
+        if auto_fetch and missing_tickers and FETCH_FUNCTIONS_AVAILABLE:
+            print(f"🔄 Final attempt: individually fetching {len(missing_tickers)} remaining tickers...")
             
-            for ticker in missing_tickers:
-                print(f"  Fetching {ticker}...")
+            for ticker in missing_tickers[:]:  # Use slice copy to avoid modification during iteration
+                print(f"  Final fetch attempt for {ticker}...")
                 if self._safe_fetch_data(ticker, start_ts, end_ts):
-                    fetched_count += 1
-                
-            print(f"📥 Successfully fetched data for {fetched_count} tickers")
-            
-            # Try loading the newly fetched data
-            for ticker in missing_tickers:
-                try:
-                    core = load_ticker_core(ticker, start_ts, end_ts, db_path=self.db_path)
-                    if core is not None and not core.empty:
-                        available_cores[ticker] = core
-                        print(f"  ✅ {ticker}: {len(core):,} rows (newly fetched)")
-                except Exception as e:
-                    print(f"  ❌ {ticker}: Still failed after fetch - {e}")
+                    # Try to load the newly fetched data
+                    try:
+                        core = load_ticker_core(ticker, start_ts, end_ts, db_path=self.db_path)
+                        if core is not None and not core.empty:
+                            available_cores[ticker] = core
+                            missing_tickers.remove(ticker)
+                            print(f"  ✅ {ticker}: {len(core):,} rows (final fetch successful)")
+                    except Exception as e:
+                        print(f"  ❌ {ticker}: Still failed after final fetch - {e}")
         
         if not available_cores:
             print("⚠️  No data loaded for any ticker")
         else:
             print(f"✅ Successfully loaded data for {len(available_cores)} tickers")
+            if missing_tickers:
+                print(f"⚠️  Failed to load data for {len(missing_tickers)} tickers: {missing_tickers}")
         
         return available_cores
     

@@ -20,6 +20,12 @@ import xgboost as xgb
 
 from feature_engineering import build_target_peer_dataset
 
+try:
+    from analysis_feature_config import get_features_for_analysis_type, filter_features_by_importance
+    SMART_FEATURES_AVAILABLE = True
+except ImportError:
+    SMART_FEATURES_AVAILABLE = False
+
 
 @dataclass 
 class PeerConfig:
@@ -117,9 +123,52 @@ def train_peer_model(dataset: pd.DataFrame, test_frac: float) -> Tuple[xgb.XGBRe
     if len(dataset) == 0:
         raise ValueError("Dataset is empty - cannot train model")
 
-    # Build feature matrix from non-datetime columns only
-    # (don’t guess later—lock the list now and reuse it for analysis)
-    feature_cols = [c for c in dataset.columns if c != "y" and not is_datetime64_any_dtype(dataset[c])]
+    # Use smart feature selection if available
+    if SMART_FEATURES_AVAILABLE:
+        print("Using smart feature selection for peer effects analysis")
+        
+        # Get all available columns
+        available_cols = list(dataset.columns)
+        
+        # Get appropriate features for peer effects analysis
+        feature_cols = get_features_for_analysis_type(
+            analysis_type="peer_effects",
+            available_columns=available_cols,
+            target_column="y",
+            include_peer_features=True,
+            include_time_features=True,
+            include_advanced_features=True
+        )
+        
+        # Prioritize features by importance for peer effects
+        feature_cols = filter_features_by_importance(feature_cols, "peer_effects")
+        
+        # Ensure features exist and are numeric
+        valid_features = []
+        for col in feature_cols:
+            if col in dataset.columns and not is_datetime64_any_dtype(dataset[col]):
+                try:
+                    pd.to_numeric(dataset[col], errors='raise')
+                    valid_features.append(col)
+                except (ValueError, TypeError):
+                    print(f"Excluding non-numeric peer feature: {col}")
+                    continue
+        
+        feature_cols = valid_features
+        
+        # Print feature breakdown
+        panel_features = [f for f in feature_cols if f.startswith(('IV_', 'IVRET_', 'panel_'))]
+        vol_features = [f for f in feature_cols if any(x in f for x in ['vol', 'iv_ret', 'iv_sma', 'iv_std'])]
+        print(f"  Peer effects features: Panel={len(panel_features)}, Volatility={len(vol_features)}, Total={len(feature_cols)}")
+        
+    else:
+        # Fallback to basic feature selection
+        print("Using basic feature selection for peer effects analysis")
+        feature_cols = [c for c in dataset.columns if c != "y" and not is_datetime64_any_dtype(dataset[c])]
+
+    if not feature_cols:
+        raise ValueError("No valid features found for peer effects modeling")
+
     X = dataset[feature_cols].copy()
     y = pd.to_numeric(dataset["y"], errors="coerce")
 
@@ -463,18 +512,51 @@ def prepare_peer_dataset(cfg: PeerConfig, cores: Dict[str, pd.DataFrame], debug:
     # Identify column types for clarity
     target_col = "y"
     
-    # Self features (target's own IV data)
-    self_iv_cols = [c for c in dataset.columns if c == f"IV_{cfg.target}"]
-    self_ret_cols = [c for c in dataset.columns if c == f"RET_{cfg.target}"]
-    peer_iv_cols = [c for c in dataset.columns if c.startswith("IV_") and c != f"IV_{cfg.target}"]
-    peer_ret_cols = [c for c in dataset.columns if c.startswith("RET_") and c != f"RET_{cfg.target}"]
-    control_cols = [c for c in dataset.columns if not any(c.startswith(p) for p in ["IV_", "RET_"]) and c != target_col]
+    # Self features (target's own IV data) - check both IV_ and panel_IV_ patterns
+    self_iv_cols = [c for c in dataset.columns if (
+        c == f"IV_{cfg.target}" or c == f"panel_IV_{cfg.target}"
+    )]
+    self_ret_cols = [c for c in dataset.columns if (
+        c == f"RET_{cfg.target}" or c == f"IVRET_{cfg.target}" or c == f"panel_IVRET_{cfg.target}"
+    )]
+    
+    # Peer features - check both IV_/RET_ and panel_IV_/panel_IVRET_ patterns
+    peer_iv_cols = [c for c in dataset.columns if (
+        (c.startswith("IV_") and c != f"IV_{cfg.target}") or
+        (c.startswith("panel_IV_") and c != f"panel_IV_{cfg.target}")
+    )]
+    peer_ret_cols = [c for c in dataset.columns if (
+        (c.startswith("RET_") and c != f"RET_{cfg.target}") or
+        (c.startswith("IVRET_") and c != f"IVRET_{cfg.target}") or
+        (c.startswith("panel_IVRET_") and c != f"panel_IVRET_{cfg.target}")
+    )]
+    
+    # Control features - exclude all peer/panel features and target
+    peer_feature_prefixes = ["IV_", "RET_", "IVRET_", "panel_IV_", "panel_IVRET_"]
+    control_cols = [c for c in dataset.columns if not any(c.startswith(p) for p in peer_feature_prefixes) and c != target_col]
     
     print(f"  Self IV features: {len(self_iv_cols)}")
+    if self_iv_cols:
+        print(f"    {self_iv_cols}")
     print(f"  Self return features: {len(self_ret_cols)}")
+    if self_ret_cols:
+        print(f"    {self_ret_cols}")
     print(f"  Peer IV features: {len(peer_iv_cols)}")
+    if peer_iv_cols:
+        print(f"    {peer_iv_cols}")
     print(f"  Peer return features: {len(peer_ret_cols)}")
+    if peer_ret_cols:
+        print(f"    {peer_ret_cols}")
     print(f"  Control features: {len(control_cols)}")
+    
+    # Debug: Show first few control features to verify categorization
+    if debug and control_cols:
+        print(f"  DEBUG: First 10 control features: {control_cols[:10]}")
+    
+    # Debug: Show all panel features found
+    if debug:
+        panel_features = [c for c in dataset.columns if c.startswith("panel_")]
+        print(f"  DEBUG: All panel features found: {panel_features}")
     
     # Exclude contemporaneous self features to avoid leakage
     contemporaneous_self = self_iv_cols + self_ret_cols
