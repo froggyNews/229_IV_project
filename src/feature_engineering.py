@@ -172,8 +172,10 @@ def _add_sabr_features(df: pd.DataFrame, beta: float = 0.5) -> pd.DataFrame:
     df["sabr_rho"] = rho
     df["sabr_nu"] = nu
 
-    # Remove raw stock price and IV information to hide them
-    df = df.drop(columns=[c for c in ["stock_close", "iv_clip"] if c in df.columns])
+    # Remove raw stock price information but keep iv_clip so it can be used as
+    # a modeling target later in the pipeline.
+    if "stock_close" in df.columns:
+        df = df.drop(columns=["stock_close"])
     return df
 
 def add_all_features(df: pd.DataFrame, forward_steps: int = 1, r: float = 0.045) -> pd.DataFrame:
@@ -288,8 +290,12 @@ def finalize_dataset(df: pd.DataFrame, target_col: str, drop_symbol: bool = True
     if debug and hidden_cols:
         print(f"DEBUG: Hidden leaky columns for {target_col}: {hidden_cols}")
 
-    # Remove raw stock and IV information entirely
-    leak_cols = [c for c in out.columns if c in {"stock_close", "iv_clip"} or c.startswith("IV_") or c.startswith("IVRET_")]
+    # Remove raw stock price information and peer IV/IVRET columns. Retain
+    # 'iv_clip' when it is the modeling target so that level models can be
+    # trained.
+    leak_cols = [c for c in out.columns if c == "stock_close" or c.startswith("IV_") or c.startswith("IVRET_")]
+    if target_col != "iv_clip" and "iv_clip" in out.columns:
+        leak_cols.append("iv_clip")
     if leak_cols:
         out = out.drop(columns=leak_cols)
         if debug:
@@ -397,7 +403,7 @@ def build_pooled_iv_return_dataset_time_safe(
         feats = add_all_features(cores[ticker], forward_steps=forward_steps, r=r)
         rename_map = {
             c: f"core_{c}" for c in feats.columns
-            if c not in {"ts_event", "iv_ret_fwd", "iv_ret_fwd_abs", "symbol"}
+            if c not in {"ts_event", "iv_ret_fwd", "iv_ret_fwd_abs", "symbol", "iv_clip"}
         }
         feats = feats.rename(columns=rename_map)
         if "iv_ret_fwd_abs" in feats.columns:
@@ -431,8 +437,9 @@ def build_pooled_iv_return_dataset_time_safe(
         for col in HIDE_COLUMNS.get("iv_ret_fwd", []):
             if col in out.columns:
                 out = out.drop(columns=col)
-        # Remove only raw price/IV columns from core data, keep panel features
-        for c in ["stock_close", "iv_clip", "core_stock_close", "core_iv_clip"]:
+        # Remove only raw price columns from core data, keep iv_clip and panel
+        # features so that an IV-level model can be trained later.
+        for c in ["stock_close", "core_stock_close"]:
             if c in out.columns:
                 out = out.drop(columns=c)
         # Keep symbol for pooled analysis
