@@ -1,4 +1,5 @@
 import argparse
+import csv
 import json
 import os
 import sys
@@ -258,13 +259,16 @@ def save_results(
     peer_results: Dict,
     eval_results: Dict,
 ) -> Path:
-    """Save all results to JSON file."""
+    """Save all results to disk in a structured format."""
 
-    # Create output directory
+    # Ensure base output directory exists
     cfg.output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Prepare metrics (exclude models from JSON)
+    # Create run-specific directory using timestamp for easy comparison
+    run_dir = cfg.output_dir / cfg.timestamp
+    run_dir.mkdir(parents=True, exist_ok=True)
 
+    # Prepare metrics (exclude models from JSON)
     output = {
         "config": {
             "tickers": list(cfg.tickers),
@@ -286,12 +290,35 @@ def save_results(
         "evaluation": eval_results,
     }
 
-    # Save metrics
-    metrics_path = cfg.output_dir / f"metrics_{cfg.timestamp}.json"
+    # Save metrics for this run
+    metrics_path = run_dir / "results.json"
     with open(metrics_path, "w") as f:
         json.dump(output, f, indent=2)
 
+    # Build a flat summary for easy comparison across runs
+    summary = {
+        "timestamp": cfg.timestamp,
+        "start": cfg.start,
+        "end": cfg.end,
+        "tickers": ";".join(cfg.tickers),
+        "forward_steps": cfg.forward_steps,
+        "test_frac": cfg.test_frac,
+    }
+
+    for model_name, metrics in pooled_results.get("metrics", {}).items():
+        summary[f"{model_name}_rmse"] = metrics.get("rmse")
+        summary[f"{model_name}_r2"] = metrics.get("r2")
+
+    summary_path = cfg.output_dir / "run_summary.csv"
+    write_header = not summary_path.exists()
+    with open(summary_path, "a", newline="") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=list(summary.keys()))
+        if write_header:
+            writer.writeheader()
+        writer.writerow(summary)
+
     print(f"Results saved to: {metrics_path}")
+    print(f"Run summary updated: {summary_path}")
     return metrics_path
 
 
