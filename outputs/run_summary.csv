@@ -1,0 +1,2 @@
+timestamp,start,end,tickers,forward_steps,test_frac,iv_ret_fwd_rmse,iv_ret_fwd_r2,iv_clip_rmse,iv_clip_r2
+20250825_121659,2025-06-02,2025-08-06,ASTS;VZ;T;SATS,15,0.2,1.2670215096292794,0.4304270613104533,0.16314744229566902,0.9754762693864141
