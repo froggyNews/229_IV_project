@@ -1,0 +1,249 @@
+{
+  "metrics": {
+    "RMSE": 0.32875068882207514,
+    "R2": 0.01757720669117724,
+    "n_train": 420,
+    "n_test": 105,
+    "n_features": 12,
+    "tickers": [
+      "QUBT",
+      "RGTI",
+      "MARA",
+      "QBTS"
+    ],
+    "start": "2025-08-02T00:00:00+00:00",
+    "end": "2025-08-06T00:00:00+00:00",
+    "forward_steps": 15,
+    "tolerance": "2s",
+    "test_frac": 0.2,
+    "model_path": "outputs\\models\\pooled_iv_ret_fwd_20250826_132911.json"
+  },
+  "xgb_importances": [
+    {
+      "feature": "panel_IV_QBTS",
+      "gain": 0.010926679708063602,
+      "weight": 246.0,
+      "cover": 221.76016235351562,
+      "total_gain": 2.6879632472991943,
+      "total_cover": 54553.0
+    },
+    {
+      "feature": "sym_QUBT",
+      "gain": 0.00765599962323904,
+      "weight": 144.0,
+      "cover": 182.73611450195312,
+      "total_gain": 1.102463960647583,
+      "total_cover": 26314.0
+    },
+    {
+      "feature": "panel_IVRET_QUBT",
+      "gain": 0.007299694232642651,
+      "weight": 442.0,
+      "cover": 185.90045166015625,
+      "total_gain": 3.2264647483825684,
+      "total_cover": 82168.0
+    },
+    {
+      "feature": "panel_IVRET_RGTI",
+      "gain": 0.00722407316789031,
+      "weight": 470.0,
+      "cover": 196.18724060058594,
+      "total_gain": 3.3953144550323486,
+      "total_cover": 92208.0
+    },
+    {
+      "feature": "panel_IVRET_QBTS",
+      "gain": 0.007048734463751316,
+      "weight": 189.0,
+      "cover": 203.82009887695312,
+      "total_gain": 1.3322107791900635,
+      "total_cover": 38522.0
+    },
+    {
+      "feature": "panel_IVRET_MARA",
+      "gain": 0.006683140527456999,
+      "weight": 357.0,
+      "cover": 184.88795471191406,
+      "total_gain": 2.385881185531616,
+      "total_cover": 66005.0
+    },
+    {
+      "feature": "sym_MARA",
+      "gain": 0.006173234898597002,
+      "weight": 117.0,
+      "cover": 126.47008514404297,
+      "total_gain": 0.7222684621810913,
+      "total_cover": 14797.0
+    },
+    {
+      "feature": "panel_IV_MARA",
+      "gain": 0.005193832330405712,
+      "weight": 611.0,
+      "cover": 136.5957489013672,
+      "total_gain": 3.173431634902954,
+      "total_cover": 83460.0
+    },
+    {
+      "feature": "panel_IV_RGTI",
+      "gain": 0.004917820915579796,
+      "weight": 798.0,
+      "cover": 113.85713958740234,
+      "total_gain": 3.9244210720062256,
+      "total_cover": 90858.0
+    },
+    {
+      "feature": "sym_RGTI",
+      "gain": 0.004106339532881975,
+      "weight": 113.0,
+      "cover": 140.2566375732422,
+      "total_gain": 0.4640163481235504,
+      "total_cover": 15849.0
+    },
+    {
+      "feature": "panel_IV_QUBT",
+      "gain": 0.0035270624794065952,
+      "weight": 1911.0,
+      "cover": 74.89691162109375,
+      "total_gain": 6.740216255187988,
+      "total_cover": 143128.0
+    }
+  ],
+  "permutation_importances": [
+    {
+      "feature": "panel_IVRET_QUBT",
+      "perm_importance_mean": 0.001181086118908381,
+      "perm_importance_std": 0.0007604718791920922
+    },
+    {
+      "feature": "panel_IVRET_RGTI",
+      "perm_importance_mean": 0.000442038470219408,
+      "perm_importance_std": 0.000701121801912774
+    },
+    {
+      "feature": "panel_IV_QUBT",
+      "perm_importance_mean": 0.00022931139696898972,
+      "perm_importance_std": 0.0009755846603634904
+    },
+    {
+      "feature": "panel_IV_MARA",
+      "perm_importance_mean": 0.00010996044858885279,
+      "perm_importance_std": 0.00031841395215944805
+    },
+    {
+      "feature": "sym_MARA",
+      "perm_importance_mean": 0.0,
+      "perm_importance_std": 0.0
+    },
+    {
+      "feature": "sym_QBTS",
+      "perm_importance_mean": 0.0,
+      "perm_importance_std": 0.0
+    },
+    {
+      "feature": "sym_RGTI",
+      "perm_importance_mean": 0.0,
+      "perm_importance_std": 0.0
+    },
+    {
+      "feature": "sym_QUBT",
+      "perm_importance_mean": 0.0,
+      "perm_importance_std": 0.0
+    },
+    {
+      "feature": "panel_IVRET_QBTS",
+      "perm_importance_mean": -0.00023797966234356815,
+      "perm_importance_std": 0.0002305360178374557
+    },
+    {
+      "feature": "panel_IVRET_MARA",
+      "perm_importance_mean": -0.0003990838321408785,
+      "perm_importance_std": 0.000533076089565976
+    },
+    {
+      "feature": "panel_IV_QBTS",
+      "perm_importance_mean": -0.00040601632277248445,
+      "perm_importance_std": 0.0008355240969231833
+    },
+    {
+      "feature": "panel_IV_RGTI",
+      "perm_importance_mean": -0.0005259729124873158,
+      "perm_importance_std": 0.00034115112693208153
+    }
+  ],
+  "feature_shap_avg": [
+    {
+      "feature": "panel_IV_QUBT",
+      "avg_contrib": 0.004872114863246679
+    },
+    {
+      "feature": "sym_RGTI",
+      "avg_contrib": 0.0023927828297019005
+    },
+    {
+      "feature": "panel_IV_RGTI",
+      "avg_contrib": 0.0018972355173900723
+    },
+    {
+      "feature": "panel_IVRET_QUBT",
+      "avg_contrib": 0.0017782992217689753
+    },
+    {
+      "feature": "panel_IV_QBTS",
+      "avg_contrib": 0.00162219547200948
+    },
+    {
+      "feature": "panel_IVRET_MARA",
+      "avg_contrib": 0.0012993901036679745
+    },
+    {
+      "feature": "panel_IVRET_QBTS",
+      "avg_contrib": 0.0010026796953752637
+    },
+    {
+      "feature": "panel_IVRET_RGTI",
+      "avg_contrib": 0.0003315596841275692
+    },
+    {
+      "feature": "sym_QBTS",
+      "avg_contrib": 0.0
+    },
+    {
+      "feature": "panel_IV_MARA",
+      "avg_contrib": -0.00033268629340454936
+    },
+    {
+      "feature": "sym_QUBT",
+      "avg_contrib": -0.0008628954528830945
+    },
+    {
+      "feature": "sym_MARA",
+      "avg_contrib": -0.0017255309503525496
+    }
+  ],
+  "sym_shap_avg": [
+    {
+      "feature": "sym_RGTI",
+      "avg_shap": 0.0023927828297019005,
+      "ticker": "RGTI",
+      "direction": "\u2191"
+    },
+    {
+      "feature": "sym_QBTS",
+      "avg_shap": 0.0,
+      "ticker": "QBTS",
+      "direction": "\u2191"
+    },
+    {
+      "feature": "sym_QUBT",
+      "avg_shap": -0.0008628954528830945,
+      "ticker": "QUBT",
+      "direction": "\u2193"
+    },
+    {
+      "feature": "sym_MARA",
+      "avg_shap": -0.0017255309503525496,
+      "ticker": "MARA",
+      "direction": "\u2193"
+    }
+  ]
+}

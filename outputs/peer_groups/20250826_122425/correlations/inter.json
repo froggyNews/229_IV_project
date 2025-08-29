@@ -1,0 +1,82 @@
+{
+  "solar_vs_quantum": {
+    "group1": "solar",
+    "group2": "quantum",
+    "mean": NaN,
+    "std": NaN,
+    "min": NaN,
+    "max": NaN
+  },
+  "solar_vs_satellite": {
+    "group1": "solar",
+    "group2": "satellite",
+    "mean": NaN,
+    "std": NaN,
+    "min": NaN,
+    "max": NaN
+  },
+  "solar_vs_crypto_miners": {
+    "group1": "solar",
+    "group2": "crypto_miners",
+    "mean": NaN,
+    "std": NaN,
+    "min": NaN,
+    "max": NaN
+  },
+  "solar_vs_airlines": {
+    "group1": "solar",
+    "group2": "airlines",
+    "mean": NaN,
+    "std": NaN,
+    "min": NaN,
+    "max": NaN
+  },
+  "quantum_vs_satellite": {
+    "group1": "quantum",
+    "group2": "satellite",
+    "mean": NaN,
+    "std": NaN,
+    "min": NaN,
+    "max": NaN
+  },
+  "quantum_vs_crypto_miners": {
+    "group1": "quantum",
+    "group2": "crypto_miners",
+    "mean": NaN,
+    "std": NaN,
+    "min": NaN,
+    "max": NaN
+  },
+  "quantum_vs_airlines": {
+    "group1": "quantum",
+    "group2": "airlines",
+    "mean": NaN,
+    "std": NaN,
+    "min": NaN,
+    "max": NaN
+  },
+  "satellite_vs_crypto_miners": {
+    "group1": "satellite",
+    "group2": "crypto_miners",
+    "mean": NaN,
+    "std": NaN,
+    "min": NaN,
+    "max": NaN
+  },
+  "satellite_vs_airlines": {
+    "group1": "satellite",
+    "group2": "airlines",
+    "mean": NaN,
+    "std": NaN,
+    "min": NaN,
+    "max": NaN
+  },
+  "crypto_miners_vs_airlines": {
+    "group1": "crypto_miners",
+    "group2": "airlines",
+    "mean": NaN,
+    "std": NaN,
+    "min": NaN,
+    "max": NaN
+  }
+}

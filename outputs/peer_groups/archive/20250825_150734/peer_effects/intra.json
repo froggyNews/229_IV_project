@@ -1,0 +1,106 @@
+{
+  "solar": {
+    "iv_ret": {
+      "targets": {
+        "FSLR": {},
+        "SOL": {},
+        "ENPH": {},
+        "SEDG": {}
+      },
+      "summary": {}
+    },
+    "iv": {
+      "targets": {
+        "FSLR": {},
+        "SOL": {},
+        "ENPH": {},
+        "SEDG": {}
+      },
+      "summary": {}
+    }
+  },
+  "quantum": {
+    "iv_ret": {
+      "targets": {
+        "QBTS": {},
+        "IONQ": {},
+        "SKYT": {},
+        "RGTI": {},
+        "QUBT": {}
+      },
+      "summary": {}
+    },
+    "iv": {
+      "targets": {
+        "QBTS": {},
+        "IONQ": {},
+        "SKYT": {},
+        "RGTI": {},
+        "QUBT": {}
+      },
+      "summary": {}
+    }
+  },
+  "satellite": {
+    "iv_ret": {
+      "targets": {
+        "ASTS": {},
+        "GSAT": {},
+        "SATS": {}
+      },
+      "summary": {}
+    },
+    "iv": {
+      "targets": {
+        "ASTS": {},
+        "GSAT": {},
+        "SATS": {}
+      },
+      "summary": {}
+    }
+  },
+  "crypto_miners": {
+    "iv_ret": {
+      "targets": {
+        "MARA": {},
+        "RIOT": {},
+        "CIFR": {},
+        "IREN": {},
+        "WULF": {}
+      },
+      "summary": {}
+    },
+    "iv": {
+      "targets": {
+        "MARA": {},
+        "RIOT": {},
+        "CIFR": {},
+        "IREN": {},
+        "WULF": {}
+      },
+      "summary": {}
+    }
+  },
+  "airlines": {
+    "iv_ret": {
+      "targets": {
+        "AAL": {},
+        "CPA": {},
+        "DAL": {},
+        "JBLU": {},
+        "JETS": {}
+      },
+      "summary": {}
+    },
+    "iv": {
+      "targets": {
+        "AAL": {},
+        "CPA": {},
+        "DAL": {},
+        "JBLU": {},
+        "JETS": {}
+      },
+      "summary": {}
+    }
+  }
+}

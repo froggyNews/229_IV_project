@@ -1,0 +1,61 @@
+{
+  "correlation_tests": {
+    "solar": {
+      "z_mean": 0.062314071801229054
+    },
+    "quantum": {
+      "z_mean": 0.08225186882680804
+    },
+    "satellite": {
+      "z_mean": -0.005604175281206928
+    },
+    "crypto_miners": {
+      "z_mean": 0.02636032349936972
+    },
+    "airlines": {
+      "z_mean": 0.05274764699477454
+    }
+  },
+  "peer_effect_tests": {
+    "solar": {
+      "iv_ret": {
+        "avg_effect": NaN
+      },
+      "iv": {
+        "avg_effect": NaN
+      }
+    },
+    "quantum": {
+      "iv_ret": {
+        "avg_effect": NaN
+      },
+      "iv": {
+        "avg_effect": NaN
+      }
+    },
+    "satellite": {
+      "iv_ret": {
+        "avg_effect": NaN
+      },
+      "iv": {
+        "avg_effect": NaN
+      }
+    },
+    "crypto_miners": {
+      "iv_ret": {
+        "avg_effect": NaN
+      },
+      "iv": {
+        "avg_effect": NaN
+      }
+    },
+    "airlines": {
+      "iv_ret": {
+        "avg_effect": NaN
+      },
+      "iv": {
+        "avg_effect": NaN
+      }
+    }
+  }
+}

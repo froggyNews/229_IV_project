@@ -335,7 +335,7 @@ if __name__ == "__main__":
             "group1": ["QUBT", "RGTI"],
             "group2": ["QBTS", "IONQ"]
         },
-        db_path="data/iv_data_1m.db",
+        db_path="data/iv_data_1h.db",
         start="2025-08-02",
         end="2025-08-06",
         forward_steps=5,

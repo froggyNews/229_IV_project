@@ -1,0 +1,78 @@
+{
+  "model_type": "pooled",
+  "tickers": [
+    "QUBT",
+    "QBTS",
+    "RGTI",
+    "IONQ"
+  ],
+  "train_metrics": {
+    "RMSE": 0.4412605254855258,
+    "R2": 0.23135243288342633,
+    "n_train": 12075,
+    "n_test": 3019,
+    "n_features": 31
+  },
+  "evaluation_metrics": {
+    "RMSE": 0.43785532654779696,
+    "R2": 0.2431699353521488,
+    "n_train": 12075,
+    "n_test": 3019,
+    "n_features": 31,
+    "tickers": [
+      "QUBT",
+      "QBTS",
+      "RGTI",
+      "IONQ"
+    ],
+    "start": "2025-08-02T00:00:00+00:00",
+    "end": "2025-08-06T00:00:00+00:00",
+    "forward_steps": 15,
+    "tolerance": "2s",
+    "test_frac": 0.2,
+    "model_path": "c:\\Users\\kkar\\OneDrive - Group One Trading\\Desktop\\Kavita_Projects\\Correlated_Opt_Price_229\\experiments\\iv_returns_experiment_20250821_131620\\models\\pooled.json"
+  },
+  "model_path": "c:\\Users\\kkar\\OneDrive - Group One Trading\\Desktop\\Kavita_Projects\\Correlated_Opt_Price_229\\experiments\\iv_returns_experiment_20250821_131620\\models\\pooled.json",
+  "dataset_info": {
+    "total_samples": 15094,
+    "features": [
+      "iv_ret_fwd",
+      "ts_event",
+      "expiry_date",
+      "iv",
+      "opt_volume",
+      "stock_volume",
+      "time_to_expiry",
+      "strike_price",
+      "option_type",
+      "delta",
+      "gamma",
+      "vega",
+      "days_to_expiry",
+      "option_type_enc",
+      "rv_30m",
+      "opt_vol_change_1m",
+      "opt_vol_roll_15m",
+      "sabr_alpha",
+      "sabr_beta",
+      "sabr_rho",
+      "sabr_nu",
+      "IV_QUBT",
+      "IVRET_QUBT",
+      "IV_QBTS",
+      "IVRET_QBTS",
+      "IV_RGTI",
+      "IVRET_RGTI",
+      "IV_IONQ",
+      "IVRET_IONQ",
+      "sym_QUBT",
+      "sym_QBTS",
+      "sym_RGTI",
+      "sym_IONQ"
+    ],
+    "date_range": [
+      0,
+      15093
+    ]
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "solar_vs_quantum": {
+    "group1": "solar",
+    "group2": "quantum",
+    "mean": 0.12661758146193042,
+    "std": 0.36384483403345763,
+    "min": -0.443322613257853,
+    "max": 0.8450648223244807
+  },
+  "solar_vs_satellite": {
+    "group1": "solar",
+    "group2": "satellite",
+    "mean": -0.008107518714394921,
+    "std": 0.35237680487809264,
+    "min": -0.5634836595553405,
+    "max": 0.6897839355303342
+  },
+  "solar_vs_crypto_miners": {
+    "group1": "solar",
+    "group2": "crypto_miners",
+    "mean": 0.14310429331923366,
+    "std": 0.3494194302324292,
+    "min": -0.4654236274918402,
+    "max": 0.8696078413101336
+  },
+  "solar_vs_airlines": {
+    "group1": "solar",
+    "group2": "airlines",
+    "mean": 0.03955618335544998,
+    "std": 0.2859205840473679,
+    "min": -0.33055664646382715,
+    "max": 0.8525630409509586
+  },
+  "quantum_vs_satellite": {
+    "group1": "quantum",
+    "group2": "satellite",
+    "mean": 0.10896706122885716,
+    "std": 0.3121876711454001,
+    "min": -0.34674364275007796,
+    "max": 0.8721108064142067
+  },
+  "quantum_vs_crypto_miners": {
+    "group1": "quantum",
+    "group2": "crypto_miners",
+    "mean": -0.014145244174822125,
+    "std": 0.32896487123489976,
+    "min": -0.5115816417395552,
+    "max": 0.7799774546011279
+  },
+  "quantum_vs_airlines": {
+    "group1": "quantum",
+    "group2": "airlines",
+    "mean": 0.05179101565163684,
+    "std": 0.27603887067898825,
+    "min": -0.4384356143047493,
+    "max": 0.8320733380710368
+  },
+  "satellite_vs_crypto_miners": {
+    "group1": "satellite",
+    "group2": "crypto_miners",
+    "mean": -0.045856676958198464,
+    "std": 0.250807723081988,
+    "min": -0.5361084245928706,
+    "max": 0.6031031879451277
+  },
+  "satellite_vs_airlines": {
+    "group1": "satellite",
+    "group2": "airlines",
+    "mean": 0.014754179245412367,
+    "std": 0.2817304603128769,
+    "min": -0.465468590494988,
+    "max": 0.5861276566314367
+  },
+  "crypto_miners_vs_airlines": {
+    "group1": "crypto_miners",
+    "group2": "airlines",
+    "mean": 0.13097493917428063,
+    "std": 0.32258749333829534,
+    "min": -0.45843824710494296,
+    "max": 0.767739742513588
+  }
+}

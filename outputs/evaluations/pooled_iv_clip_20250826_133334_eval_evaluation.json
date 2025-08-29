@@ -1,0 +1,96 @@
+{
+  "metrics": {
+    "RMSE": 1.0218424835026871,
+    "R2": -0.009612740003524856,
+    "n_train": 384,
+    "n_test": 96,
+    "n_features": 4,
+    "tickers": [
+      "QUBT",
+      "RGTI",
+      "QBTS",
+      "IONQ"
+    ],
+    "start": "2025-08-02T00:00:00+00:00",
+    "end": "2025-08-06T00:00:00+00:00",
+    "forward_steps": 15,
+    "tolerance": "2s",
+    "test_frac": 0.2,
+    "model_path": "outputs\\models\\pooled_iv_clip_20250826_133334.json"
+  },
+  "xgb_importances": [
+    {
+      "feature": "panel_IV_IONQ",
+      "gain": 0.26381322741508484,
+      "weight": 807.0,
+      "cover": 178.8822784423828,
+      "total_gain": 212.8972625732422,
+      "total_cover": 144358.0
+    },
+    {
+      "feature": "panel_IV_QBTS",
+      "gain": 0.23874974250793457,
+      "weight": 582.0,
+      "cover": 162.45016479492188,
+      "total_gain": 138.9523468017578,
+      "total_cover": 94546.0
+    },
+    {
+      "feature": "panel_IV_RGTI",
+      "gain": 0.20503033697605133,
+      "weight": 1375.0,
+      "cover": 124.43272399902344,
+      "total_gain": 281.9167175292969,
+      "total_cover": 171095.0
+    },
+    {
+      "feature": "panel_IV_QUBT",
+      "gain": 0.17020441591739655,
+      "weight": 2194.0,
+      "cover": 92.01731872558594,
+      "total_gain": 373.4284973144531,
+      "total_cover": 201886.0
+    }
+  ],
+  "permutation_importances": [
+    {
+      "feature": "panel_IV_QUBT",
+      "perm_importance_mean": 0.006732016748617164,
+      "perm_importance_std": 0.01364246277470558
+    },
+    {
+      "feature": "panel_IV_QBTS",
+      "perm_importance_mean": -0.002460784658463133,
+      "perm_importance_std": 0.0056498762188008115
+    },
+    {
+      "feature": "panel_IV_IONQ",
+      "perm_importance_mean": -0.004052023190396792,
+      "perm_importance_std": 0.007935868177817136
+    },
+    {
+      "feature": "panel_IV_RGTI",
+      "perm_importance_mean": -0.009111811767154254,
+      "perm_importance_std": 0.00798844485984808
+    }
+  ],
+  "feature_shap_avg": [
+    {
+      "feature": "panel_IV_IONQ",
+      "avg_contrib": 0.03721621260046959
+    },
+    {
+      "feature": "panel_IV_QBTS",
+      "avg_contrib": 0.008913622237741947
+    },
+    {
+      "feature": "panel_IV_QUBT",
+      "avg_contrib": -0.009978705085814
+    },
+    {
+      "feature": "panel_IV_RGTI",
+      "avg_contrib": -0.015010603703558445
+    }
+  ],
+  "sym_shap_avg": []
+}

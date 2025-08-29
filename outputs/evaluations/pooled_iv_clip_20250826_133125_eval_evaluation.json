@@ -1,0 +1,114 @@
+{
+  "metrics": {
+    "RMSE": 0.9923082414562728,
+    "R2": -0.004509767989135716,
+    "n_train": 523,
+    "n_test": 131,
+    "n_features": 5,
+    "tickers": [
+      "QUBT",
+      "RGTI",
+      "MARA",
+      "QBTS",
+      "IONQ"
+    ],
+    "start": "2025-08-02T00:00:00+00:00",
+    "end": "2025-08-06T00:00:00+00:00",
+    "forward_steps": 15,
+    "tolerance": "2s",
+    "test_frac": 0.2,
+    "model_path": "outputs\\models\\pooled_iv_clip_20250826_133125.json"
+  },
+  "xgb_importances": [
+    {
+      "feature": "panel_IV_QBTS",
+      "gain": 0.2791968882083893,
+      "weight": 476.0,
+      "cover": 225.66175842285156,
+      "total_gain": 132.89772033691406,
+      "total_cover": 107415.0
+    },
+    {
+      "feature": "panel_IV_IONQ",
+      "gain": 0.2663140296936035,
+      "weight": 688.0,
+      "cover": 230.58285522460938,
+      "total_gain": 183.22406005859375,
+      "total_cover": 158641.0
+    },
+    {
+      "feature": "panel_IV_MARA",
+      "gain": 0.23059210181236267,
+      "weight": 882.0,
+      "cover": 169.12017822265625,
+      "total_gain": 203.38223266601562,
+      "total_cover": 149164.0
+    },
+    {
+      "feature": "panel_IV_RGTI",
+      "gain": 0.2234364151954651,
+      "weight": 1386.0,
+      "cover": 143.57504272460938,
+      "total_gain": 309.682861328125,
+      "total_cover": 198995.0
+    },
+    {
+      "feature": "panel_IV_QUBT",
+      "gain": 0.20541901886463165,
+      "weight": 2448.0,
+      "cover": 104.67892456054688,
+      "total_gain": 502.8657531738281,
+      "total_cover": 256254.0
+    }
+  ],
+  "permutation_importances": [
+    {
+      "feature": "panel_IV_RGTI",
+      "perm_importance_mean": 0.0042179771468724425,
+      "perm_importance_std": 0.003929198070090434
+    },
+    {
+      "feature": "panel_IV_IONQ",
+      "perm_importance_mean": -0.0005489410403882955,
+      "perm_importance_std": 0.0056626376639550445
+    },
+    {
+      "feature": "panel_IV_QUBT",
+      "perm_importance_mean": -0.0033130802659872894,
+      "perm_importance_std": 0.0109404780458629
+    },
+    {
+      "feature": "panel_IV_MARA",
+      "perm_importance_mean": -0.0036865020724504926,
+      "perm_importance_std": 0.008497707793770919
+    },
+    {
+      "feature": "panel_IV_QBTS",
+      "perm_importance_mean": -0.003973087755268656,
+      "perm_importance_std": 0.0066676746575254605
+    }
+  ],
+  "feature_shap_avg": [
+    {
+      "feature": "panel_IV_IONQ",
+      "avg_contrib": 0.009933257475495338
+    },
+    {
+      "feature": "panel_IV_RGTI",
+      "avg_contrib": 0.0009068307699635625
+    },
+    {
+      "feature": "panel_IV_QBTS",
+      "avg_contrib": -0.0033231195993721485
+    },
+    {
+      "feature": "panel_IV_MARA",
+      "avg_contrib": -0.011447715573012829
+    },
+    {
+      "feature": "panel_IV_QUBT",
+      "avg_contrib": -0.01343133021146059
+    }
+  ],
+  "sym_shap_avg": []
+}

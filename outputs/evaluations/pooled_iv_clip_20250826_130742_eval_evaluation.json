@@ -1,0 +1,62 @@
+{
+  "metrics": {
+    "RMSE": 1.106210038317568,
+    "R2": -0.013756819061265135,
+    "n_train": 201,
+    "n_test": 51,
+    "n_features": 2,
+    "tickers": [
+      "ASTS",
+      "VZ",
+      "T",
+      "SATS"
+    ],
+    "start": "2025-08-02T00:00:00+00:00",
+    "end": "2025-08-06T00:00:00+00:00",
+    "forward_steps": 15,
+    "tolerance": "2s",
+    "test_frac": 0.2,
+    "model_path": "outputs\\models\\pooled_iv_clip_20250826_130742.json"
+  },
+  "xgb_importances": [
+    {
+      "feature": "panel_IV_SATS",
+      "gain": 0.1112493947148323,
+      "weight": 2007.0,
+      "cover": 68.88092041015625,
+      "total_gain": 223.2775421142578,
+      "total_cover": 138244.0
+    },
+    {
+      "feature": "panel_IV_ASTS",
+      "gain": 0.1103099137544632,
+      "weight": 1937.0,
+      "cover": 71.63190460205078,
+      "total_gain": 213.67030334472656,
+      "total_cover": 138751.0
+    }
+  ],
+  "permutation_importances": [
+    {
+      "feature": "panel_IV_ASTS",
+      "perm_importance_mean": 0.02617530034225566,
+      "perm_importance_std": 0.03648803172043419
+    },
+    {
+      "feature": "panel_IV_SATS",
+      "perm_importance_mean": 0.002282707112769522,
+      "perm_importance_std": 0.010885175705310801
+    }
+  ],
+  "feature_shap_avg": [
+    {
+      "feature": "panel_IV_ASTS",
+      "avg_contrib": -0.009354392997920513
+    },
+    {
+      "feature": "panel_IV_SATS",
+      "avg_contrib": -0.015079042874276638
+    }
+  ],
+  "sym_shap_avg": []
+}

@@ -1,0 +1,209 @@
+{
+  "solar": {
+    "tickers": [
+      "FSLR",
+      "SOL",
+      "ENPH",
+      "SEDG"
+    ],
+    "ret_corr_matrix": {
+      "IVRET_FSLR": {
+        "IVRET_FSLR": 0.9999999999999999,
+        "IVRET_ENPH": -0.05526908527500104,
+        "IVRET_SEDG": -0.029094699533619213
+      },
+      "IVRET_ENPH": {
+        "IVRET_FSLR": -0.05526908527500104,
+        "IVRET_ENPH": 0.9999999999999998,
+        "IVRET_SEDG": 0.2648997140697007
+      },
+      "IVRET_SEDG": {
+        "IVRET_FSLR": -0.02909469953361921,
+        "IVRET_ENPH": 0.2648997140697007,
+        "IVRET_SEDG": 1.0
+      }
+    },
+    "mean": 0.06017864308702681,
+    "std": 0.1451535102238418,
+    "min": -0.05526908527500104,
+    "max": 0.2648997140697007
+  },
+  "quantum": {
+    "tickers": [
+      "QBTS",
+      "IONQ",
+      "SKYT",
+      "RGTI",
+      "QUBT"
+    ],
+    "ret_corr_matrix": {
+      "IVRET_QBTS": {
+        "IVRET_QBTS": 1.0,
+        "IVRET_IONQ": 0.030911315660758852,
+        "IVRET_SKYT": -0.030633803814673535,
+        "IVRET_RGTI": 0.031229272542424254,
+        "IVRET_QUBT": 0.05069860643530819
+      },
+      "IVRET_IONQ": {
+        "IVRET_QBTS": 0.030911315660758852,
+        "IVRET_IONQ": 0.9999999999999999,
+        "IVRET_SKYT": -0.022386045156720578,
+        "IVRET_RGTI": 0.2403307664255835,
+        "IVRET_QUBT": 0.2645095923857191
+      },
+      "IVRET_SKYT": {
+        "IVRET_QBTS": -0.030633803814673535,
+        "IVRET_IONQ": -0.022386045156720574,
+        "IVRET_SKYT": 1.0,
+        "IVRET_RGTI": 0.2621604650186006,
+        "IVRET_QUBT": -0.3578635186854711
+      },
+      "IVRET_RGTI": {
+        "IVRET_QBTS": 0.031229272542424257,
+        "IVRET_IONQ": 0.24033076642558351,
+        "IVRET_SKYT": 0.2621604650186006,
+        "IVRET_RGTI": 0.9999999999999999,
+        "IVRET_QUBT": 0.3386612003093136
+      },
+      "IVRET_QUBT": {
+        "IVRET_QBTS": 0.050698606435308186,
+        "IVRET_IONQ": 0.2645095923857191,
+        "IVRET_SKYT": -0.3578635186854711,
+        "IVRET_RGTI": 0.33866120030931357,
+        "IVRET_QUBT": 1.0
+      }
+    },
+    "mean": 0.08076178511208429,
+    "std": 0.1949169179361628,
+    "min": -0.3578635186854711,
+    "max": 0.3386612003093136
+  },
+  "satellite": {
+    "tickers": [
+      "ASTS",
+      "GSAT",
+      "SATS"
+    ],
+    "ret_corr_matrix": {
+      "IVRET_ASTS": {
+        "IVRET_ASTS": 1.0,
+        "IVRET_GSAT": -0.004278172435991482,
+        "IVRET_SATS": 0.033278402522339205
+      },
+      "IVRET_GSAT": {
+        "IVRET_ASTS": -0.004278172435991482,
+        "IVRET_GSAT": 1.0,
+        "IVRET_SATS": -0.04579297317596832
+      },
+      "IVRET_SATS": {
+        "IVRET_ASTS": 0.033278402522339205,
+        "IVRET_GSAT": -0.04579297317596831,
+        "IVRET_SATS": 1.0
+      }
+    },
+    "mean": -0.005597581029873531,
+    "std": 0.03229423315891896,
+    "min": -0.04579297317596832,
+    "max": 0.033278402522339205
+  },
+  "crypto_miners": {
+    "tickers": [
+      "MARA",
+      "RIOT",
+      "CIFR",
+      "IREN",
+      "WULF"
+    ],
+    "ret_corr_matrix": {
+      "IVRET_MARA": {
+        "IVRET_MARA": 1.0,
+        "IVRET_RIOT": 0.008157706097003718,
+        "IVRET_CIFR": 0.00607612037686656,
+        "IVRET_IREN": -0.013435829528882491,
+        "IVRET_WULF": -0.008869249356893566
+      },
+      "IVRET_RIOT": {
+        "IVRET_MARA": 0.00815770609700372,
+        "IVRET_RIOT": 0.9999999999999999,
+        "IVRET_CIFR": -0.35777205168073284,
+        "IVRET_IREN": -0.6813072769991327,
+        "IVRET_WULF": 0.024000142304479936
+      },
+      "IVRET_CIFR": {
+        "IVRET_MARA": 0.00607612037686656,
+        "IVRET_RIOT": -0.3577720516807328,
+        "IVRET_CIFR": 1.0,
+        "IVRET_IREN": 0.5446878549515396,
+        "IVRET_WULF": 0.43087027461710325
+      },
+      "IVRET_IREN": {
+        "IVRET_MARA": -0.01343582952888249,
+        "IVRET_RIOT": -0.6813072769991327,
+        "IVRET_CIFR": 0.5446878549515395,
+        "IVRET_IREN": 1.0,
+        "IVRET_WULF": 0.3642583952104325
+      },
+      "IVRET_WULF": {
+        "IVRET_MARA": -0.008869249356893566,
+        "IVRET_RIOT": 0.024000142304479936,
+        "IVRET_CIFR": 0.4308702746171032,
+        "IVRET_IREN": 0.3642583952104325,
+        "IVRET_WULF": 1.0
+      }
+    },
+    "mean": 0.03166660859917839,
+    "std": 0.34613719770536133,
+    "min": -0.6813072769991327,
+    "max": 0.5446878549515396
+  },
+  "airlines": {
+    "tickers": [
+      "AAL",
+      "CPA",
+      "DAL",
+      "JBLU",
+      "JETS"
+    ],
+    "ret_corr_matrix": {
+      "IVRET_AAL": {
+        "IVRET_AAL": 1.0,
+        "IVRET_CPA": -0.018579865022379963,
+        "IVRET_DAL": -0.020520561443555498,
+        "IVRET_JBLU": -0.02203889912765152,
+        "IVRET_JETS": 0.015113809120400631
+      },
+      "IVRET_CPA": {
+        "IVRET_AAL": -0.018579865022379963,
+        "IVRET_CPA": 0.9999999999999999,
+        "IVRET_DAL": 0.5826164523951267,
+        "IVRET_JBLU": 0.45427632665025214,
+        "IVRET_JETS": -0.39491477093184957
+      },
+      "IVRET_DAL": {
+        "IVRET_AAL": -0.020520561443555498,
+        "IVRET_CPA": 0.5826164523951268,
+        "IVRET_DAL": 1.0,
+        "IVRET_JBLU": 0.6702018970657098,
+        "IVRET_JETS": -0.48923026363666694
+      },
+      "IVRET_JBLU": {
+        "IVRET_AAL": -0.02203889912765152,
+        "IVRET_CPA": 0.4542763266502521,
+        "IVRET_DAL": 0.6702018970657098,
+        "IVRET_JBLU": 1.0,
+        "IVRET_JETS": -0.41483126659859126
+      },
+      "IVRET_JETS": {
+        "IVRET_AAL": 0.015113809120400631,
+        "IVRET_CPA": -0.39491477093184957,
+        "IVRET_DAL": -0.489230263636667,
+        "IVRET_JBLU": -0.41483126659859126,
+        "IVRET_JETS": 1.0
+      }
+    },
+    "mean": 0.036209285847079456,
+    "std": 0.39379407341963585,
+    "min": -0.489230263636667,
+    "max": 0.6702018970657098
+  }
+}

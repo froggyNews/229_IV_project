@@ -1,0 +1,69 @@
+{
+  "solar": {
+    "tickers": [
+      "FSLR",
+      "SOL",
+      "ENPH",
+      "SEDG"
+    ],
+    "ret_corr_matrix": {},
+    "mean": NaN,
+    "std": NaN,
+    "min": NaN,
+    "max": NaN
+  },
+  "quantum": {
+    "tickers": [
+      "QBTS",
+      "IONQ",
+      "SKYT",
+      "RGTI",
+      "QUBT"
+    ],
+    "ret_corr_matrix": {},
+    "mean": NaN,
+    "std": NaN,
+    "min": NaN,
+    "max": NaN
+  },
+  "satellite": {
+    "tickers": [
+      "ASTS",
+      "GSAT",
+      "SATS"
+    ],
+    "ret_corr_matrix": {},
+    "mean": NaN,
+    "std": NaN,
+    "min": NaN,
+    "max": NaN
+  },
+  "crypto_miners": {
+    "tickers": [
+      "MARA",
+      "RIOT",
+      "CIFR",
+      "IREN",
+      "WULF"
+    ],
+    "ret_corr_matrix": {},
+    "mean": NaN,
+    "std": NaN,
+    "min": NaN,
+    "max": NaN
+  },
+  "airlines": {
+    "tickers": [
+      "AAL",
+      "CPA",
+      "DAL",
+      "JBLU",
+      "JETS"
+    ],
+    "ret_corr_matrix": {},
+    "mean": NaN,
+    "std": NaN,
+    "min": NaN,
+    "max": NaN
+  }
+}

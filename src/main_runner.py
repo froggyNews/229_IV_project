@@ -28,6 +28,8 @@ from feature_engineering import (
 from data_loader_coordinator import load_cores_with_auto_fetch
 from train_peer_effects import run_multi_target_analysis
 from baseline_correlation import compute_baseline_correlations
+from baseline_regression import compute_baseline_regression
+from baseline_pca import compute_baseline_pca
 from peer_group_analyzer import PeerGroupAnalyzer, PeerGroupConfig
 
 # Try to import model evaluation
@@ -43,23 +45,32 @@ except ImportError:
 class RunConfig:
     """Configuration for the main pipeline run."""
     # Core settings
-    tickers: Sequence[str] = field(default_factory=lambda: ["ASTS", "VZ", "T", "SATS"])
+# Core settings
+    tickers: Sequence[str] = field(default_factory=lambda: [
+        "QBTS", "IONQ", "RGTI", "QUBT",
+    ])
     start: str = "2025-08-02"
     end: str = "2025-08-06"
 
+    # Timeframe: '1h' (hourly) or '1m' (minute)
+    timeframe: str = "1h"
+
     # Model settings
-    forward_steps: int = 15
+    forward_steps: int = 11
     test_frac: float = 0.2
     tolerance: str = "2s"
     r: float = 0.045
 
     # Peer effects settings
-    peer_targets: Sequence[str] = field(default_factory=lambda: ["ASTS", "VZ", "T", "SATS"])
+    peer_targets: Sequence[str] = field(default_factory=lambda: [
+        "QBTS", "IONQ", "RGTI", "QUBT",
+    ])
     peer_target_kinds: Sequence[str] = field(default_factory=lambda: ["iv_ret", "iv"])
 
     # Paths
-    db_path: Path = field(default_factory=lambda: Path("data/iv_data_1m.db"))
+    db_path: Path = field(default_factory=lambda: Path("data/iv_data_1h.db"))
     output_dir: Path = field(default_factory=lambda: Path("outputs"))
+
 
     # Runtime settings
     auto_fetch: bool = True
@@ -75,8 +86,10 @@ class RunConfig:
     # NEW: never save per-row predictions/targets
     save_per_row: bool = False
     
-    # Baseline correlation settings
+    # Baseline analysis settings
     compute_baseline_correlations: bool = True
+    compute_baseline_regression: bool = True
+    compute_baseline_pca: bool = True
     
     # Peer group analysis settings
     enable_peer_group_analysis: bool = False
@@ -120,6 +133,42 @@ def get_default_xgb_params() -> Dict[str, Any]:
         "n_jobs": -1,
         "tree_method": "hist",
     }
+
+
+def apply_timeframe_defaults(cfg: RunConfig) -> None:
+    """Adjust config defaults based on timeframe when obvious.
+
+    - If timeframe is '1m', prefer the 1m database, looser tolerance, and a
+      larger forward_steps (minutes-ahead) when cfg still has hour-based
+      defaults.
+    - If timeframe is '1h', prefer the 1h database and a tighter tolerance.
+    """
+    tf = (cfg.timeframe or "1h").lower()
+    if tf not in {"1h", "1m"}:
+        tf = "1h"
+        cfg.timeframe = tf
+
+    # Database path
+    try:
+        db_str = str(cfg.db_path).replace("\\", "/")
+    except Exception:
+        db_str = ""
+
+    if tf == "1m":
+        # If user left the hourly default DB, switch to 1m
+        if not db_str or db_str.endswith("iv_data_1h.db"):
+            cfg.db_path = Path("data/iv_data_1m.db")
+        # Tolerance: allow a bit more slack at minute resolution
+        if cfg.tolerance in {"2s", "5s"}:
+            cfg.tolerance = "30s"
+        # Forward horizon: if using small hour-based default, bump to ~1h ahead
+        if cfg.forward_steps in (11, 15):
+            cfg.forward_steps = 60
+    else:  # 1h
+        if not db_str or db_str.endswith("iv_data_1m.db"):
+            cfg.db_path = Path("data/iv_data_1h.db")
+        if cfg.tolerance not in {"1s", "2s", "5s"}:
+            cfg.tolerance = "2s"
 
 
 def train_model(data: pd.DataFrame, target: str, test_frac: float, 
@@ -240,7 +289,9 @@ def train_model(data: pd.DataFrame, target: str, test_frac: float,
 
 def train_pooled_models(cfg: RunConfig, cores: Dict[str, pd.DataFrame]) -> Dict[str, Any]:
     """Train pooled models for IV returns and levels."""
-    
+    # Apply timeframe-aware defaults before building pooled data
+    apply_timeframe_defaults(cfg)
+
     print("\n=== Training Pooled Models ===")
     
     if cfg.debug:
@@ -310,7 +361,9 @@ def train_pooled_models(cfg: RunConfig, cores: Dict[str, pd.DataFrame]) -> Dict[
 
 def compute_baseline_correlations_wrapper(cfg: RunConfig, cores: Dict[str, pd.DataFrame]) -> Dict[str, Any]:
     """Compute baseline historical correlations using preloaded cores."""
-    
+    # Ensure timeframe defaults are applied (db_path/tolerance)
+    apply_timeframe_defaults(cfg)
+
     if not cfg.compute_baseline_correlations:
         return {}
     
@@ -369,6 +422,79 @@ def compute_baseline_correlations_wrapper(cfg: RunConfig, cores: Dict[str, pd.Da
         
     except Exception as e:
         print(f"  ✗ Failed to compute baseline correlations: {e}")
+        if cfg.debug:
+            import traceback
+            traceback.print_exc()
+        return {"error": str(e)}
+
+
+def compute_baseline_regression_wrapper(cfg: RunConfig, cores: Dict[str, pd.DataFrame]) -> Dict[str, Any]:
+    """Compute baseline market-factor regressions using preloaded cores."""
+    apply_timeframe_defaults(cfg)
+
+    if not cfg.compute_baseline_regression:
+        return {}
+
+    print("\n=== Baseline Regression Analysis ===")
+    try:
+        res = compute_baseline_regression(
+            tickers=list(cfg.tickers),
+            start=cfg.start,
+            end=cfg.end,
+            db_path=cfg.db_path,
+            cores=cores,
+            tolerance=cfg.tolerance,
+            include_levels=True,
+        )
+
+        # Summaries
+        ivr = res.get("iv_returns", {})
+        if ivr:
+            betas = [m.get("beta") for m in ivr.values() if m and np.isfinite(m.get("beta", np.nan))]
+            r2s = [m.get("r2") for m in ivr.values() if m and np.isfinite(m.get("r2", np.nan))]
+            if betas:
+                print(f"  avg beta (IVRET vs market): {np.nanmean(betas):.3f}")
+            if r2s:
+                print(f"  avg R2   (IVRET vs market): {np.nanmean(r2s):.3f}")
+        else:
+            print("  No IV returns regression results available")
+
+        return res
+    except Exception as e:
+        print(f"  Failed to compute baseline regressions: {e}")
+        if cfg.debug:
+            import traceback
+            traceback.print_exc()
+        return {"error": str(e)}
+
+
+def compute_baseline_pca_wrapper(cfg: RunConfig, cores: Dict[str, pd.DataFrame]) -> Dict[str, Any]:
+    """Compute baseline PCA using preloaded cores."""
+    apply_timeframe_defaults(cfg)
+
+    if not cfg.compute_baseline_pca:
+        return {}
+
+    print("\n=== Baseline PCA Analysis ===")
+    try:
+        res = compute_baseline_pca(
+            tickers=list(cfg.tickers),
+            start=cfg.start,
+            end=cfg.end,
+            db_path=cfg.db_path,
+            cores=cores,
+            tolerance=cfg.tolerance,
+            n_components=3,
+            include_levels=False,
+        )
+        evr = res.get("iv_returns", {}).get("explained_variance_ratio", [])
+        if evr:
+            print("  IVRET PCA EVR:", [f"{v:.3f}" for v in evr])
+        else:
+            print("  No PCA results for IV returns")
+        return res
+    except Exception as e:
+        print(f"  Failed to compute baseline PCA: {e}")
         if cfg.debug:
             import traceback
             traceback.print_exc()
@@ -509,8 +635,10 @@ def save_results(
     pooled_results: Dict,
     peer_results: Dict,
     eval_results: Dict,
-    baseline_results: Dict,
+    baseline_correlations: Dict,
     peer_group_results: Dict,
+    baseline_regression: Dict | None = None,
+    baseline_pca: Dict | None = None,
 ) -> Path:
     """Save all results to disk in a structured format."""
 
@@ -540,7 +668,9 @@ def save_results(
         },
         "pooled_models": pooled_results.get("metrics", {}),
         "peer_effects": peer_results,
-        "baseline_correlations": baseline_results,
+        "baseline_correlations": baseline_correlations,
+        "baseline_regression": baseline_regression or {},
+        "baseline_pca": baseline_pca or {},
         "peer_group_analysis": peer_group_results,
         "evaluation": safe_eval,  # <--- use sanitized view
     }
@@ -602,12 +732,15 @@ def save_models(cfg: RunConfig, pooled_results: Dict, peer_results: Dict) -> Dic
 
 def run_pipeline(cfg: RunConfig) -> Dict[str, Any]:
     """Run complete training pipeline."""
-    
+    # Normalize config for chosen timeframe
+    apply_timeframe_defaults(cfg)
+
     if not cfg.tickers:
         raise ValueError("No tickers specified")
     
     print(f"Starting pipeline with {len(cfg.tickers)} tickers")
     print(f"Date range: {cfg.start} to {cfg.end}")
+    print(f"Timeframe: {cfg.timeframe} | DB: {cfg.db_path} | tol={cfg.tolerance} | fwd={cfg.forward_steps}")
     
     # Load cores once at the start
     print("\n=== Loading Data Cores ===")
@@ -637,8 +770,10 @@ def run_pipeline(cfg: RunConfig) -> Dict[str, Any]:
         else:
             print(f"  {ticker}: No valid data or missing ts_event column")
     
-    # Compute baseline correlations
-    baseline_results = compute_baseline_correlations_wrapper(cfg, cores)
+    # Compute baselines
+    baseline_corr = compute_baseline_correlations_wrapper(cfg, cores)
+    baseline_regr = compute_baseline_regression_wrapper(cfg, cores)
+    baseline_pca_res = compute_baseline_pca_wrapper(cfg, cores)
     
     # Run comprehensive peer group analysis
     peer_group_results = run_peer_group_analysis_wrapper(cfg, cores)
@@ -690,10 +825,21 @@ def run_pipeline(cfg: RunConfig) -> Dict[str, Any]:
 
 
     # Save aggregated results including evaluation
-    metrics_path = save_results(cfg, pooled_results, peer_results, eval_results, baseline_results, peer_group_results)
+    metrics_path = save_results(
+        cfg,
+        pooled_results,
+        peer_results,
+        eval_results,
+        baseline_corr,
+        peer_group_results,
+        baseline_regr,
+        baseline_pca_res,
+    )
 
     return {
-        "baseline_results": baseline_results,
+        "baseline_correlations": baseline_corr,
+        "baseline_regression": baseline_regr,
+        "baseline_pca": baseline_pca_res,
         "peer_group_results": peer_group_results,
         "pooled_results": pooled_results,
         "peer_results": peer_results,
@@ -705,12 +851,15 @@ def run_pipeline(cfg: RunConfig) -> Dict[str, Any]:
 
 def parse_arguments() -> RunConfig:
     """Parse command line arguments and return configuration."""
-    parser = argparse.ArgumentParser(description="Run IV return forecasting pipeline")
+    tickers = [
+        "QBTS", "IONQ", "RGTI", "QUBT"
+    ]
+    parser = argparse.ArgumentParser(description="Run IV forecasting pipeline (1h/1m-aware)")
     
     # Data settings
-    parser.add_argument("--tickers", nargs="+", default=["ASTS", "VZ", "T", "SATS"],
+    parser.add_argument("--tickers", nargs="+", default= tickers,
                         help="List of tickers to analyze")
-    parser.add_argument("--start", default="2025-08-02", help="Start date (YYYY-MM-DD)")
+    parser.add_argument("--start", default="2025-06-02", help="Start date (YYYY-MM-DD)")
     parser.add_argument("--end", default="2025-08-06", help="End date (YYYY-MM-DD)")
     
     # Model settings
@@ -722,14 +871,16 @@ def parse_arguments() -> RunConfig:
     parser.add_argument("--r", type=float, default=0.045, help="Risk-free rate")
     
     # Peer effects settings
-    parser.add_argument("--peer-targets", nargs="+", default=["ASTS", "VZ", "T", "SATS"],
+    parser.add_argument("--peer-targets", nargs="+", default=tickers,
                         help="Target tickers for peer effects analysis")
     parser.add_argument("--peer-target-kinds", nargs="+", default=["iv_ret", "iv"],
                         help="Types of targets for peer effects")
     
-    # Paths
-    parser.add_argument("--db-path", type=Path, default=Path("data/iv_data_1m.db"),
-                        help="Path to database file")
+    # Timeframe & paths
+    parser.add_argument("--timeframe", choices=["1h", "1m"], default="1h",
+                        help="Data timeframe (affects defaults)")
+    parser.add_argument("--db-path", type=Path, default=None,
+                        help="Path to database file (overrides timeframe default)")
     parser.add_argument("--output-dir", type=Path, default=Path("outputs"),
                         help="Output directory for results")
     
@@ -742,6 +893,10 @@ def parse_arguments() -> RunConfig:
     # Baseline correlation settings
     parser.add_argument("--no-baseline-correlations", action="store_true",
                         help="Disable baseline correlation computation")
+    parser.add_argument("--no-baseline-regression", action="store_true",
+                        help="Disable baseline regression computation")
+    parser.add_argument("--no-baseline-pca", action="store_true",
+                        help="Disable baseline PCA computation")
     
     # Peer group analysis settings
     parser.add_argument("--enable-peer-group-analysis", action="store_true",
@@ -765,25 +920,30 @@ def parse_arguments() -> RunConfig:
             else:
                 print(f"Warning: Invalid peer group format '{group_def}'. Expected 'name:ticker1,ticker2'")
     
-    return RunConfig(
-        tickers=args.tickers,
-        start=args.start,
-        end=args.end,
-        forward_steps=args.forward_steps,
-        test_frac=args.test_frac,
-        tolerance=args.tolerance,
-        r=args.r,
-        peer_targets=args.peer_targets,
-        peer_target_kinds=args.peer_target_kinds,
-        db_path=args.db_path,
-        output_dir=args.output_dir,
-        auto_fetch=not args.no_auto_fetch,
-        drop_zero_iv_ret=True,  
-        debug=args.debug,
-        compute_baseline_correlations=not args.no_baseline_correlations,
-        enable_peer_group_analysis=args.enable_peer_group_analysis,
-        peer_groups=peer_groups,
-    )
+    cfg = RunConfig(
+            tickers=args.tickers,
+            start=args.start,
+            end=args.end,
+            forward_steps=args.forward_steps,
+            test_frac=args.test_frac,
+            tolerance=args.tolerance,
+            r=args.r,
+            peer_targets=args.peer_targets,
+            peer_target_kinds=args.peer_target_kinds,
+            db_path=(args.db_path if args.db_path is not None else Path("data/iv_data_1h.db")),
+            output_dir=args.output_dir,
+            auto_fetch=not args.no_auto_fetch,
+            drop_zero_iv_ret=True,  
+            debug=args.debug,
+            compute_baseline_correlations=not args.no_baseline_correlations,
+            compute_baseline_regression=not args.no_baseline_regression,
+            compute_baseline_pca=not args.no_baseline_pca,
+            enable_peer_group_analysis=args.enable_peer_group_analysis,
+            peer_groups=peer_groups,
+            timeframe=args.timeframe,
+        )
+    apply_timeframe_defaults(cfg)
+    return cfg
 
 
 # Example usage

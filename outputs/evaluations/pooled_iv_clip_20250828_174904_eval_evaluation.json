@@ -1,0 +1,403 @@
+{
+  "metrics": {
+    "RMSE": 1.0081340482871737,
+    "R2": -0.005194777498035208,
+    "n_train": 2048,
+    "n_test": 513,
+    "n_features": 21,
+    "tickers": [
+      "FSLR",
+      "SOL",
+      "ENPH",
+      "SEDG",
+      "QBTS",
+      "IONQ",
+      "SKYT",
+      "RGTI",
+      "QUBT",
+      "ASTS",
+      "GSAT",
+      "SATS",
+      "MARA",
+      "RIOT",
+      "CIFR",
+      "IREN",
+      "WULF",
+      "AAL",
+      "CPA",
+      "DAL",
+      "JBLU",
+      "JETS"
+    ],
+    "start": "2025-08-02T00:00:00+00:00",
+    "end": "2025-08-06T00:00:00+00:00",
+    "forward_steps": 15,
+    "tolerance": "2s",
+    "test_frac": 0.2,
+    "model_path": "outputs\\models\\pooled_iv_clip_20250828_174904.json"
+  },
+  "xgb_importances": [
+    {
+      "feature": "panel_IV_SKYT",
+      "gain": 0.8104794025421143,
+      "weight": 333.0,
+      "cover": 811.1051025390625,
+      "total_gain": 269.8896484375,
+      "total_cover": 270098.0
+    },
+    {
+      "feature": "panel_IV_JBLU",
+      "gain": 0.7920424342155457,
+      "weight": 229.0,
+      "cover": 875.7860107421875,
+      "total_gain": 181.37771606445312,
+      "total_cover": 200555.0
+    },
+    {
+      "feature": "panel_IV_CIFR",
+      "gain": 0.7693825960159302,
+      "weight": 203.0,
+      "cover": 843.7930908203125,
+      "total_gain": 156.18466186523438,
+      "total_cover": 171290.0
+    },
+    {
+      "feature": "panel_IV_RIOT",
+      "gain": 0.7667721509933472,
+      "weight": 200.0,
+      "cover": 761.5999755859375,
+      "total_gain": 153.35443115234375,
+      "total_cover": 152320.0
+    },
+    {
+      "feature": "panel_IV_GSAT",
+      "gain": 0.7217729091644287,
+      "weight": 204.0,
+      "cover": 846.8235473632812,
+      "total_gain": 147.24166870117188,
+      "total_cover": 172752.0
+    },
+    {
+      "feature": "panel_IV_WULF",
+      "gain": 0.7049311995506287,
+      "weight": 200.0,
+      "cover": 954.614990234375,
+      "total_gain": 140.98623657226562,
+      "total_cover": 190923.0
+    },
+    {
+      "feature": "panel_IV_AAL",
+      "gain": 0.6994680762290955,
+      "weight": 124.0,
+      "cover": 758.1451416015625,
+      "total_gain": 86.73403930664062,
+      "total_cover": 94010.0
+    },
+    {
+      "feature": "panel_IV_DAL",
+      "gain": 0.6983791589736938,
+      "weight": 112.0,
+      "cover": 849.1785888671875,
+      "total_gain": 78.21846771240234,
+      "total_cover": 95108.0
+    },
+    {
+      "feature": "panel_IV_JETS",
+      "gain": 0.6879883408546448,
+      "weight": 212.0,
+      "cover": 915.8302001953125,
+      "total_gain": 145.85353088378906,
+      "total_cover": 194156.0
+    },
+    {
+      "feature": "panel_IV_CPA",
+      "gain": 0.6740687489509583,
+      "weight": 189.0,
+      "cover": 894.7989501953125,
+      "total_gain": 127.39899444580078,
+      "total_cover": 169117.0
+    },
+    {
+      "feature": "panel_IV_SATS",
+      "gain": 0.6586263179779053,
+      "weight": 333.0,
+      "cover": 785.2222290039062,
+      "total_gain": 219.32257080078125,
+      "total_cover": 261479.0
+    },
+    {
+      "feature": "panel_IV_IREN",
+      "gain": 0.6581657528877258,
+      "weight": 152.0,
+      "cover": 793.256591796875,
+      "total_gain": 100.04119110107422,
+      "total_cover": 120575.0
+    },
+    {
+      "feature": "panel_IV_QUBT",
+      "gain": 0.647936224937439,
+      "weight": 194.0,
+      "cover": 900.1082763671875,
+      "total_gain": 125.69962310791016,
+      "total_cover": 174621.0
+    },
+    {
+      "feature": "panel_IV_QBTS",
+      "gain": 0.6079115271568298,
+      "weight": 306.0,
+      "cover": 618.0294189453125,
+      "total_gain": 186.0209197998047,
+      "total_cover": 189117.0
+    },
+    {
+      "feature": "panel_IV_ASTS",
+      "gain": 0.6010046005249023,
+      "weight": 138.0,
+      "cover": 740.9275512695312,
+      "total_gain": 82.93863677978516,
+      "total_cover": 102248.0
+    },
+    {
+      "feature": "panel_IV_SEDG",
+      "gain": 0.5830768942832947,
+      "weight": 459.0,
+      "cover": 540.7734375,
+      "total_gain": 267.6322937011719,
+      "total_cover": 248215.0
+    },
+    {
+      "feature": "panel_IV_RGTI",
+      "gain": 0.5792818665504456,
+      "weight": 159.0,
+      "cover": 594.8050537109375,
+      "total_gain": 92.10581970214844,
+      "total_cover": 94574.0
+    },
+    {
+      "feature": "panel_IV_MARA",
+      "gain": 0.558994472026825,
+      "weight": 285.0,
+      "cover": 683.1683959960938,
+      "total_gain": 159.3134307861328,
+      "total_cover": 194703.0
+    },
+    {
+      "feature": "panel_IV_IONQ",
+      "gain": 0.5209958553314209,
+      "weight": 286.0,
+      "cover": 524.7097778320312,
+      "total_gain": 149.00482177734375,
+      "total_cover": 150067.0
+    },
+    {
+      "feature": "panel_IV_ENPH",
+      "gain": 0.4008594751358032,
+      "weight": 719.0,
+      "cover": 308.4019470214844,
+      "total_gain": 288.21795654296875,
+      "total_cover": 221741.0
+    },
+    {
+      "feature": "panel_IV_FSLR",
+      "gain": 0.29263970255851746,
+      "weight": 1761.0,
+      "cover": 182.3458251953125,
+      "total_gain": 515.3385009765625,
+      "total_cover": 321111.0
+    }
+  ],
+  "permutation_importances": [
+    {
+      "feature": "panel_IV_SEDG",
+      "perm_importance_mean": 0.007017803319675231,
+      "perm_importance_std": 0.004060631600178583
+    },
+    {
+      "feature": "panel_IV_WULF",
+      "perm_importance_mean": 0.005326172237361515,
+      "perm_importance_std": 0.0009350712379768256
+    },
+    {
+      "feature": "panel_IV_ENPH",
+      "perm_importance_mean": 0.002599615560102153,
+      "perm_importance_std": 0.0013722795110554446
+    },
+    {
+      "feature": "panel_IV_IONQ",
+      "perm_importance_mean": 0.0025470693459805015,
+      "perm_importance_std": 0.0014320006340346268
+    },
+    {
+      "feature": "panel_IV_IREN",
+      "perm_importance_mean": 0.0024538927347387495,
+      "perm_importance_std": 0.0006430668169081626
+    },
+    {
+      "feature": "panel_IV_ASTS",
+      "perm_importance_mean": 0.0023800539498396666,
+      "perm_importance_std": 0.002079883043187815
+    },
+    {
+      "feature": "panel_IV_MARA",
+      "perm_importance_mean": 0.0019460265368159923,
+      "perm_importance_std": 0.0017262134944209392
+    },
+    {
+      "feature": "panel_IV_CPA",
+      "perm_importance_mean": 0.0013192884250306403,
+      "perm_importance_std": 0.002480620777782289
+    },
+    {
+      "feature": "panel_IV_JETS",
+      "perm_importance_mean": 0.0010943864563501382,
+      "perm_importance_std": 0.0008573150000115845
+    },
+    {
+      "feature": "panel_IV_QBTS",
+      "perm_importance_mean": 0.0009517886727280267,
+      "perm_importance_std": 0.002236784491855177
+    },
+    {
+      "feature": "panel_IV_JBLU",
+      "perm_importance_mean": 0.0009500059572469244,
+      "perm_importance_std": 0.0007491974234491841
+    },
+    {
+      "feature": "panel_IV_SKYT",
+      "perm_importance_mean": 0.0009204655357538894,
+      "perm_importance_std": 0.0011454205382784592
+    },
+    {
+      "feature": "panel_IV_RGTI",
+      "perm_importance_mean": 0.0007789036054064002,
+      "perm_importance_std": 0.0009601285937574143
+    },
+    {
+      "feature": "panel_IV_AAL",
+      "perm_importance_mean": 0.0005940822359058017,
+      "perm_importance_std": 0.0009749430365365054
+    },
+    {
+      "feature": "panel_IV_DAL",
+      "perm_importance_mean": -2.593605745193628e-05,
+      "perm_importance_std": 0.001361825144636938
+    },
+    {
+      "feature": "panel_IV_CIFR",
+      "perm_importance_mean": -0.00015170707852720788,
+      "perm_importance_std": 0.0006462566522072603
+    },
+    {
+      "feature": "panel_IV_GSAT",
+      "perm_importance_mean": -0.00040024521098729337,
+      "perm_importance_std": 0.0016826178301065132
+    },
+    {
+      "feature": "panel_IV_FSLR",
+      "perm_importance_mean": -0.0007068888197423906,
+      "perm_importance_std": 0.0036216876158627256
+    },
+    {
+      "feature": "panel_IV_RIOT",
+      "perm_importance_mean": -0.0009039088286468377,
+      "perm_importance_std": 0.001451509327785156
+    },
+    {
+      "feature": "panel_IV_QUBT",
+      "perm_importance_mean": -0.0013897336684546957,
+      "perm_importance_std": 0.0018370160760082582
+    },
+    {
+      "feature": "panel_IV_SATS",
+      "perm_importance_mean": -0.0016059125757617032,
+      "perm_importance_std": 0.0008527865082130649
+    }
+  ],
+  "feature_shap_avg": [
+    {
+      "feature": "panel_IV_MARA",
+      "avg_contrib": 0.009023544378578663
+    },
+    {
+      "feature": "panel_IV_JBLU",
+      "avg_contrib": 0.007866280153393745
+    },
+    {
+      "feature": "panel_IV_QUBT",
+      "avg_contrib": 0.007745733018964529
+    },
+    {
+      "feature": "panel_IV_GSAT",
+      "avg_contrib": 0.004645697772502899
+    },
+    {
+      "feature": "panel_IV_SATS",
+      "avg_contrib": 0.003866298357024789
+    },
+    {
+      "feature": "panel_IV_JETS",
+      "avg_contrib": 0.0034362273290753365
+    },
+    {
+      "feature": "panel_IV_ASTS",
+      "avg_contrib": 0.00231761671602726
+    },
+    {
+      "feature": "panel_IV_IREN",
+      "avg_contrib": 0.0016771953087300062
+    },
+    {
+      "feature": "panel_IV_DAL",
+      "avg_contrib": 0.0016379354055970907
+    },
+    {
+      "feature": "panel_IV_SKYT",
+      "avg_contrib": 0.00018631882267072797
+    },
+    {
+      "feature": "panel_IV_RGTI",
+      "avg_contrib": -0.0006670477450825274
+    },
+    {
+      "feature": "panel_IV_WULF",
+      "avg_contrib": -0.0007657351088710129
+    },
+    {
+      "feature": "panel_IV_CIFR",
+      "avg_contrib": -0.002280303742736578
+    },
+    {
+      "feature": "panel_IV_CPA",
+      "avg_contrib": -0.002336750505492091
+    },
+    {
+      "feature": "panel_IV_AAL",
+      "avg_contrib": -0.0026013485621660948
+    },
+    {
+      "feature": "panel_IV_ENPH",
+      "avg_contrib": -0.003331163665279746
+    },
+    {
+      "feature": "panel_IV_RIOT",
+      "avg_contrib": -0.0036320846993476152
+    },
+    {
+      "feature": "panel_IV_QBTS",
+      "avg_contrib": -0.0074752261862158775
+    },
+    {
+      "feature": "panel_IV_SEDG",
+      "avg_contrib": -0.010721900500357151
+    },
+    {
+      "feature": "panel_IV_IONQ",
+      "avg_contrib": -0.013749060221016407
+    },
+    {
+      "feature": "panel_IV_FSLR",
+      "avg_contrib": -0.015806132927536964
+    }
+  ],
+  "sym_shap_avg": []
+}

@@ -27,7 +27,7 @@ def test_basic_auto_fetch():
     tickers = ["ASTS", "SATS", "VZ", "T"]
     start = pd.Timestamp("2025-08-02", tz="UTC")
     end = pd.Timestamp("2025-08-06", tz="UTC")
-    db_path = Path("data/iv_data_1m.db")
+    db_path = Path("data/iv_data_1h.db")
     
     try:
         # Test the auto_fetch_missing_data function
@@ -62,7 +62,7 @@ def test_ensure_data_availability():
     tickers = ["ASTS", "SATS", "VZ", "T"]
     start = pd.Timestamp("2025-08-02", tz="UTC")
     end = pd.Timestamp("2025-08-06", tz="UTC")
-    db_path = Path("data/iv_data_1m.db")
+    db_path = Path("data/iv_data_1h.db")
     
     try:
         print(f"🔍 Ensuring data availability for {len(tickers)} tickers...")

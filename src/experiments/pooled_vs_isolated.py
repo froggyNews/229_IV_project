@@ -42,7 +42,7 @@ class ExperimentConfig:
     r: float = 0.045
 
     # Data location
-    db_path: Path = Path("data/iv_data_1m.db")
+    db_path: Path = Path("data/iv_data_1h.db")
     
     # Saving settings
     save_models: bool = True

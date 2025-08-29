@@ -1,0 +1,173 @@
+{
+  "metrics": {
+    "RMSE": 0.23730857034069736,
+    "R2": -0.023053378157560145,
+    "n_train": 201,
+    "n_test": 51,
+    "n_features": 8,
+    "tickers": [
+      "ASTS",
+      "VZ",
+      "T",
+      "SATS"
+    ],
+    "start": "2025-08-02T00:00:00+00:00",
+    "end": "2025-08-06T00:00:00+00:00",
+    "forward_steps": 15,
+    "tolerance": "2s",
+    "test_frac": 0.2,
+    "model_path": "outputs\\models\\pooled_iv_ret_fwd_20250826_130742.json"
+  },
+  "xgb_importances": [
+    {
+      "feature": "sym_SATS",
+      "gain": 0.0035241986624896526,
+      "weight": 14.0,
+      "cover": 83.5,
+      "total_gain": 0.04933878034353256,
+      "total_cover": 1169.0
+    },
+    {
+      "feature": "panel_IVRET_SATS",
+      "gain": 0.0030170257668942213,
+      "weight": 330.0,
+      "cover": 109.31515502929688,
+      "total_gain": 0.9956185221672058,
+      "total_cover": 36074.0
+    },
+    {
+      "feature": "sym_ASTS",
+      "gain": 0.0023780185729265213,
+      "weight": 162.0,
+      "cover": 92.56790161132812,
+      "total_gain": 0.38523900508880615,
+      "total_cover": 14996.0
+    },
+    {
+      "feature": "panel_IVRET_ASTS",
+      "gain": 0.0021672381553798914,
+      "weight": 509.0,
+      "cover": 104.18663787841797,
+      "total_gain": 1.1031242609024048,
+      "total_cover": 53031.0
+    },
+    {
+      "feature": "panel_IV_SATS",
+      "gain": 0.001971376361325383,
+      "weight": 882.0,
+      "cover": 83.12358093261719,
+      "total_gain": 1.7387539148330688,
+      "total_cover": 73315.0
+    },
+    {
+      "feature": "panel_IV_ASTS",
+      "gain": 0.0013098351191729307,
+      "weight": 1593.0,
+      "cover": 58.49591827392578,
+      "total_gain": 2.0865674018859863,
+      "total_cover": 93184.0
+    }
+  ],
+  "permutation_importances": [
+    {
+      "feature": "panel_IVRET_ASTS",
+      "perm_importance_mean": 0.0017624495757202375,
+      "perm_importance_std": 0.0011871288672024494
+    },
+    {
+      "feature": "panel_IV_SATS",
+      "perm_importance_mean": 0.000312363569039481,
+      "perm_importance_std": 0.0005985483734253771
+    },
+    {
+      "feature": "panel_IVRET_SATS",
+      "perm_importance_mean": 9.67128181987742e-05,
+      "perm_importance_std": 0.0009571861902036214
+    },
+    {
+      "feature": "sym_ASTS",
+      "perm_importance_mean": 0.0,
+      "perm_importance_std": 0.0
+    },
+    {
+      "feature": "sym_T",
+      "perm_importance_mean": 0.0,
+      "perm_importance_std": 0.0
+    },
+    {
+      "feature": "sym_VZ",
+      "perm_importance_mean": 0.0,
+      "perm_importance_std": 0.0
+    },
+    {
+      "feature": "sym_SATS",
+      "perm_importance_mean": 0.0,
+      "perm_importance_std": 0.0
+    },
+    {
+      "feature": "panel_IV_ASTS",
+      "perm_importance_mean": -0.0022767142399682137,
+      "perm_importance_std": 0.0014522712330531707
+    }
+  ],
+  "feature_shap_avg": [
+    {
+      "feature": "panel_IV_SATS",
+      "avg_contrib": 0.0021788831800222397
+    },
+    {
+      "feature": "panel_IVRET_ASTS",
+      "avg_contrib": 0.00200614333152771
+    },
+    {
+      "feature": "sym_T",
+      "avg_contrib": 0.0
+    },
+    {
+      "feature": "sym_VZ",
+      "avg_contrib": 0.0
+    },
+    {
+      "feature": "sym_SATS",
+      "avg_contrib": -0.000507331220433116
+    },
+    {
+      "feature": "panel_IVRET_SATS",
+      "avg_contrib": -0.0010646991431713104
+    },
+    {
+      "feature": "panel_IV_ASTS",
+      "avg_contrib": -0.005848016124218702
+    },
+    {
+      "feature": "sym_ASTS",
+      "avg_contrib": -0.011256199330091476
+    }
+  ],
+  "sym_shap_avg": [
+    {
+      "feature": "sym_VZ",
+      "avg_shap": 0.0,
+      "ticker": "VZ",
+      "direction": "\u2191"
+    },
+    {
+      "feature": "sym_T",
+      "avg_shap": 0.0,
+      "ticker": "T",
+      "direction": "\u2191"
+    },
+    {
+      "feature": "sym_SATS",
+      "avg_shap": -0.000507331220433116,
+      "ticker": "SATS",
+      "direction": "\u2193"
+    },
+    {
+      "feature": "sym_ASTS",
+      "avg_shap": -0.011256199330091476,
+      "ticker": "ASTS",
+      "direction": "\u2193"
+    }
+  ]
+}

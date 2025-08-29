@@ -1,0 +1,1116 @@
+{
+  "config": {
+    "tickers": [
+      "QUBT",
+      "RGTI",
+      "MARA",
+      "QBTS",
+      "IONQ"
+    ],
+    "start": "2025-08-02",
+    "end": "2025-08-06",
+    "forward_steps": 15,
+    "test_frac": 0.2,
+    "timestamp": "20250826_133125",
+    "db_path": "data\\iv_data_1h.db",
+    "output_dir": "outputs",
+    "xgb_params": {
+      "objective": "reg:squarederror",
+      "n_estimators": 350,
+      "learning_rate": 0.05,
+      "max_depth": 6,
+      "subsample": 0.9,
+      "colsample_bytree": 0.9,
+      "random_state": 42,
+      "n_jobs": -1,
+      "tree_method": "hist"
+    },
+    "peer_targets": [
+      "FSLR",
+      "SOL",
+      "ENPH",
+      "SEDG",
+      "QBTS",
+      "IONQ",
+      "SKYT",
+      "RGTI",
+      "QUBT",
+      "ASTS",
+      "GSAT",
+      "SATS",
+      "MARA",
+      "RIOT",
+      "CIFR",
+      "IREN",
+      "WULF",
+      "AAL",
+      "CPA",
+      "DAL",
+      "JBLU",
+      "JETS"
+    ],
+    "peer_target_kinds": [
+      "iv_ret",
+      "iv"
+    ],
+    "tolerance": "2s",
+    "drop_zero_iv_ret": true,
+    "save_per_row": false
+  },
+  "pooled_models": {
+    "iv_ret_fwd": {
+      "rmse": 0.2874642237328123,
+      "r2": 0.0037928701811260623,
+      "n_train": 523,
+      "n_test": 131,
+      "features": [
+        "panel_IV_QUBT",
+        "panel_IV_RGTI",
+        "panel_IV_MARA",
+        "panel_IV_QBTS",
+        "panel_IV_IONQ",
+        "panel_IVRET_QUBT",
+        "panel_IVRET_RGTI",
+        "panel_IVRET_MARA",
+        "panel_IVRET_QBTS",
+        "panel_IVRET_IONQ",
+        "sym_QUBT",
+        "sym_RGTI",
+        "sym_MARA",
+        "sym_QBTS",
+        "sym_IONQ"
+      ]
+    },
+    "iv_clip": {
+      "rmse": 0.9923082414562728,
+      "r2": -0.004509767989135716,
+      "n_train": 523,
+      "n_test": 131,
+      "features": [
+        "panel_IV_QUBT",
+        "panel_IV_RGTI",
+        "panel_IV_MARA",
+        "panel_IV_QBTS",
+        "panel_IV_IONQ"
+      ]
+    }
+  },
+  "peer_effects": {
+    "FSLR_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "SOL_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "ENPH_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "SEDG_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "QBTS_iv_ret": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.305829657954532,
+        "r2": 0.2723858457318259,
+        "n_train": 84,
+        "n_test": 21,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv_ret",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 105,
+        "n_features": 18
+      }
+    },
+    "IONQ_iv_ret": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.26308123088448193,
+        "r2": 0.275554291769587,
+        "n_train": 103,
+        "n_test": 26,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv_ret",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 129,
+        "n_features": 18
+      }
+    },
+    "SKYT_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "RGTI_iv_ret": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.13829026274160294,
+        "r2": 0.4897931652669544,
+        "n_train": 112,
+        "n_test": 29,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv_ret",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 141,
+        "n_features": 18
+      }
+    },
+    "QUBT_iv_ret": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.1463196039393276,
+        "r2": 0.5119205473654541,
+        "n_train": 84,
+        "n_test": 21,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv_ret",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 105,
+        "n_features": 18
+      }
+    },
+    "ASTS_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "GSAT_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "SATS_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "MARA_iv_ret": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.08080792669046617,
+        "r2": -0.07533965222509398,
+        "n_train": 139,
+        "n_test": 35,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv_ret",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 174,
+        "n_features": 18
+      }
+    },
+    "RIOT_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "CIFR_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "IREN_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "WULF_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "AAL_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "CPA_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "DAL_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "JBLU_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "JETS_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "FSLR_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "SOL_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "ENPH_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "SEDG_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "QBTS_iv": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.05669884069432763,
+        "r2": 0.9787812526614534,
+        "n_train": 96,
+        "n_test": 24,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 120,
+        "n_features": 18
+      }
+    },
+    "IONQ_iv": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.023661437226401256,
+        "r2": 0.9921676654406912,
+        "n_train": 115,
+        "n_test": 29,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 144,
+        "n_features": 18
+      }
+    },
+    "SKYT_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "RGTI_iv": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.019718119871585248,
+        "r2": 0.9795386101245948,
+        "n_train": 124,
+        "n_test": 32,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 156,
+        "n_features": 18
+      }
+    },
+    "QUBT_iv": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.04971058595776136,
+        "r2": 0.8857982599326032,
+        "n_train": 96,
+        "n_test": 24,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 120,
+        "n_features": 18
+      }
+    },
+    "ASTS_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "GSAT_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "SATS_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "MARA_iv": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.010283644100493693,
+        "r2": 0.9490267964068291,
+        "n_train": 151,
+        "n_test": 38,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 189,
+        "n_features": 18
+      }
+    },
+    "RIOT_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "CIFR_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "IREN_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "WULF_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "AAL_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "CPA_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "DAL_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "JBLU_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "JETS_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    }
+  },
+  "baseline_correlations": {
+    "iv_levels": {
+      "correlation_matrix": {
+        "QUBT": {
+          "QUBT": 1.0,
+          "RGTI": -0.057723510034571476,
+          "MARA": 0.09429836491884487,
+          "QBTS": 0.007161735511153354,
+          "IONQ": -0.11879532858070437
+        },
+        "RGTI": {
+          "QUBT": -0.057723510034571476,
+          "RGTI": 1.0,
+          "MARA": -0.19981873455554613,
+          "QBTS": 0.6868227287289171,
+          "IONQ": 0.4682115874363931
+        },
+        "MARA": {
+          "QUBT": 0.09429836491884487,
+          "RGTI": -0.19981873455554613,
+          "MARA": 1.0,
+          "QBTS": 0.12614980613525348,
+          "IONQ": -0.07258482138223696
+        },
+        "QBTS": {
+          "QUBT": 0.007161735511153354,
+          "RGTI": 0.6868227287289171,
+          "MARA": 0.12614980613525348,
+          "QBTS": 1.0,
+          "IONQ": 0.311798317089816
+        },
+        "IONQ": {
+          "QUBT": -0.11879532858070437,
+          "RGTI": 0.4682115874363931,
+          "MARA": -0.07258482138223696,
+          "QBTS": 0.311798317089816,
+          "IONQ": 1.0
+        }
+      },
+      "description": "Historical correlation matrix of IV levels",
+      "n_tickers": 5
+    },
+    "iv_returns": {
+      "correlation_matrix": {
+        "QUBT": {
+          "QUBT": 1.0,
+          "RGTI": 0.03138708453792862,
+          "MARA": 0.06958062558160483,
+          "QBTS": 0.09873835317509962,
+          "IONQ": 0.040303432036564474
+        },
+        "RGTI": {
+          "QUBT": 0.03138708453792862,
+          "RGTI": 1.0,
+          "MARA": -0.18945231336148186,
+          "QBTS": 0.744107498400063,
+          "IONQ": 0.23580394705289398
+        },
+        "MARA": {
+          "QUBT": 0.06958062558160483,
+          "RGTI": -0.18945231336148186,
+          "MARA": 1.0,
+          "QBTS": 0.2230428627333177,
+          "IONQ": 0.11092156177563321
+        },
+        "QBTS": {
+          "QUBT": 0.09873835317509962,
+          "RGTI": 0.744107498400063,
+          "MARA": 0.2230428627333177,
+          "QBTS": 1.0,
+          "IONQ": 0.37089443440826386
+        },
+        "IONQ": {
+          "QUBT": 0.040303432036564474,
+          "RGTI": 0.23580394705289398,
+          "MARA": 0.11092156177563321,
+          "QBTS": 0.37089443440826386,
+          "IONQ": 1.0
+        }
+      },
+      "description": "Historical correlation matrix of IV returns",
+      "n_tickers": 5
+    }
+  },
+  "peer_group_analysis": {},
+  "evaluation": {
+    "pooled_iv_ret_fwd": {
+      "metrics": {
+        "RMSE": 0.2874642237328123,
+        "R2": 0.0037928701811260623,
+        "n_train": 523,
+        "n_test": 131,
+        "n_features": 15,
+        "tickers": [
+          "QUBT",
+          "RGTI",
+          "MARA",
+          "QBTS",
+          "IONQ"
+        ],
+        "start": "2025-08-02T00:00:00+00:00",
+        "end": "2025-08-06T00:00:00+00:00",
+        "forward_steps": 15,
+        "tolerance": "2s",
+        "test_frac": 0.2,
+        "model_path": "outputs\\models\\pooled_iv_ret_fwd_20250826_133125.json"
+      },
+      "xgb_importances": [
+        {
+          "feature": "sym_QBTS",
+          "gain": 0.019265370443463326,
+          "weight": 617.0,
+          "cover": 124.72447204589844,
+          "total_gain": 11.886734008789062,
+          "total_cover": 76955.0
+        },
+        {
+          "feature": "panel_IVRET_QBTS",
+          "gain": 0.016897691413760185,
+          "weight": 137.0,
+          "cover": 235.2627716064453,
+          "total_gain": 2.314983606338501,
+          "total_cover": 32231.0
+        },
+        {
+          "feature": "panel_IV_QBTS",
+          "gain": 0.015209655277431011,
+          "weight": 367.0,
+          "cover": 222.6103515625,
+          "total_gain": 5.581943511962891,
+          "total_cover": 81698.0
+        },
+        {
+          "feature": "panel_IVRET_MARA",
+          "gain": 0.014025614596903324,
+          "weight": 276.0,
+          "cover": 187.31521606445312,
+          "total_gain": 3.8710696697235107,
+          "total_cover": 51699.0
+        },
+        {
+          "feature": "panel_IVRET_RGTI",
+          "gain": 0.01346413791179657,
+          "weight": 444.0,
+          "cover": 231.03152465820312,
+          "total_gain": 5.978077411651611,
+          "total_cover": 102578.0
+        },
+        {
+          "feature": "panel_IVRET_IONQ",
+          "gain": 0.012796543538570404,
+          "weight": 320.0,
+          "cover": 229.9406280517578,
+          "total_gain": 4.094893932342529,
+          "total_cover": 73581.0
+        },
+        {
+          "feature": "panel_IVRET_QUBT",
+          "gain": 0.011694188229739666,
+          "weight": 270.0,
+          "cover": 213.22222900390625,
+          "total_gain": 3.15743088722229,
+          "total_cover": 57570.0
+        },
+        {
+          "feature": "panel_IV_IONQ",
+          "gain": 0.010505549609661102,
+          "weight": 379.0,
+          "cover": 177.21371459960938,
+          "total_gain": 3.9816033840179443,
+          "total_cover": 67164.0
+        },
+        {
+          "feature": "sym_QUBT",
+          "gain": 0.009492725133895874,
+          "weight": 642.0,
+          "cover": 77.32086944580078,
+          "total_gain": 6.094329357147217,
+          "total_cover": 49640.0
+        },
+        {
+          "feature": "sym_MARA",
+          "gain": 0.009335583075881004,
+          "weight": 84.0,
+          "cover": 147.54762268066406,
+          "total_gain": 0.784188985824585,
+          "total_cover": 12394.0
+        },
+        {
+          "feature": "panel_IV_MARA",
+          "gain": 0.008542180992662907,
+          "weight": 522.0,
+          "cover": 141.4521026611328,
+          "total_gain": 4.459018707275391,
+          "total_cover": 73838.0
+        },
+        {
+          "feature": "panel_IV_RGTI",
+          "gain": 0.007260797545313835,
+          "weight": 822.0,
+          "cover": 112.75182342529297,
+          "total_gain": 5.9683756828308105,
+          "total_cover": 92682.0
+        },
+        {
+          "feature": "sym_RGTI",
+          "gain": 0.006021651439368725,
+          "weight": 108.0,
+          "cover": 147.27777099609375,
+          "total_gain": 0.650338351726532,
+          "total_cover": 15906.0
+        },
+        {
+          "feature": "panel_IV_QUBT",
+          "gain": 0.00512787327170372,
+          "weight": 1870.0,
+          "cover": 60.117645263671875,
+          "total_gain": 9.589122772216797,
+          "total_cover": 112420.0
+        }
+      ],
+      "permutation_importances": [
+        {
+          "feature": "panel_IV_RGTI",
+          "perm_importance_mean": 0.0011318320492949673,
+          "perm_importance_std": 0.0005323711609811085
+        },
+        {
+          "feature": "panel_IVRET_IONQ",
+          "perm_importance_mean": 0.0008737674773878102,
+          "perm_importance_std": 0.0015193284463750018
+        },
+        {
+          "feature": "panel_IV_IONQ",
+          "perm_importance_mean": 0.00041478347912281554,
+          "perm_importance_std": 0.00034791053458072755
+        },
+        {
+          "feature": "panel_IVRET_MARA",
+          "perm_importance_mean": 0.00011314958404874398,
+          "perm_importance_std": 0.00029452052746054046
+        },
+        {
+          "feature": "sym_QBTS",
+          "perm_importance_mean": 7.439848767027968e-05,
+          "perm_importance_std": 4.1564517146170346e-05
+        },
+        {
+          "feature": "sym_QUBT",
+          "perm_importance_mean": 0.0,
+          "perm_importance_std": 0.0
+        },
+        {
+          "feature": "sym_MARA",
+          "perm_importance_mean": 0.0,
+          "perm_importance_std": 0.0
+        },
+        {
+          "feature": "sym_IONQ",
+          "perm_importance_mean": 0.0,
+          "perm_importance_std": 0.0
+        },
+        {
+          "feature": "sym_RGTI",
+          "perm_importance_mean": 0.0,
+          "perm_importance_std": 0.0
+        },
+        {
+          "feature": "panel_IVRET_RGTI",
+          "perm_importance_mean": -0.00012404881173092575,
+          "perm_importance_std": 0.0008547431128584297
+        },
+        {
+          "feature": "panel_IVRET_QUBT",
+          "perm_importance_mean": -0.00018254760875314747,
+          "perm_importance_std": 0.0010829231962077761
+        },
+        {
+          "feature": "panel_IVRET_QBTS",
+          "perm_importance_mean": -0.0002478991472736225,
+          "perm_importance_std": 0.0004680374120493938
+        },
+        {
+          "feature": "panel_IV_QBTS",
+          "perm_importance_mean": -0.00032732643401703896,
+          "perm_importance_std": 0.000953888342885414
+        },
+        {
+          "feature": "panel_IV_MARA",
+          "perm_importance_mean": -0.000574103022727468,
+          "perm_importance_std": 0.000398454916431912
+        },
+        {
+          "feature": "panel_IV_QUBT",
+          "perm_importance_mean": -0.0006291324994064151,
+          "perm_importance_std": 0.0003898715451819376
+        }
+      ],
+      "feature_shap_avg": [
+        {
+          "feature": "panel_IVRET_RGTI",
+          "avg_contrib": 0.0024417012464255095
+        },
+        {
+          "feature": "sym_RGTI",
+          "avg_contrib": 0.0011649325024336576
+        },
+        {
+          "feature": "panel_IV_RGTI",
+          "avg_contrib": 0.0011084417346864939
+        },
+        {
+          "feature": "panel_IVRET_QUBT",
+          "avg_contrib": 0.000874750898219645
+        },
+        {
+          "feature": "panel_IV_IONQ",
+          "avg_contrib": 0.000776594621129334
+        },
+        {
+          "feature": "panel_IV_QBTS",
+          "avg_contrib": 0.0007438993779942393
+        },
+        {
+          "feature": "sym_IONQ",
+          "avg_contrib": 0.0
+        },
+        {
+          "feature": "sym_MARA",
+          "avg_contrib": -3.5540990211302415e-05
+        },
+        {
+          "feature": "panel_IVRET_MARA",
+          "avg_contrib": -6.95784401614219e-05
+        },
+        {
+          "feature": "sym_QBTS",
+          "avg_contrib": -0.0007570726447738707
+        },
+        {
+          "feature": "panel_IVRET_QBTS",
+          "avg_contrib": -0.000827909738291055
+        },
+        {
+          "feature": "sym_QUBT",
+          "avg_contrib": -0.0011971128406003118
+        },
+        {
+          "feature": "panel_IVRET_IONQ",
+          "avg_contrib": -0.0015066878404468298
+        },
+        {
+          "feature": "panel_IV_MARA",
+          "avg_contrib": -0.0015471597434952855
+        },
+        {
+          "feature": "panel_IV_QUBT",
+          "avg_contrib": -0.0025918004103004932
+        }
+      ],
+      "sym_shap_avg": [
+        {
+          "feature": "sym_RGTI",
+          "avg_shap": 0.0011649325024336576,
+          "ticker": "RGTI",
+          "direction": "\u2191"
+        },
+        {
+          "feature": "sym_IONQ",
+          "avg_shap": 0.0,
+          "ticker": "IONQ",
+          "direction": "\u2191"
+        },
+        {
+          "feature": "sym_MARA",
+          "avg_shap": -3.5540990211302415e-05,
+          "ticker": "MARA",
+          "direction": "\u2193"
+        },
+        {
+          "feature": "sym_QBTS",
+          "avg_shap": -0.0007570726447738707,
+          "ticker": "QBTS",
+          "direction": "\u2193"
+        },
+        {
+          "feature": "sym_QUBT",
+          "avg_shap": -0.0011971128406003118,
+          "ticker": "QUBT",
+          "direction": "\u2193"
+        }
+      ],
+      "eval_path": "outputs\\evaluations\\pooled_iv_ret_fwd_20250826_133125_eval_evaluation.json"
+    },
+    "pooled_iv_clip": {
+      "metrics": {
+        "RMSE": 0.9923082414562728,
+        "R2": -0.004509767989135716,
+        "n_train": 523,
+        "n_test": 131,
+        "n_features": 5,
+        "tickers": [
+          "QUBT",
+          "RGTI",
+          "MARA",
+          "QBTS",
+          "IONQ"
+        ],
+        "start": "2025-08-02T00:00:00+00:00",
+        "end": "2025-08-06T00:00:00+00:00",
+        "forward_steps": 15,
+        "tolerance": "2s",
+        "test_frac": 0.2,
+        "model_path": "outputs\\models\\pooled_iv_clip_20250826_133125.json"
+      },
+      "xgb_importances": [
+        {
+          "feature": "panel_IV_QBTS",
+          "gain": 0.2791968882083893,
+          "weight": 476.0,
+          "cover": 225.66175842285156,
+          "total_gain": 132.89772033691406,
+          "total_cover": 107415.0
+        },
+        {
+          "feature": "panel_IV_IONQ",
+          "gain": 0.2663140296936035,
+          "weight": 688.0,
+          "cover": 230.58285522460938,
+          "total_gain": 183.22406005859375,
+          "total_cover": 158641.0
+        },
+        {
+          "feature": "panel_IV_MARA",
+          "gain": 0.23059210181236267,
+          "weight": 882.0,
+          "cover": 169.12017822265625,
+          "total_gain": 203.38223266601562,
+          "total_cover": 149164.0
+        },
+        {
+          "feature": "panel_IV_RGTI",
+          "gain": 0.2234364151954651,
+          "weight": 1386.0,
+          "cover": 143.57504272460938,
+          "total_gain": 309.682861328125,
+          "total_cover": 198995.0
+        },
+        {
+          "feature": "panel_IV_QUBT",
+          "gain": 0.20541901886463165,
+          "weight": 2448.0,
+          "cover": 104.67892456054688,
+          "total_gain": 502.8657531738281,
+          "total_cover": 256254.0
+        }
+      ],
+      "permutation_importances": [
+        {
+          "feature": "panel_IV_RGTI",
+          "perm_importance_mean": 0.0042179771468724425,
+          "perm_importance_std": 0.003929198070090434
+        },
+        {
+          "feature": "panel_IV_IONQ",
+          "perm_importance_mean": -0.0005489410403882955,
+          "perm_importance_std": 0.0056626376639550445
+        },
+        {
+          "feature": "panel_IV_QUBT",
+          "perm_importance_mean": -0.0033130802659872894,
+          "perm_importance_std": 0.0109404780458629
+        },
+        {
+          "feature": "panel_IV_MARA",
+          "perm_importance_mean": -0.0036865020724504926,
+          "perm_importance_std": 0.008497707793770919
+        },
+        {
+          "feature": "panel_IV_QBTS",
+          "perm_importance_mean": -0.003973087755268656,
+          "perm_importance_std": 0.0066676746575254605
+        }
+      ],
+      "feature_shap_avg": [
+        {
+          "feature": "panel_IV_IONQ",
+          "avg_contrib": 0.009933257475495338
+        },
+        {
+          "feature": "panel_IV_RGTI",
+          "avg_contrib": 0.0009068307699635625
+        },
+        {
+          "feature": "panel_IV_QBTS",
+          "avg_contrib": -0.0033231195993721485
+        },
+        {
+          "feature": "panel_IV_MARA",
+          "avg_contrib": -0.011447715573012829
+        },
+        {
+          "feature": "panel_IV_QUBT",
+          "avg_contrib": -0.01343133021146059
+        }
+      ],
+      "sym_shap_avg": [],
+      "eval_path": "outputs\\evaluations\\pooled_iv_clip_20250826_133125_eval_evaluation.json"
+    }
+  }
+}

@@ -1,0 +1,947 @@
+{
+  "config": {
+    "tickers": [
+      "QUBT",
+      "RGTI",
+      "MARA",
+      "QBTS"
+    ],
+    "start": "2025-08-02",
+    "end": "2025-08-06",
+    "forward_steps": 15,
+    "test_frac": 0.2,
+    "timestamp": "20250826_132911",
+    "db_path": "data\\iv_data_1h.db",
+    "output_dir": "outputs",
+    "xgb_params": {
+      "objective": "reg:squarederror",
+      "n_estimators": 350,
+      "learning_rate": 0.05,
+      "max_depth": 6,
+      "subsample": 0.9,
+      "colsample_bytree": 0.9,
+      "random_state": 42,
+      "n_jobs": -1,
+      "tree_method": "hist"
+    },
+    "peer_targets": [
+      "FSLR",
+      "SOL",
+      "ENPH",
+      "SEDG",
+      "QBTS",
+      "IONQ",
+      "SKYT",
+      "RGTI",
+      "QUBT",
+      "ASTS",
+      "GSAT",
+      "SATS",
+      "MARA",
+      "RIOT",
+      "CIFR",
+      "IREN",
+      "WULF",
+      "AAL",
+      "CPA",
+      "DAL",
+      "JBLU",
+      "JETS"
+    ],
+    "peer_target_kinds": [
+      "iv_ret",
+      "iv"
+    ],
+    "tolerance": "2s",
+    "drop_zero_iv_ret": true,
+    "save_per_row": false
+  },
+  "pooled_models": {
+    "iv_ret_fwd": {
+      "rmse": 0.32875068882207514,
+      "r2": 0.01757720669117724,
+      "n_train": 420,
+      "n_test": 105,
+      "features": [
+        "panel_IV_QUBT",
+        "panel_IV_RGTI",
+        "panel_IV_MARA",
+        "panel_IV_QBTS",
+        "panel_IVRET_QUBT",
+        "panel_IVRET_RGTI",
+        "panel_IVRET_MARA",
+        "panel_IVRET_QBTS",
+        "sym_QUBT",
+        "sym_RGTI",
+        "sym_MARA",
+        "sym_QBTS"
+      ]
+    },
+    "iv_clip": {
+      "rmse": 0.991752944743482,
+      "r2": 0.006968655213714925,
+      "n_train": 420,
+      "n_test": 105,
+      "features": [
+        "panel_IV_QUBT",
+        "panel_IV_RGTI",
+        "panel_IV_MARA",
+        "panel_IV_QBTS"
+      ]
+    }
+  },
+  "peer_effects": {
+    "FSLR_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "SOL_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "ENPH_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "SEDG_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "QBTS_iv_ret": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.305829657954532,
+        "r2": 0.2723858457318259,
+        "n_train": 84,
+        "n_test": 21,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv_ret",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 105,
+        "n_features": 18
+      }
+    },
+    "IONQ_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "SKYT_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "RGTI_iv_ret": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.13829026274160294,
+        "r2": 0.4897931652669544,
+        "n_train": 112,
+        "n_test": 29,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv_ret",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 141,
+        "n_features": 18
+      }
+    },
+    "QUBT_iv_ret": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.1463196039393276,
+        "r2": 0.5119205473654541,
+        "n_train": 84,
+        "n_test": 21,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv_ret",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 105,
+        "n_features": 18
+      }
+    },
+    "ASTS_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "GSAT_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "SATS_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "MARA_iv_ret": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.08080792669046617,
+        "r2": -0.07533965222509398,
+        "n_train": 139,
+        "n_test": 35,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv_ret",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 174,
+        "n_features": 18
+      }
+    },
+    "RIOT_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "CIFR_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "IREN_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "WULF_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "AAL_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "CPA_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "DAL_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "JBLU_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "JETS_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "FSLR_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "SOL_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "ENPH_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "SEDG_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "QBTS_iv": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.05669884069432763,
+        "r2": 0.9787812526614534,
+        "n_train": 96,
+        "n_test": 24,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 120,
+        "n_features": 18
+      }
+    },
+    "IONQ_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "SKYT_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "RGTI_iv": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.019718119871585248,
+        "r2": 0.9795386101245948,
+        "n_train": 124,
+        "n_test": 32,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 156,
+        "n_features": 18
+      }
+    },
+    "QUBT_iv": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.04971058595776136,
+        "r2": 0.8857982599326032,
+        "n_train": 96,
+        "n_test": 24,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 120,
+        "n_features": 18
+      }
+    },
+    "ASTS_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "GSAT_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "SATS_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "MARA_iv": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.010283644100493693,
+        "r2": 0.9490267964068291,
+        "n_train": 151,
+        "n_test": 38,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 189,
+        "n_features": 18
+      }
+    },
+    "RIOT_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "CIFR_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "IREN_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "WULF_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "AAL_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "CPA_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "DAL_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "JBLU_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "JETS_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    }
+  },
+  "baseline_correlations": {
+    "iv_levels": {
+      "correlation_matrix": {
+        "QUBT": {
+          "QUBT": 1.0,
+          "RGTI": -0.05772351003457175,
+          "MARA": 0.09429836491884588,
+          "QBTS": 0.007161735511153677
+        },
+        "RGTI": {
+          "QUBT": -0.05772351003457175,
+          "RGTI": 1.0,
+          "MARA": -0.19981873455554613,
+          "QBTS": 0.6868227287289171
+        },
+        "MARA": {
+          "QUBT": 0.09429836491884588,
+          "RGTI": -0.19981873455554613,
+          "MARA": 1.0,
+          "QBTS": 0.12614980613525348
+        },
+        "QBTS": {
+          "QUBT": 0.007161735511153677,
+          "RGTI": 0.6868227287289171,
+          "MARA": 0.12614980613525348,
+          "QBTS": 1.0
+        }
+      },
+      "description": "Historical correlation matrix of IV levels",
+      "n_tickers": 4
+    },
+    "iv_returns": {
+      "correlation_matrix": {
+        "QUBT": {
+          "QUBT": 1.0,
+          "RGTI": 0.03138708453792863,
+          "MARA": 0.0695806255816048,
+          "QBTS": 0.09873835317509957
+        },
+        "RGTI": {
+          "QUBT": 0.03138708453792863,
+          "RGTI": 1.0,
+          "MARA": -0.18945231336148186,
+          "QBTS": 0.744107498400063
+        },
+        "MARA": {
+          "QUBT": 0.0695806255816048,
+          "RGTI": -0.18945231336148186,
+          "MARA": 1.0,
+          "QBTS": 0.2230428627333177
+        },
+        "QBTS": {
+          "QUBT": 0.09873835317509957,
+          "RGTI": 0.744107498400063,
+          "MARA": 0.2230428627333177,
+          "QBTS": 1.0
+        }
+      },
+      "description": "Historical correlation matrix of IV returns",
+      "n_tickers": 4
+    }
+  },
+  "peer_group_analysis": {},
+  "evaluation": {
+    "pooled_iv_ret_fwd": {
+      "metrics": {
+        "RMSE": 0.32875068882207514,
+        "R2": 0.01757720669117724,
+        "n_train": 420,
+        "n_test": 105,
+        "n_features": 12,
+        "tickers": [
+          "QUBT",
+          "RGTI",
+          "MARA",
+          "QBTS"
+        ],
+        "start": "2025-08-02T00:00:00+00:00",
+        "end": "2025-08-06T00:00:00+00:00",
+        "forward_steps": 15,
+        "tolerance": "2s",
+        "test_frac": 0.2,
+        "model_path": "outputs\\models\\pooled_iv_ret_fwd_20250826_132911.json"
+      },
+      "xgb_importances": [
+        {
+          "feature": "panel_IV_QBTS",
+          "gain": 0.010926679708063602,
+          "weight": 246.0,
+          "cover": 221.76016235351562,
+          "total_gain": 2.6879632472991943,
+          "total_cover": 54553.0
+        },
+        {
+          "feature": "sym_QUBT",
+          "gain": 0.00765599962323904,
+          "weight": 144.0,
+          "cover": 182.73611450195312,
+          "total_gain": 1.102463960647583,
+          "total_cover": 26314.0
+        },
+        {
+          "feature": "panel_IVRET_QUBT",
+          "gain": 0.007299694232642651,
+          "weight": 442.0,
+          "cover": 185.90045166015625,
+          "total_gain": 3.2264647483825684,
+          "total_cover": 82168.0
+        },
+        {
+          "feature": "panel_IVRET_RGTI",
+          "gain": 0.00722407316789031,
+          "weight": 470.0,
+          "cover": 196.18724060058594,
+          "total_gain": 3.3953144550323486,
+          "total_cover": 92208.0
+        },
+        {
+          "feature": "panel_IVRET_QBTS",
+          "gain": 0.007048734463751316,
+          "weight": 189.0,
+          "cover": 203.82009887695312,
+          "total_gain": 1.3322107791900635,
+          "total_cover": 38522.0
+        },
+        {
+          "feature": "panel_IVRET_MARA",
+          "gain": 0.006683140527456999,
+          "weight": 357.0,
+          "cover": 184.88795471191406,
+          "total_gain": 2.385881185531616,
+          "total_cover": 66005.0
+        },
+        {
+          "feature": "sym_MARA",
+          "gain": 0.006173234898597002,
+          "weight": 117.0,
+          "cover": 126.47008514404297,
+          "total_gain": 0.7222684621810913,
+          "total_cover": 14797.0
+        },
+        {
+          "feature": "panel_IV_MARA",
+          "gain": 0.005193832330405712,
+          "weight": 611.0,
+          "cover": 136.5957489013672,
+          "total_gain": 3.173431634902954,
+          "total_cover": 83460.0
+        },
+        {
+          "feature": "panel_IV_RGTI",
+          "gain": 0.004917820915579796,
+          "weight": 798.0,
+          "cover": 113.85713958740234,
+          "total_gain": 3.9244210720062256,
+          "total_cover": 90858.0
+        },
+        {
+          "feature": "sym_RGTI",
+          "gain": 0.004106339532881975,
+          "weight": 113.0,
+          "cover": 140.2566375732422,
+          "total_gain": 0.4640163481235504,
+          "total_cover": 15849.0
+        },
+        {
+          "feature": "panel_IV_QUBT",
+          "gain": 0.0035270624794065952,
+          "weight": 1911.0,
+          "cover": 74.89691162109375,
+          "total_gain": 6.740216255187988,
+          "total_cover": 143128.0
+        }
+      ],
+      "permutation_importances": [
+        {
+          "feature": "panel_IVRET_QUBT",
+          "perm_importance_mean": 0.001181086118908381,
+          "perm_importance_std": 0.0007604718791920922
+        },
+        {
+          "feature": "panel_IVRET_RGTI",
+          "perm_importance_mean": 0.000442038470219408,
+          "perm_importance_std": 0.000701121801912774
+        },
+        {
+          "feature": "panel_IV_QUBT",
+          "perm_importance_mean": 0.00022931139696898972,
+          "perm_importance_std": 0.0009755846603634904
+        },
+        {
+          "feature": "panel_IV_MARA",
+          "perm_importance_mean": 0.00010996044858885279,
+          "perm_importance_std": 0.00031841395215944805
+        },
+        {
+          "feature": "sym_MARA",
+          "perm_importance_mean": 0.0,
+          "perm_importance_std": 0.0
+        },
+        {
+          "feature": "sym_QBTS",
+          "perm_importance_mean": 0.0,
+          "perm_importance_std": 0.0
+        },
+        {
+          "feature": "sym_RGTI",
+          "perm_importance_mean": 0.0,
+          "perm_importance_std": 0.0
+        },
+        {
+          "feature": "sym_QUBT",
+          "perm_importance_mean": 0.0,
+          "perm_importance_std": 0.0
+        },
+        {
+          "feature": "panel_IVRET_QBTS",
+          "perm_importance_mean": -0.00023797966234356815,
+          "perm_importance_std": 0.0002305360178374557
+        },
+        {
+          "feature": "panel_IVRET_MARA",
+          "perm_importance_mean": -0.0003990838321408785,
+          "perm_importance_std": 0.000533076089565976
+        },
+        {
+          "feature": "panel_IV_QBTS",
+          "perm_importance_mean": -0.00040601632277248445,
+          "perm_importance_std": 0.0008355240969231833
+        },
+        {
+          "feature": "panel_IV_RGTI",
+          "perm_importance_mean": -0.0005259729124873158,
+          "perm_importance_std": 0.00034115112693208153
+        }
+      ],
+      "feature_shap_avg": [
+        {
+          "feature": "panel_IV_QUBT",
+          "avg_contrib": 0.004872114863246679
+        },
+        {
+          "feature": "sym_RGTI",
+          "avg_contrib": 0.0023927828297019005
+        },
+        {
+          "feature": "panel_IV_RGTI",
+          "avg_contrib": 0.0018972355173900723
+        },
+        {
+          "feature": "panel_IVRET_QUBT",
+          "avg_contrib": 0.0017782992217689753
+        },
+        {
+          "feature": "panel_IV_QBTS",
+          "avg_contrib": 0.00162219547200948
+        },
+        {
+          "feature": "panel_IVRET_MARA",
+          "avg_contrib": 0.0012993901036679745
+        },
+        {
+          "feature": "panel_IVRET_QBTS",
+          "avg_contrib": 0.0010026796953752637
+        },
+        {
+          "feature": "panel_IVRET_RGTI",
+          "avg_contrib": 0.0003315596841275692
+        },
+        {
+          "feature": "sym_QBTS",
+          "avg_contrib": 0.0
+        },
+        {
+          "feature": "panel_IV_MARA",
+          "avg_contrib": -0.00033268629340454936
+        },
+        {
+          "feature": "sym_QUBT",
+          "avg_contrib": -0.0008628954528830945
+        },
+        {
+          "feature": "sym_MARA",
+          "avg_contrib": -0.0017255309503525496
+        }
+      ],
+      "sym_shap_avg": [
+        {
+          "feature": "sym_RGTI",
+          "avg_shap": 0.0023927828297019005,
+          "ticker": "RGTI",
+          "direction": "\u2191"
+        },
+        {
+          "feature": "sym_QBTS",
+          "avg_shap": 0.0,
+          "ticker": "QBTS",
+          "direction": "\u2191"
+        },
+        {
+          "feature": "sym_QUBT",
+          "avg_shap": -0.0008628954528830945,
+          "ticker": "QUBT",
+          "direction": "\u2193"
+        },
+        {
+          "feature": "sym_MARA",
+          "avg_shap": -0.0017255309503525496,
+          "ticker": "MARA",
+          "direction": "\u2193"
+        }
+      ],
+      "eval_path": "outputs\\evaluations\\pooled_iv_ret_fwd_20250826_132911_eval_evaluation.json"
+    },
+    "pooled_iv_clip": {
+      "metrics": {
+        "RMSE": 0.991752944743482,
+        "R2": 0.006968655213714925,
+        "n_train": 420,
+        "n_test": 105,
+        "n_features": 4,
+        "tickers": [
+          "QUBT",
+          "RGTI",
+          "MARA",
+          "QBTS"
+        ],
+        "start": "2025-08-02T00:00:00+00:00",
+        "end": "2025-08-06T00:00:00+00:00",
+        "forward_steps": 15,
+        "tolerance": "2s",
+        "test_frac": 0.2,
+        "model_path": "outputs\\models\\pooled_iv_clip_20250826_132911.json"
+      },
+      "xgb_importances": [
+        {
+          "feature": "panel_IV_QBTS",
+          "gain": 0.3430120348930359,
+          "weight": 552.0,
+          "cover": 196.90399169921875,
+          "total_gain": 189.34263610839844,
+          "total_cover": 108691.0
+        },
+        {
+          "feature": "panel_IV_MARA",
+          "gain": 0.2478703260421753,
+          "weight": 1136.0,
+          "cover": 139.55369567871094,
+          "total_gain": 281.5806884765625,
+          "total_cover": 158533.0
+        },
+        {
+          "feature": "panel_IV_RGTI",
+          "gain": 0.20355042815208435,
+          "weight": 1901.0,
+          "cover": 116.06470489501953,
+          "total_gain": 386.9493713378906,
+          "total_cover": 220639.0
+        },
+        {
+          "feature": "panel_IV_QUBT",
+          "gain": 0.16347792744636536,
+          "weight": 2599.0,
+          "cover": 81.93574523925781,
+          "total_gain": 424.8791198730469,
+          "total_cover": 212951.0
+        }
+      ],
+      "permutation_importances": [
+        {
+          "feature": "panel_IV_QUBT",
+          "perm_importance_mean": 0.010964188080432003,
+          "perm_importance_std": 0.014606898602435336
+        },
+        {
+          "feature": "panel_IV_QBTS",
+          "perm_importance_mean": -0.003944801794056763,
+          "perm_importance_std": 0.009231630139055643
+        },
+        {
+          "feature": "panel_IV_RGTI",
+          "perm_importance_mean": -0.008172014812880945,
+          "perm_importance_std": 0.009081308392689029
+        },
+        {
+          "feature": "panel_IV_MARA",
+          "perm_importance_mean": -0.014767284153156668,
+          "perm_importance_std": 0.007601971267324443
+        }
+      ],
+      "feature_shap_avg": [
+        {
+          "feature": "panel_IV_QUBT",
+          "avg_contrib": 0.007320045493543148
+        },
+        {
+          "feature": "panel_IV_QBTS",
+          "avg_contrib": 0.005923583172261715
+        },
+        {
+          "feature": "panel_IV_RGTI",
+          "avg_contrib": 0.000771129154600203
+        },
+        {
+          "feature": "panel_IV_MARA",
+          "avg_contrib": -0.013555774465203285
+        }
+      ],
+      "sym_shap_avg": [],
+      "eval_path": "outputs\\evaluations\\pooled_iv_clip_20250826_132911_eval_evaluation.json"
+    }
+  }
+}

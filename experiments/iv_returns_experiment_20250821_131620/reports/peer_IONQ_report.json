@@ -1,0 +1,129 @@
+{
+  "target_ticker": "IONQ",
+  "model_type": "peer_effects",
+  "peer_tickers": [
+    "QUBT",
+    "QBTS",
+    "RGTI"
+  ],
+  "results": {
+    "target": "IONQ",
+    "target_kind": "iv_ret",
+    "config": {
+      "forward_steps": 15,
+      "include_self_lag": true,
+      "exclude_contemporaneous": true
+    },
+    "performance": {
+      "rmse": 0.32065974113314366,
+      "r2": 0.3861050203291495,
+      "n_train": 2874,
+      "n_test": 719,
+      "n_features": 19
+    },
+    "peer_analysis": {
+      "peer_rankings": {},
+      "self_lag_effects": {},
+      "control_effects": {
+        "time_to_expiry": 0.22552388906478882,
+        "ts_event": 0.13406884670257568,
+        "stock_volume": 0.12150835245847702,
+        "expiry_date": 0.11814770847558975,
+        "gamma": 0.06639155000448227,
+        "vega": 0.06398110091686249,
+        "delta": 0.04064874351024628,
+        "option_type_enc": 0.03794519975781441,
+        "opt_vol_roll_15m": 0.03688088059425354,
+        "sabr_rho": 0.03262091800570488,
+        "sabr_beta": 0.029871618375182152,
+        "opt_vol_change_1m": 0.02235318161547184,
+        "opt_volume": 0.020642569288611412,
+        "option_type": 0.01911964826285839,
+        "rv_30m": 0.016338584944605827,
+        "iv": 0.010448073036968708,
+        "days_to_expiry": 0.0035090099554508924,
+        "strike_price": 0.0,
+        "sabr_alpha": 0.0
+      },
+      "detailed_features": [
+        {
+          "feature": "time_to_expiry",
+          "importance": 0.22552388906478882
+        },
+        {
+          "feature": "ts_event",
+          "importance": 0.13406884670257568
+        },
+        {
+          "feature": "stock_volume",
+          "importance": 0.12150835245847702
+        },
+        {
+          "feature": "expiry_date",
+          "importance": 0.11814770847558975
+        },
+        {
+          "feature": "gamma",
+          "importance": 0.06639155000448227
+        },
+        {
+          "feature": "vega",
+          "importance": 0.06398110091686249
+        },
+        {
+          "feature": "delta",
+          "importance": 0.04064874351024628
+        },
+        {
+          "feature": "option_type_enc",
+          "importance": 0.03794519975781441
+        },
+        {
+          "feature": "opt_vol_roll_15m",
+          "importance": 0.03688088059425354
+        },
+        {
+          "feature": "sabr_rho",
+          "importance": 0.03262091800570488
+        },
+        {
+          "feature": "sabr_beta",
+          "importance": 0.029871618375182152
+        },
+        {
+          "feature": "opt_vol_change_1m",
+          "importance": 0.02235318161547184
+        },
+        {
+          "feature": "opt_volume",
+          "importance": 0.020642569288611412
+        },
+        {
+          "feature": "option_type",
+          "importance": 0.01911964826285839
+        },
+        {
+          "feature": "rv_30m",
+          "importance": 0.016338584944605827
+        },
+        {
+          "feature": "iv",
+          "importance": 0.010448073036968708
+        },
+        {
+          "feature": "days_to_expiry",
+          "importance": 0.0035090099554508924
+        },
+        {
+          "feature": "strike_price",
+          "importance": 0.0
+        },
+        {
+          "feature": "sabr_alpha",
+          "importance": 0.0
+        }
+      ]
+    },
+    "status": "success"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "correlation_tests": {},
+  "peer_effect_tests": {
+    "solar": {
+      "iv_ret": {
+        "avg_effect": NaN
+      },
+      "iv": {
+        "avg_effect": NaN
+      }
+    },
+    "quantum": {
+      "iv_ret": {
+        "avg_effect": NaN
+      },
+      "iv": {
+        "avg_effect": NaN
+      }
+    },
+    "satellite": {
+      "iv_ret": {
+        "avg_effect": NaN
+      },
+      "iv": {
+        "avg_effect": NaN
+      }
+    },
+    "crypto_miners": {
+      "iv_ret": {
+        "avg_effect": NaN
+      },
+      "iv": {
+        "avg_effect": NaN
+      }
+    },
+    "airlines": {
+      "iv_ret": {
+        "avg_effect": NaN
+      },
+      "iv": {
+        "avg_effect": NaN
+      }
+    }
+  }
+}

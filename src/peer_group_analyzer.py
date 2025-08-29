@@ -37,7 +37,7 @@ class PeerGroupConfig:
     r: float = 0.045
 
     # Data
-    db_path: Path = field(default_factory=lambda: Path("data/iv_data_1m.db"))
+    db_path: Path = field(default_factory=lambda: Path("data/iv_data_1h.db"))
     auto_fetch: bool = True
 
     # Output
@@ -424,5 +424,6 @@ if __name__ == "__main__":
         end="2025-08-06",
         debug=True,
     )
+    db_path = Path("data/iv_data_1h.db")
     res = run_peer_group_analysis(cfg)
     print("Keys:", list(res.keys()))

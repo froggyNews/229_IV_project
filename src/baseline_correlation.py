@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Baseline historical correlation calculations for 1m ATM slices."""
+"""Baseline historical correlation calculations for 1h ATM slices."""
 
 from pathlib import Path
 from typing import Dict, Iterable, Sequence
@@ -30,7 +30,7 @@ def compute_baseline_correlations(
         forwarded to :func:`load_cores_with_auto_fetch` when ``cores`` is not
         provided.
     db_path : str | Path | None
-        Path to the SQLite database containing 1m ATM slices. Defaults to the
+        Path to the SQLite database containing 1h ATM slices. Defaults to the
         project's ``DEFAULT_DB_PATH`` when ``None``.
     cores : dict | None
         Optional mapping of ``ticker -> DataFrame``. If provided, data is taken
@@ -56,7 +56,8 @@ def compute_baseline_correlations(
 
     iv_cols = [f"IV_{t}" for t in tickers if f"IV_{t}" in panel.columns]
     ret_cols = [f"IVRET_{t}" for t in tickers if f"IVRET_{t}" in panel.columns]
-
+    print(f"Computing correlations for IV columns: {iv_cols}. sample rows:\n{panel[iv_cols].head()}")
+    print(f"Computing correlations for IV return columns: {ret_cols}. sample rows:\n{panel[ret_cols].head()}")
     clip_corr = (
         panel[iv_cols].corr().rename(index=lambda x: x[3:], columns=lambda x: x[3:])
         if len(iv_cols) >= 2
@@ -74,7 +75,7 @@ def compute_baseline_correlations(
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(
-        description="Compute baseline historical correlations for 1m ATM slices."
+        description="Compute baseline historical correlations for 1h ATM slices."
     )
     parser.add_argument("tickers", nargs="+", help="Ticker symbols")
     parser.add_argument("--start", type=str, default=None, help="Start timestamp")

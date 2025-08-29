@@ -273,6 +273,10 @@ class DataCoordinator:
     def __init__(self, db_path: Optional[Path] = None):
         self.db_path = db_path or Path(os.getenv("IV_DB_PATH", "data/iv_data_1m.db"))
         self.api_key = os.getenv("DATABENTO_API_KEY")
+
+    def _infer_timeframe(self) -> str:
+        name = str(self.db_path).lower()
+        return "1m" if ("1m" in name or name.endswith("_1m.db")) else "1h"
         
     def _safe_fetch_data(self, ticker: str, start_ts: pd.Timestamp, end_ts: pd.Timestamp) -> bool:
         """Safely attempt to fetch data using fetch_data_sqlite functions."""
@@ -297,7 +301,16 @@ class DataCoordinator:
                     return False
             
             # Attempt to fetch data (force=True to repopulate ATM slices)
-            fetch_and_save(self.api_key, ticker, start_ts, end_ts, self.db_path, force=True)
+            timeframe = self._infer_timeframe()
+            fetch_and_save(
+                self.api_key,
+                ticker,
+                start_ts,
+                end_ts,
+                self.db_path,
+                force=True,
+                timeframe=timeframe,
+            )
             return True
             
         except Exception as e:
@@ -311,7 +324,10 @@ class DataCoordinator:
             return self._fallback_data_check(tickers, start_ts, end_ts)
         
         try:
-            return ensure_data_availability(tickers, start_ts, end_ts, self.db_path, auto_fetch=True)
+            timeframe = self._infer_timeframe()
+            return ensure_data_availability(
+                tickers, start_ts, end_ts, self.db_path, auto_fetch=True, timeframe=timeframe
+            )
         except Exception as e:
             print(f"❌ Error in enhanced data availability check: {e}")
             return self._fallback_data_check(tickers, start_ts, end_ts)

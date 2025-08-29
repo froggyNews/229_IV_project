@@ -32,12 +32,12 @@ class AnalysisFeatureConfig:
     ]
     
     VOLATILITY_FEATURES = [
-        "rv_30m", "iv_ret_1m", "iv_ret_5m", "iv_ret_15m",
+        "rv_30m", "iv_ret_1h", "iv_ret_5m", "iv_ret_15m",
         "iv_sma_5m", "iv_sma_15m", "iv_std_15m", "iv_rsi_15m", "iv_zscore_15m"
     ]
     
     VOLUME_FEATURES = [
-        "opt_vol_change_1m", "opt_vol_roll_5m", "opt_vol_roll_15m", 
+        "opt_vol_change_1h", "opt_vol_roll_5m", "opt_vol_roll_15m", 
         "opt_vol_roll_60m", "opt_vol_zscore_15m"
     ]
     

@@ -251,7 +251,14 @@ def _validate_input_data(df: pd.DataFrame) -> pd.DataFrame:
         print(f"Data validation: Removed {initial_rows - cleaned_rows} invalid rows ({cleaned_rows} remaining)")
     
     return df
-
+def _calculate_rsi(series: pd.Series, window: int) -> pd.Series:
+    """Calculate RSI for a given series."""
+    delta = series.diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+    rs = gain / loss
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
 
 def add_all_features(df: pd.DataFrame, forward_steps: int = 1, r: float = 0.045, validate: bool = True) -> pd.DataFrame:
     """Centralized feature engineering (preserves all original feature logic)."""
@@ -488,7 +495,7 @@ def build_pooled_iv_return_dataset_time_safe(
     # If cores not provided, need to load them (fallback for backward compatibility)
     if cores is None:
         from data_loader_coordinator import load_cores_with_auto_fetch
-        cores = load_cores_with_auto_fetch(tickers, start, end, Path(db_path) if db_path is not None else Path("data/iv_data_1m.db"))
+        cores = load_cores_with_auto_fetch(tickers, start, end, Path(db_path) if db_path is not None else Path("data/iv_data_1h.db"))
     
     if debug:
         print(f"DEBUG: Cores loaded for tickers: {list(cores.keys())}")

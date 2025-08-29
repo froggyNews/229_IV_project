@@ -1,0 +1,59 @@
+{
+  "ticker": "QBTS",
+  "model_type": "isolated",
+  "train_metrics": {
+    "RMSE": 0.693026315620163,
+    "R2": 0.3240078179336875,
+    "n_train": 3076,
+    "n_test": 769,
+    "n_features": 19
+  },
+  "evaluation_metrics": {
+    "RMSE": 0.6860647838093616,
+    "R2": 0.3375204511618859,
+    "n_train": 3076,
+    "n_test": 769,
+    "n_features": 19,
+    "tickers": [
+      "QBTS"
+    ],
+    "start": "2025-08-02T00:00:00+00:00",
+    "end": "2025-08-06T00:00:00+00:00",
+    "forward_steps": 15,
+    "tolerance": "2s",
+    "test_frac": 0.2,
+    "model_path": "c:\\Users\\kkar\\OneDrive - Group One Trading\\Desktop\\Kavita_Projects\\Correlated_Opt_Price_229\\experiments\\iv_returns_experiment_20250821_131058\\models\\isolated_QBTS.json"
+  },
+  "model_path": "c:\\Users\\kkar\\OneDrive - Group One Trading\\Desktop\\Kavita_Projects\\Correlated_Opt_Price_229\\experiments\\iv_returns_experiment_20250821_131058\\models\\isolated_QBTS.json",
+  "dataset_info": {
+    "total_samples": 3845,
+    "features": [
+      "ts_event",
+      "expiry_date",
+      "iv",
+      "opt_volume",
+      "stock_volume",
+      "time_to_expiry",
+      "strike_price",
+      "option_type",
+      "symbol",
+      "iv_ret_fwd",
+      "delta",
+      "gamma",
+      "vega",
+      "days_to_expiry",
+      "option_type_enc",
+      "rv_30m",
+      "opt_vol_change_1m",
+      "opt_vol_roll_15m",
+      "sabr_alpha",
+      "sabr_beta",
+      "sabr_rho",
+      "sabr_nu"
+    ],
+    "date_range": [
+      0,
+      3844
+    ]
+  }
+}

@@ -248,20 +248,23 @@ def _populate_atm(conn: sqlite3.Connection, ticker: str, timeframe: str = "1h") 
         opt_close, stock_close, opt_volume, stock_volume,
         option_type, strike_price, time_to_expiry, moneyness
     )
-    SELECT *
+    SELECT 
+        pm.ticker, pm.ts_event, pm.expiry_date, pm.opt_symbol, pm.stock_symbol,
+        pm.opt_close, pm.stock_close, pm.opt_volume, pm.stock_volume,
+        pm.option_type, pm.strike_price, pm.time_to_expiry, pm.moneyness
     FROM (
         SELECT
             pm.ticker, pm.ts_event, pm.expiry_date, pm.opt_symbol, pm.stock_symbol,
             pm.opt_close, pm.stock_close, pm.opt_volume, pm.stock_volume,
             pm.option_type, pm.strike_price, pm.time_to_expiry, pm.moneyness,
             ROW_NUMBER() OVER (
-              PARTITION BY pm.ticker, pm.ts_event, pm.expiry_date
+2025              PARTITION BY pm.ticker, pm.ts_event, pm.expiry_date
               ORDER BY ABS(pm.strike_price - pm.stock_close)
             ) rn
         FROM {source_table} pm
         WHERE pm.ticker = ?
-    )
-    WHERE rn = 1;
+    ) pm
+    WHERE pm.rn = 1;
     """
     conn.execute(q, (ticker,))
     conn.commit()
@@ -270,7 +273,7 @@ def check_data_exists(conn: sqlite3.Connection, ticker: str, start: pd.Timestamp
                      timeframe: str = "1h") -> bool:
     """Check if data exists for a ticker in the specified time window and timeframe."""
     try:
-        # Define tables to check based on timeframe (prioritize 1-hour data)
+        # Define tables to check based on timeframe
         if timeframe == "1h":
             tables_to_check = ["atm_slices_1h", "processed_merged_1h", "merged_1h"]
         else:
@@ -314,9 +317,15 @@ def preprocess_and_store(API_KEY: str, start: pd.Timestamp, end: pd.Timestamp,
     timeframe : str
         '1h' for 1-hour analysis (default), '1m' for 1-minute analysis
     """
-    # Check if we already have this data (unless forced)
-    if not force and check_data_exists(conn, ticker, start, end, timeframe):
-        print(f"[SKIP] {ticker} already has {timeframe} data for window {start.date()} to {end.date()}")
+    # Check if we already have this data (skip only if exists AND not forced)
+    try:
+        has_data = check_data_exists(conn, ticker, start, end, timeframe)
+    except Exception:
+        has_data = False
+    if has_data and not force:
+        print(
+            f"[SKIP] {ticker} already has {timeframe} data for window {start.date()} to {end.date()}"
+        )
         return
 
     opra_1h, eq_1h, eq_1d = _fetch(API_KEY, start, end, ticker)

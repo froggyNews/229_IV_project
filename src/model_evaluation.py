@@ -142,7 +142,7 @@ def evaluate_pooled_model(
     save_predictions: bool = True,
     perm_repeats: int = 5,
     perm_sample: int | None = 5000,
-    db_path: str | Path = Path("data/iv_data_1m.db"),
+    db_path: str | Path = Path("data/iv_data_1h.db"),
     target_col: str | None = None,               # <-- NEW
     save_report: bool = True,
 ) -> dict:
@@ -374,7 +374,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument(
         "--db",
         type=str,
-        default=os.getenv("IV_DB_PATH", "data/iv_data_1m.db"),
+        default=os.getenv("IV_DB_PATH", "data/iv_data_1h.db"),
         help="Path to the SQLite DB to read from.",
     )
     return p.parse_args()

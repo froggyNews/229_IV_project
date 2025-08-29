@@ -1,0 +1,162 @@
+{
+  "solar_from_quantum": {
+    "target_group": "solar",
+    "peer_group": "quantum",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "solar_from_satellite": {
+    "target_group": "solar",
+    "peer_group": "satellite",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "solar_from_crypto_miners": {
+    "target_group": "solar",
+    "peer_group": "crypto_miners",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "solar_from_airlines": {
+    "target_group": "solar",
+    "peer_group": "airlines",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "quantum_from_solar": {
+    "target_group": "quantum",
+    "peer_group": "solar",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "quantum_from_satellite": {
+    "target_group": "quantum",
+    "peer_group": "satellite",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "quantum_from_crypto_miners": {
+    "target_group": "quantum",
+    "peer_group": "crypto_miners",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "quantum_from_airlines": {
+    "target_group": "quantum",
+    "peer_group": "airlines",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "satellite_from_solar": {
+    "target_group": "satellite",
+    "peer_group": "solar",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "satellite_from_quantum": {
+    "target_group": "satellite",
+    "peer_group": "quantum",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "satellite_from_crypto_miners": {
+    "target_group": "satellite",
+    "peer_group": "crypto_miners",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "satellite_from_airlines": {
+    "target_group": "satellite",
+    "peer_group": "airlines",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "crypto_miners_from_solar": {
+    "target_group": "crypto_miners",
+    "peer_group": "solar",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "crypto_miners_from_quantum": {
+    "target_group": "crypto_miners",
+    "peer_group": "quantum",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "crypto_miners_from_satellite": {
+    "target_group": "crypto_miners",
+    "peer_group": "satellite",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "crypto_miners_from_airlines": {
+    "target_group": "crypto_miners",
+    "peer_group": "airlines",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "airlines_from_solar": {
+    "target_group": "airlines",
+    "peer_group": "solar",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "airlines_from_quantum": {
+    "target_group": "airlines",
+    "peer_group": "quantum",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "airlines_from_satellite": {
+    "target_group": "airlines",
+    "peer_group": "satellite",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  },
+  "airlines_from_crypto_miners": {
+    "target_group": "airlines",
+    "peer_group": "crypto_miners",
+    "results": {
+      "iv_ret": {},
+      "iv": {}
+    }
+  }
+}

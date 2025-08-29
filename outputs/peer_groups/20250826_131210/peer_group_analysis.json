@@ -1,0 +1,733 @@
+{
+  "intra_correlations": {
+    "solar": {
+      "tickers": [
+        "FSLR",
+        "SOL",
+        "ENPH",
+        "SEDG"
+      ],
+      "ret_corr_matrix": {
+        "IVRET_FSLR": {
+          "IVRET_FSLR": 0.9999999999999999,
+          "IVRET_ENPH": -0.05526908527500104,
+          "IVRET_SEDG": -0.029094699533619213
+        },
+        "IVRET_ENPH": {
+          "IVRET_FSLR": -0.05526908527500104,
+          "IVRET_ENPH": 0.9999999999999998,
+          "IVRET_SEDG": 0.2648997140697007
+        },
+        "IVRET_SEDG": {
+          "IVRET_FSLR": -0.02909469953361921,
+          "IVRET_ENPH": 0.2648997140697007,
+          "IVRET_SEDG": 1.0
+        }
+      },
+      "mean": 0.06017864308702681,
+      "std": 0.1451535102238418,
+      "min": -0.05526908527500104,
+      "max": 0.2648997140697007
+    },
+    "quantum": {
+      "tickers": [
+        "QBTS",
+        "IONQ",
+        "SKYT",
+        "RGTI",
+        "QUBT"
+      ],
+      "ret_corr_matrix": {
+        "IVRET_QBTS": {
+          "IVRET_QBTS": 1.0,
+          "IVRET_IONQ": 0.030911315660758852,
+          "IVRET_SKYT": -0.030633803814673535,
+          "IVRET_RGTI": 0.031229272542424254,
+          "IVRET_QUBT": 0.05069860643530819
+        },
+        "IVRET_IONQ": {
+          "IVRET_QBTS": 0.030911315660758852,
+          "IVRET_IONQ": 0.9999999999999999,
+          "IVRET_SKYT": -0.022386045156720578,
+          "IVRET_RGTI": 0.2403307664255835,
+          "IVRET_QUBT": 0.2645095923857191
+        },
+        "IVRET_SKYT": {
+          "IVRET_QBTS": -0.030633803814673535,
+          "IVRET_IONQ": -0.022386045156720574,
+          "IVRET_SKYT": 1.0,
+          "IVRET_RGTI": 0.2621604650186006,
+          "IVRET_QUBT": -0.3578635186854711
+        },
+        "IVRET_RGTI": {
+          "IVRET_QBTS": 0.031229272542424257,
+          "IVRET_IONQ": 0.24033076642558351,
+          "IVRET_SKYT": 0.2621604650186006,
+          "IVRET_RGTI": 0.9999999999999999,
+          "IVRET_QUBT": 0.3386612003093136
+        },
+        "IVRET_QUBT": {
+          "IVRET_QBTS": 0.050698606435308186,
+          "IVRET_IONQ": 0.2645095923857191,
+          "IVRET_SKYT": -0.3578635186854711,
+          "IVRET_RGTI": 0.33866120030931357,
+          "IVRET_QUBT": 1.0
+        }
+      },
+      "mean": 0.08076178511208429,
+      "std": 0.1949169179361628,
+      "min": -0.3578635186854711,
+      "max": 0.3386612003093136
+    },
+    "satellite": {
+      "tickers": [
+        "ASTS",
+        "GSAT",
+        "SATS"
+      ],
+      "ret_corr_matrix": {
+        "IVRET_ASTS": {
+          "IVRET_ASTS": 1.0,
+          "IVRET_GSAT": -0.004278172435991482,
+          "IVRET_SATS": 0.033278402522339205
+        },
+        "IVRET_GSAT": {
+          "IVRET_ASTS": -0.004278172435991482,
+          "IVRET_GSAT": 1.0,
+          "IVRET_SATS": -0.04579297317596832
+        },
+        "IVRET_SATS": {
+          "IVRET_ASTS": 0.033278402522339205,
+          "IVRET_GSAT": -0.04579297317596831,
+          "IVRET_SATS": 1.0
+        }
+      },
+      "mean": -0.005597581029873531,
+      "std": 0.03229423315891896,
+      "min": -0.04579297317596832,
+      "max": 0.033278402522339205
+    },
+    "crypto_miners": {
+      "tickers": [
+        "MARA",
+        "RIOT",
+        "CIFR",
+        "IREN",
+        "WULF"
+      ],
+      "ret_corr_matrix": {
+        "IVRET_MARA": {
+          "IVRET_MARA": 1.0,
+          "IVRET_RIOT": 0.008157706097003718,
+          "IVRET_CIFR": 0.00607612037686656,
+          "IVRET_IREN": -0.013435829528882491,
+          "IVRET_WULF": -0.008869249356893566
+        },
+        "IVRET_RIOT": {
+          "IVRET_MARA": 0.00815770609700372,
+          "IVRET_RIOT": 0.9999999999999999,
+          "IVRET_CIFR": -0.35777205168073284,
+          "IVRET_IREN": -0.6813072769991327,
+          "IVRET_WULF": 0.024000142304479936
+        },
+        "IVRET_CIFR": {
+          "IVRET_MARA": 0.00607612037686656,
+          "IVRET_RIOT": -0.3577720516807328,
+          "IVRET_CIFR": 1.0,
+          "IVRET_IREN": 0.5446878549515396,
+          "IVRET_WULF": 0.43087027461710325
+        },
+        "IVRET_IREN": {
+          "IVRET_MARA": -0.01343582952888249,
+          "IVRET_RIOT": -0.6813072769991327,
+          "IVRET_CIFR": 0.5446878549515395,
+          "IVRET_IREN": 1.0,
+          "IVRET_WULF": 0.3642583952104325
+        },
+        "IVRET_WULF": {
+          "IVRET_MARA": -0.008869249356893566,
+          "IVRET_RIOT": 0.024000142304479936,
+          "IVRET_CIFR": 0.4308702746171032,
+          "IVRET_IREN": 0.3642583952104325,
+          "IVRET_WULF": 1.0
+        }
+      },
+      "mean": 0.03166660859917839,
+      "std": 0.34613719770536133,
+      "min": -0.6813072769991327,
+      "max": 0.5446878549515396
+    },
+    "airlines": {
+      "tickers": [
+        "AAL",
+        "CPA",
+        "DAL",
+        "JBLU",
+        "JETS"
+      ],
+      "ret_corr_matrix": {
+        "IVRET_AAL": {
+          "IVRET_AAL": 1.0,
+          "IVRET_CPA": -0.018579865022379963,
+          "IVRET_DAL": -0.020520561443555498,
+          "IVRET_JBLU": -0.02203889912765152,
+          "IVRET_JETS": 0.015113809120400631
+        },
+        "IVRET_CPA": {
+          "IVRET_AAL": -0.018579865022379963,
+          "IVRET_CPA": 0.9999999999999999,
+          "IVRET_DAL": 0.5826164523951267,
+          "IVRET_JBLU": 0.45427632665025214,
+          "IVRET_JETS": -0.39491477093184957
+        },
+        "IVRET_DAL": {
+          "IVRET_AAL": -0.020520561443555498,
+          "IVRET_CPA": 0.5826164523951268,
+          "IVRET_DAL": 1.0,
+          "IVRET_JBLU": 0.6702018970657098,
+          "IVRET_JETS": -0.48923026363666694
+        },
+        "IVRET_JBLU": {
+          "IVRET_AAL": -0.02203889912765152,
+          "IVRET_CPA": 0.4542763266502521,
+          "IVRET_DAL": 0.6702018970657098,
+          "IVRET_JBLU": 1.0,
+          "IVRET_JETS": -0.41483126659859126
+        },
+        "IVRET_JETS": {
+          "IVRET_AAL": 0.015113809120400631,
+          "IVRET_CPA": -0.39491477093184957,
+          "IVRET_DAL": -0.489230263636667,
+          "IVRET_JBLU": -0.41483126659859126,
+          "IVRET_JETS": 1.0
+        }
+      },
+      "mean": 0.036209285847079456,
+      "std": 0.39379407341963585,
+      "min": -0.489230263636667,
+      "max": 0.6702018970657098
+    }
+  },
+  "inter_correlations": {
+    "solar_vs_quantum": {
+      "group1": "solar",
+      "group2": "quantum",
+      "mean": 0.12661758146193042,
+      "std": 0.36384483403345763,
+      "min": -0.443322613257853,
+      "max": 0.8450648223244807
+    },
+    "solar_vs_satellite": {
+      "group1": "solar",
+      "group2": "satellite",
+      "mean": -0.008107518714394921,
+      "std": 0.35237680487809264,
+      "min": -0.5634836595553405,
+      "max": 0.6897839355303342
+    },
+    "solar_vs_crypto_miners": {
+      "group1": "solar",
+      "group2": "crypto_miners",
+      "mean": 0.14310429331923366,
+      "std": 0.3494194302324292,
+      "min": -0.4654236274918402,
+      "max": 0.8696078413101336
+    },
+    "solar_vs_airlines": {
+      "group1": "solar",
+      "group2": "airlines",
+      "mean": 0.03955618335544998,
+      "std": 0.2859205840473679,
+      "min": -0.33055664646382715,
+      "max": 0.8525630409509586
+    },
+    "quantum_vs_satellite": {
+      "group1": "quantum",
+      "group2": "satellite",
+      "mean": 0.10896706122885716,
+      "std": 0.3121876711454001,
+      "min": -0.34674364275007796,
+      "max": 0.8721108064142067
+    },
+    "quantum_vs_crypto_miners": {
+      "group1": "quantum",
+      "group2": "crypto_miners",
+      "mean": -0.014145244174822125,
+      "std": 0.32896487123489976,
+      "min": -0.5115816417395552,
+      "max": 0.7799774546011279
+    },
+    "quantum_vs_airlines": {
+      "group1": "quantum",
+      "group2": "airlines",
+      "mean": 0.05179101565163684,
+      "std": 0.27603887067898825,
+      "min": -0.4384356143047493,
+      "max": 0.8320733380710368
+    },
+    "satellite_vs_crypto_miners": {
+      "group1": "satellite",
+      "group2": "crypto_miners",
+      "mean": -0.045856676958198464,
+      "std": 0.250807723081988,
+      "min": -0.5361084245928706,
+      "max": 0.6031031879451277
+    },
+    "satellite_vs_airlines": {
+      "group1": "satellite",
+      "group2": "airlines",
+      "mean": 0.014754179245412367,
+      "std": 0.2817304603128769,
+      "min": -0.465468590494988,
+      "max": 0.5861276566314367
+    },
+    "crypto_miners_vs_airlines": {
+      "group1": "crypto_miners",
+      "group2": "airlines",
+      "mean": 0.13097493917428063,
+      "std": 0.32258749333829534,
+      "min": -0.45843824710494296,
+      "max": 0.767739742513588
+    }
+  },
+  "intra_peer_effects": {
+    "solar": {
+      "iv_ret": {
+        "targets": {
+          "FSLR": {},
+          "SOL": {},
+          "ENPH": {},
+          "SEDG": {}
+        },
+        "summary": {}
+      },
+      "iv": {
+        "targets": {
+          "FSLR": {},
+          "SOL": {},
+          "ENPH": {},
+          "SEDG": {}
+        },
+        "summary": {}
+      }
+    },
+    "quantum": {
+      "iv_ret": {
+        "targets": {
+          "QBTS": {},
+          "IONQ": {},
+          "SKYT": {},
+          "RGTI": {},
+          "QUBT": {}
+        },
+        "summary": {}
+      },
+      "iv": {
+        "targets": {
+          "QBTS": {},
+          "IONQ": {},
+          "SKYT": {},
+          "RGTI": {},
+          "QUBT": {}
+        },
+        "summary": {}
+      }
+    },
+    "satellite": {
+      "iv_ret": {
+        "targets": {
+          "ASTS": {},
+          "GSAT": {},
+          "SATS": {}
+        },
+        "summary": {}
+      },
+      "iv": {
+        "targets": {
+          "ASTS": {},
+          "GSAT": {},
+          "SATS": {}
+        },
+        "summary": {}
+      }
+    },
+    "crypto_miners": {
+      "iv_ret": {
+        "targets": {
+          "MARA": {},
+          "RIOT": {},
+          "CIFR": {},
+          "IREN": {},
+          "WULF": {}
+        },
+        "summary": {}
+      },
+      "iv": {
+        "targets": {
+          "MARA": {},
+          "RIOT": {},
+          "CIFR": {},
+          "IREN": {},
+          "WULF": {}
+        },
+        "summary": {}
+      }
+    },
+    "airlines": {
+      "iv_ret": {
+        "targets": {
+          "AAL": {},
+          "CPA": {},
+          "DAL": {},
+          "JBLU": {},
+          "JETS": {}
+        },
+        "summary": {}
+      },
+      "iv": {
+        "targets": {
+          "AAL": {},
+          "CPA": {},
+          "DAL": {},
+          "JBLU": {},
+          "JETS": {}
+        },
+        "summary": {}
+      }
+    }
+  },
+  "inter_peer_effects": {
+    "solar_from_quantum": {
+      "target_group": "solar",
+      "peer_group": "quantum",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "solar_from_satellite": {
+      "target_group": "solar",
+      "peer_group": "satellite",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "solar_from_crypto_miners": {
+      "target_group": "solar",
+      "peer_group": "crypto_miners",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "solar_from_airlines": {
+      "target_group": "solar",
+      "peer_group": "airlines",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "quantum_from_solar": {
+      "target_group": "quantum",
+      "peer_group": "solar",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "quantum_from_satellite": {
+      "target_group": "quantum",
+      "peer_group": "satellite",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "quantum_from_crypto_miners": {
+      "target_group": "quantum",
+      "peer_group": "crypto_miners",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "quantum_from_airlines": {
+      "target_group": "quantum",
+      "peer_group": "airlines",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "satellite_from_solar": {
+      "target_group": "satellite",
+      "peer_group": "solar",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "satellite_from_quantum": {
+      "target_group": "satellite",
+      "peer_group": "quantum",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "satellite_from_crypto_miners": {
+      "target_group": "satellite",
+      "peer_group": "crypto_miners",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "satellite_from_airlines": {
+      "target_group": "satellite",
+      "peer_group": "airlines",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "crypto_miners_from_solar": {
+      "target_group": "crypto_miners",
+      "peer_group": "solar",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "crypto_miners_from_quantum": {
+      "target_group": "crypto_miners",
+      "peer_group": "quantum",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "crypto_miners_from_satellite": {
+      "target_group": "crypto_miners",
+      "peer_group": "satellite",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "crypto_miners_from_airlines": {
+      "target_group": "crypto_miners",
+      "peer_group": "airlines",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "airlines_from_solar": {
+      "target_group": "airlines",
+      "peer_group": "solar",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "airlines_from_quantum": {
+      "target_group": "airlines",
+      "peer_group": "quantum",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "airlines_from_satellite": {
+      "target_group": "airlines",
+      "peer_group": "satellite",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    },
+    "airlines_from_crypto_miners": {
+      "target_group": "airlines",
+      "peer_group": "crypto_miners",
+      "results": {
+        "iv_ret": {},
+        "iv": {}
+      }
+    }
+  },
+  "statistical_tests": {
+    "correlation_tests": {
+      "solar": {
+        "z_mean": 0.062314071801229054
+      },
+      "quantum": {
+        "z_mean": 0.08225186882680804
+      },
+      "satellite": {
+        "z_mean": -0.005604175281206928
+      },
+      "crypto_miners": {
+        "z_mean": 0.02636032349936972
+      },
+      "airlines": {
+        "z_mean": 0.05274764699477454
+      }
+    },
+    "peer_effect_tests": {
+      "solar": {
+        "iv_ret": {
+          "avg_effect": NaN
+        },
+        "iv": {
+          "avg_effect": NaN
+        }
+      },
+      "quantum": {
+        "iv_ret": {
+          "avg_effect": NaN
+        },
+        "iv": {
+          "avg_effect": NaN
+        }
+      },
+      "satellite": {
+        "iv_ret": {
+          "avg_effect": NaN
+        },
+        "iv": {
+          "avg_effect": NaN
+        }
+      },
+      "crypto_miners": {
+        "iv_ret": {
+          "avg_effect": NaN
+        },
+        "iv": {
+          "avg_effect": NaN
+        }
+      },
+      "airlines": {
+        "iv_ret": {
+          "avg_effect": NaN
+        },
+        "iv": {
+          "avg_effect": NaN
+        }
+      }
+    }
+  },
+  "metadata": {
+    "config": {
+      "groups": {
+        "solar": [
+          "FSLR",
+          "SOL",
+          "ENPH",
+          "SEDG"
+        ],
+        "quantum": [
+          "QBTS",
+          "IONQ",
+          "SKYT",
+          "RGTI",
+          "QUBT"
+        ],
+        "satellite": [
+          "ASTS",
+          "GSAT",
+          "SATS"
+        ],
+        "crypto_miners": [
+          "MARA",
+          "RIOT",
+          "CIFR",
+          "IREN",
+          "WULF"
+        ],
+        "airlines": [
+          "AAL",
+          "CPA",
+          "DAL",
+          "JBLU",
+          "JETS"
+        ]
+      },
+      "start": "2025-08-02",
+      "end": "2025-08-06",
+      "target_kinds": [
+        "iv_ret",
+        "iv"
+      ],
+      "forward_steps": 15,
+      "test_frac": 0.2,
+      "tolerance": "2s",
+      "r": 0.045,
+      "db_path": "data\\iv_data_1h.db",
+      "auto_fetch": true,
+      "timestamp": "20250826_131210",
+      "debug": true
+    },
+    "timestamp": "20250826_131210",
+    "groups": {
+      "solar": [
+        "FSLR",
+        "SOL",
+        "ENPH",
+        "SEDG"
+      ],
+      "quantum": [
+        "QBTS",
+        "IONQ",
+        "SKYT",
+        "RGTI",
+        "QUBT"
+      ],
+      "satellite": [
+        "ASTS",
+        "GSAT",
+        "SATS"
+      ],
+      "crypto_miners": [
+        "MARA",
+        "RIOT",
+        "CIFR",
+        "IREN",
+        "WULF"
+      ],
+      "airlines": [
+        "AAL",
+        "CPA",
+        "DAL",
+        "JBLU",
+        "JETS"
+      ]
+    },
+    "tickers": [
+      "AAL",
+      "ASTS",
+      "CIFR",
+      "CPA",
+      "DAL",
+      "ENPH",
+      "FSLR",
+      "GSAT",
+      "IONQ",
+      "IREN",
+      "JBLU",
+      "JETS",
+      "MARA",
+      "QBTS",
+      "QUBT",
+      "RGTI",
+      "RIOT",
+      "SATS",
+      "SEDG",
+      "SKYT",
+      "SOL",
+      "WULF"
+    ]
+  }
+}

@@ -1,0 +1,505 @@
+{
+  "config": {
+    "tickers": [
+      "ASTS",
+      "VZ",
+      "T",
+      "SATS"
+    ],
+    "start": "2025-08-02",
+    "end": "2025-08-06",
+    "forward_steps": 15,
+    "test_frac": 0.2,
+    "timestamp": "20250826_130941",
+    "db_path": "data\\iv_data_1h.db",
+    "output_dir": "outputs",
+    "xgb_params": {
+      "objective": "reg:squarederror",
+      "n_estimators": 350,
+      "learning_rate": 0.05,
+      "max_depth": 6,
+      "subsample": 0.9,
+      "colsample_bytree": 0.9,
+      "random_state": 42,
+      "n_jobs": -1,
+      "tree_method": "hist"
+    },
+    "peer_targets": [
+      "ASTS",
+      "VZ",
+      "T",
+      "SATS"
+    ],
+    "peer_target_kinds": [
+      "iv_ret",
+      "iv"
+    ],
+    "tolerance": "2s",
+    "drop_zero_iv_ret": true,
+    "save_per_row": false
+  },
+  "pooled_models": {
+    "iv_ret_fwd": {
+      "rmse": 0.23730857034069736,
+      "r2": -0.023053378157560145,
+      "n_train": 201,
+      "n_test": 51,
+      "features": [
+        "panel_IV_ASTS",
+        "panel_IV_SATS",
+        "panel_IVRET_ASTS",
+        "panel_IVRET_SATS",
+        "sym_ASTS",
+        "sym_VZ",
+        "sym_T",
+        "sym_SATS"
+      ]
+    },
+    "iv_clip": {
+      "rmse": 1.106210038317568,
+      "r2": -0.013756819061265135,
+      "n_train": 201,
+      "n_test": 51,
+      "features": [
+        "panel_IV_ASTS",
+        "panel_IV_SATS"
+      ]
+    }
+  },
+  "peer_effects": {
+    "ASTS_iv_ret": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.1202897534217537,
+        "r2": -0.5477298657011143,
+        "n_train": 144,
+        "n_test": 36,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv_ret",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 180,
+        "n_features": 18
+      }
+    },
+    "VZ_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "T_iv_ret": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "SATS_iv_ret": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.2920630956803698,
+        "r2": 0.07641685302506007,
+        "n_train": 57,
+        "n_test": 15,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv_ret",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 72,
+        "n_features": 18
+      }
+    },
+    "ASTS_iv": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.009994525766755837,
+        "r2": 0.990524200272164,
+        "n_train": 156,
+        "n_test": 39,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 195,
+        "n_features": 18
+      }
+    },
+    "VZ_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "T_iv": {
+      "status": "no_data",
+      "error": "No core data available"
+    },
+    "SATS_iv": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.2137143459653829,
+        "r2": 0.5110611849306719,
+        "n_train": 69,
+        "n_test": 18,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv",
+        "forward_steps": 15,
+        "test_frac": 0.2,
+        "n_samples": 87,
+        "n_features": 18
+      }
+    }
+  },
+  "baseline_correlations": {
+    "iv_levels": {
+      "correlation_matrix": {
+        "ASTS": {
+          "ASTS": 1.0,
+          "SATS": 0.0249575060672872
+        },
+        "SATS": {
+          "ASTS": 0.0249575060672872,
+          "SATS": 1.0
+        }
+      },
+      "description": "Historical correlation matrix of IV levels",
+      "n_tickers": 2
+    },
+    "iv_returns": {
+      "correlation_matrix": {
+        "ASTS": {
+          "ASTS": 1.0,
+          "SATS": 0.03327840252233925
+        },
+        "SATS": {
+          "ASTS": 0.03327840252233925,
+          "SATS": 1.0
+        }
+      },
+      "description": "Historical correlation matrix of IV returns",
+      "n_tickers": 2
+    }
+  },
+  "peer_group_analysis": {},
+  "evaluation": {
+    "pooled_iv_ret_fwd": {
+      "metrics": {
+        "RMSE": 0.23730857034069736,
+        "R2": -0.023053378157560145,
+        "n_train": 201,
+        "n_test": 51,
+        "n_features": 8,
+        "tickers": [
+          "ASTS",
+          "VZ",
+          "T",
+          "SATS"
+        ],
+        "start": "2025-08-02T00:00:00+00:00",
+        "end": "2025-08-06T00:00:00+00:00",
+        "forward_steps": 15,
+        "tolerance": "2s",
+        "test_frac": 0.2,
+        "model_path": "outputs\\models\\pooled_iv_ret_fwd_20250826_130941.json"
+      },
+      "xgb_importances": [
+        {
+          "feature": "sym_SATS",
+          "gain": 0.0035241986624896526,
+          "weight": 14.0,
+          "cover": 83.5,
+          "total_gain": 0.04933878034353256,
+          "total_cover": 1169.0
+        },
+        {
+          "feature": "panel_IVRET_SATS",
+          "gain": 0.0030170257668942213,
+          "weight": 330.0,
+          "cover": 109.31515502929688,
+          "total_gain": 0.9956185221672058,
+          "total_cover": 36074.0
+        },
+        {
+          "feature": "sym_ASTS",
+          "gain": 0.0023780185729265213,
+          "weight": 162.0,
+          "cover": 92.56790161132812,
+          "total_gain": 0.38523900508880615,
+          "total_cover": 14996.0
+        },
+        {
+          "feature": "panel_IVRET_ASTS",
+          "gain": 0.0021672381553798914,
+          "weight": 509.0,
+          "cover": 104.18663787841797,
+          "total_gain": 1.1031242609024048,
+          "total_cover": 53031.0
+        },
+        {
+          "feature": "panel_IV_SATS",
+          "gain": 0.001971376361325383,
+          "weight": 882.0,
+          "cover": 83.12358093261719,
+          "total_gain": 1.7387539148330688,
+          "total_cover": 73315.0
+        },
+        {
+          "feature": "panel_IV_ASTS",
+          "gain": 0.0013098351191729307,
+          "weight": 1593.0,
+          "cover": 58.49591827392578,
+          "total_gain": 2.0865674018859863,
+          "total_cover": 93184.0
+        }
+      ],
+      "permutation_importances": [
+        {
+          "feature": "panel_IVRET_ASTS",
+          "perm_importance_mean": 0.0017624495757202375,
+          "perm_importance_std": 0.0011871288672024494
+        },
+        {
+          "feature": "panel_IV_SATS",
+          "perm_importance_mean": 0.000312363569039481,
+          "perm_importance_std": 0.0005985483734253771
+        },
+        {
+          "feature": "panel_IVRET_SATS",
+          "perm_importance_mean": 9.67128181987742e-05,
+          "perm_importance_std": 0.0009571861902036214
+        },
+        {
+          "feature": "sym_ASTS",
+          "perm_importance_mean": 0.0,
+          "perm_importance_std": 0.0
+        },
+        {
+          "feature": "sym_T",
+          "perm_importance_mean": 0.0,
+          "perm_importance_std": 0.0
+        },
+        {
+          "feature": "sym_VZ",
+          "perm_importance_mean": 0.0,
+          "perm_importance_std": 0.0
+        },
+        {
+          "feature": "sym_SATS",
+          "perm_importance_mean": 0.0,
+          "perm_importance_std": 0.0
+        },
+        {
+          "feature": "panel_IV_ASTS",
+          "perm_importance_mean": -0.0022767142399682137,
+          "perm_importance_std": 0.0014522712330531707
+        }
+      ],
+      "feature_shap_avg": [
+        {
+          "feature": "panel_IV_SATS",
+          "avg_contrib": 0.0021788831800222397
+        },
+        {
+          "feature": "panel_IVRET_ASTS",
+          "avg_contrib": 0.00200614333152771
+        },
+        {
+          "feature": "sym_T",
+          "avg_contrib": 0.0
+        },
+        {
+          "feature": "sym_VZ",
+          "avg_contrib": 0.0
+        },
+        {
+          "feature": "sym_SATS",
+          "avg_contrib": -0.000507331220433116
+        },
+        {
+          "feature": "panel_IVRET_SATS",
+          "avg_contrib": -0.0010646991431713104
+        },
+        {
+          "feature": "panel_IV_ASTS",
+          "avg_contrib": -0.005848016124218702
+        },
+        {
+          "feature": "sym_ASTS",
+          "avg_contrib": -0.011256199330091476
+        }
+      ],
+      "sym_shap_avg": [
+        {
+          "feature": "sym_VZ",
+          "avg_shap": 0.0,
+          "ticker": "VZ",
+          "direction": "\u2191"
+        },
+        {
+          "feature": "sym_T",
+          "avg_shap": 0.0,
+          "ticker": "T",
+          "direction": "\u2191"
+        },
+        {
+          "feature": "sym_SATS",
+          "avg_shap": -0.000507331220433116,
+          "ticker": "SATS",
+          "direction": "\u2193"
+        },
+        {
+          "feature": "sym_ASTS",
+          "avg_shap": -0.011256199330091476,
+          "ticker": "ASTS",
+          "direction": "\u2193"
+        }
+      ],
+      "eval_path": "outputs\\evaluations\\pooled_iv_ret_fwd_20250826_130941_eval_evaluation.json"
+    },
+    "pooled_iv_clip": {
+      "metrics": {
+        "RMSE": 1.106210038317568,
+        "R2": -0.013756819061265135,
+        "n_train": 201,
+        "n_test": 51,
+        "n_features": 2,
+        "tickers": [
+          "ASTS",
+          "VZ",
+          "T",
+          "SATS"
+        ],
+        "start": "2025-08-02T00:00:00+00:00",
+        "end": "2025-08-06T00:00:00+00:00",
+        "forward_steps": 15,
+        "tolerance": "2s",
+        "test_frac": 0.2,
+        "model_path": "outputs\\models\\pooled_iv_clip_20250826_130941.json"
+      },
+      "xgb_importances": [
+        {
+          "feature": "panel_IV_SATS",
+          "gain": 0.1112493947148323,
+          "weight": 2007.0,
+          "cover": 68.88092041015625,
+          "total_gain": 223.2775421142578,
+          "total_cover": 138244.0
+        },
+        {
+          "feature": "panel_IV_ASTS",
+          "gain": 0.1103099137544632,
+          "weight": 1937.0,
+          "cover": 71.63190460205078,
+          "total_gain": 213.67030334472656,
+          "total_cover": 138751.0
+        }
+      ],
+      "permutation_importances": [
+        {
+          "feature": "panel_IV_ASTS",
+          "perm_importance_mean": 0.02617530034225566,
+          "perm_importance_std": 0.03648803172043419
+        },
+        {
+          "feature": "panel_IV_SATS",
+          "perm_importance_mean": 0.002282707112769522,
+          "perm_importance_std": 0.010885175705310801
+        }
+      ],
+      "feature_shap_avg": [
+        {
+          "feature": "panel_IV_ASTS",
+          "avg_contrib": -0.009354392997920513
+        },
+        {
+          "feature": "panel_IV_SATS",
+          "avg_contrib": -0.015079042874276638
+        }
+      ],
+      "sym_shap_avg": [],
+      "eval_path": "outputs\\evaluations\\pooled_iv_clip_20250826_130941_eval_evaluation.json"
+    }
+  }
+}
