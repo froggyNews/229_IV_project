@@ -56,13 +56,15 @@ def compute_baseline_pca(
     tolerance: str = "2s",
     n_components: int = 3,
     include_levels: bool = False,
+    surface_mode: str = "atm",   # "atm" or "full"
+    surface_agg: str = "median", # passed to build_iv_panel
 ) -> dict:
     """Compute PCA on IV return panel (and optionally IV level panel)."""
     if cores is None:
         db = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
-        cores = load_cores_with_auto_fetch(list(tickers), start, end, db)
-
-    panel = build_iv_panel(cores, tolerance=tolerance)
+        atm_only = (str(surface_mode).lower() != "full")
+        cores = load_cores_with_auto_fetch(list(tickers), start, end, db, atm_only=atm_only)
+    panel = build_iv_panel(cores, tolerance=tolerance, agg=surface_agg)
     if panel is None or panel.empty:
         return {"iv_returns": {}, "iv_levels": {} if include_levels else {}}
 
@@ -101,6 +103,8 @@ if __name__ == "__main__":
     parser.add_argument("--tolerance", type=str, default="2s", help="Merge tolerance")
     parser.add_argument("--n-components", type=int, default=3, help="Number of principal components")
     parser.add_argument("--include-levels", action="store_true", help="Also run PCA on IV levels")
+    parser.add_argument("--surface-mode", choices=["atm", "full"], default="atm", help="ATM-only or full surface")
+    parser.add_argument("--surface-agg", choices=["median", "mean"], default="median", help="Aggregate across surface")
     args = parser.parse_args()
 
     res = compute_baseline_pca(
@@ -111,6 +115,8 @@ if __name__ == "__main__":
         tolerance=args.tolerance,
         n_components=args.n_components,
         include_levels=args.include_levels,
+        surface_mode=args.surface_mode,
+        surface_agg=args.surface_agg,
     )
 
     evr = res.get("iv_returns", {}).get("explained_variance_ratio", [])
@@ -120,4 +126,3 @@ if __name__ == "__main__":
         evr_l = res.get("iv_levels", {}).get("explained_variance_ratio", [])
         print("\nIV levels PCA explained variance ratio:")
         print([round(v, 4) for v in evr_l])
-
