@@ -358,29 +358,52 @@ def add_all_features(df: pd.DataFrame, forward_steps: int = 1, r: float = 0.045,
     return df
 
 
-def build_iv_panel(cores: Dict[str, pd.DataFrame], tolerance: str = "2s") -> pd.DataFrame:
-    """Centralized IV panel building (preserves original merge logic)."""
+def build_iv_panel(
+    cores: Dict[str, pd.DataFrame],
+    tolerance: str = "2s",
+    agg: str = "median",
+) -> pd.DataFrame:
+    """Build a per-timestamp IV panel for all tickers.
+
+    For each ticker, aggregate IV across the available surface observations at
+    each timestamp (median), then compute a composite IV return series. This
+    ensures downstream rolling correlations operate over the whole surface,
+    not just a single ATM slice.
+    """
     tol = pd.Timedelta(tolerance)
     iv_wide = None
-    
+
     for ticker, df in cores.items():
         if df is None or df.empty or not {"ts_event", "iv_clip"}.issubset(df.columns):
             continue
-            
-        tmp = df[["ts_event", "iv_clip"]].rename(columns={"iv_clip": f"IV_{ticker}"}).copy()
+
+        # Robust per-timestamp composite IV across the surface
+        tmp = df[["ts_event", "iv_clip"]].copy()
         tmp["ts_event"] = pd.to_datetime(tmp["ts_event"], utc=True, errors="coerce")
-        tmp = tmp.dropna(subset=["ts_event", f"IV_{ticker}"]).sort_values("ts_event")
-        tmp[f"IVRET_{ticker}"] = np.log(tmp[f"IV_{ticker}"]) - np.log(tmp[f"IV_{ticker}"].shift(1))
+        tmp = tmp.dropna(subset=["ts_event", "iv_clip"]) \
+                 .groupby("ts_event", as_index=False)["iv_clip"].agg(
+                     "median" if str(agg).lower() == "median" else "mean"
+                 ) \
+                 .rename(columns={"iv_clip": f"IV_{ticker}"}) \
+                 .sort_values("ts_event")
+
+        # Composite IV returns for the ticker
+        tmp[f"IVRET_{ticker}"] = (
+            np.log(tmp[f"IV_{ticker}"]) - np.log(tmp[f"IV_{ticker}"].shift(1))
+        )
         tmp = tmp[["ts_event", f"IV_{ticker}", f"IVRET_{ticker}"]]
-        
+
         if iv_wide is None:
             iv_wide = tmp
         else:
             iv_wide = pd.merge_asof(
-                iv_wide.sort_values("ts_event"), tmp, on="ts_event",
-                direction="backward", tolerance=tol
+                iv_wide.sort_values("ts_event"),
+                tmp.sort_values("ts_event"),
+                on="ts_event",
+                direction="backward",
+                tolerance=tol,
             )
-    
+
     return iv_wide if iv_wide is not None else pd.DataFrame(columns=["ts_event"])
 
 

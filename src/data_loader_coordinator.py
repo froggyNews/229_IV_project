@@ -146,7 +146,7 @@ def _populate_atm_slices(conn: sqlite3.Connection, ticker: str) -> None:
         print(f"  ✗ Failed to populate ATM slices for {ticker}: {e}")
 
 
-def load_ticker_core(ticker: str, start=None, end=None, r=0.045, db_path=None) -> pd.DataFrame:
+def load_ticker_core(ticker: str, start=None, end=None, r=0.045, db_path=None, atm_only: bool = True) -> pd.DataFrame:
     """Load ticker core data with IV calculation."""
     
     if db_path is None:
@@ -163,20 +163,28 @@ def load_ticker_core(ticker: str, start=None, end=None, r=0.045, db_path=None) -
             # print(f"DEBUG: atm_slices_1m columns: {_get_table_columns(conn, 'atm_slices_1m')}")
             # print(f"DEBUG: processed_merged_1m columns: {_get_table_columns(conn, 'processed_merged_1m')}")
             
-            # Try tables in order of preference
+            # Try tables depending on whether we want full surface or ATM-only
             table = None
-            for candidate in ["atm_slices_1m", "processed_merged_1m", "processed_merged"]:
-                if _safe_table_exists(conn, candidate):
-                    if _safe_data_exists(conn, candidate, ticker, start, end):
-                        table = candidate
-                        break
+            if atm_only:
+                for candidate in ["atm_slices_1m", "processed_merged_1m", "processed_merged"]:
+                    if _safe_table_exists(conn, candidate):
+                        if _safe_data_exists(conn, candidate, ticker, start, end):
+                            table = candidate
+                            break
+            else:
+                # Prefer processed tables that contain the full surface; skip atm_slices
+                for candidate in ["processed_merged_1m", "processed_merged", "merged_1m"]:
+                    if _safe_table_exists(conn, candidate):
+                        if _safe_data_exists(conn, candidate, ticker, start, end):
+                            table = candidate
+                            break
             
             if table is None:
                 print(f"No data found for {ticker} in any table")
                 return pd.DataFrame()
             
-            # If we have processed_merged_1m but not atm_slices_1m, populate ATM slices
-            if table == "processed_merged_1m" and _safe_table_exists(conn, "atm_slices_1m"):
+            # If ATM-only and we have processed_merged_1m but not atm_slices_1m, populate ATM slices
+            if atm_only and table == "processed_merged_1m" and _safe_table_exists(conn, "atm_slices_1m"):
                 # Only populate if ATM table is truly empty for this ticker
                 if not _safe_data_exists(conn, "atm_slices_1m", ticker, start, end):
                     _populate_atm_slices(conn, ticker)
@@ -210,15 +218,15 @@ def load_ticker_core(ticker: str, start=None, end=None, r=0.045, db_path=None) -
             
             cols_str = ", ".join(select_cols)
             
-            # Build query based on table
+            # Build query based on table and ATM preference
             if table == "atm_slices_1m":
                 query = f"""
                 SELECT {cols_str}
                 FROM {table} WHERE {' AND '.join(where_clauses)}
                 ORDER BY ts_event
                 """
-            else:
-                # For processed_merged_1m, we need to select ATM options manually
+            elif atm_only:
+                # For processed_merged_1m, select ATM option per expiry and timestamp
                 query = f"""
                 SELECT {cols_str}
                 FROM (
@@ -231,6 +239,14 @@ def load_ticker_core(ticker: str, start=None, end=None, r=0.045, db_path=None) -
                     WHERE {' AND '.join(where_clauses)}
                 ) ranked
                 WHERE rn = 1
+                ORDER BY ts_event
+                """
+            else:
+                # Full surface: pull all processed rows (no ATM filtering)
+                query = f"""
+                SELECT {cols_str}
+                FROM {table}
+                WHERE {' AND '.join(where_clauses)}
                 ORDER BY ts_event
                 """
             
@@ -368,6 +384,7 @@ class DataCoordinator:
         end: Union[str, pd.Timestamp],
         auto_fetch: bool = True,
         drop_zero_iv_ret: bool = True,
+        atm_only: bool = True,
     ) -> Dict[str, pd.DataFrame]:
         """Load cores with optional auto-fetch and proper timezone handling."""
         
@@ -413,7 +430,7 @@ class DataCoordinator:
         
         for ticker in tickers:
             try:
-                core = load_ticker_core(ticker, start_ts, end_ts, db_path=self.db_path)
+                core = load_ticker_core(ticker, start_ts, end_ts, db_path=self.db_path, atm_only=atm_only)
                 if core is not None and not core.empty:
                     available_cores[ticker] = core
                     print(f"  ✅ {ticker}: {len(core):,} rows")
@@ -433,7 +450,7 @@ class DataCoordinator:
                 if self._safe_fetch_data(ticker, start_ts, end_ts):
                     # Try to load the newly fetched data
                     try:
-                        core = load_ticker_core(ticker, start_ts, end_ts, db_path=self.db_path)
+                        core = load_ticker_core(ticker, start_ts, end_ts, db_path=self.db_path, atm_only=atm_only)
                         if core is not None and not core.empty:
                             available_cores[ticker] = core
                             missing_tickers.remove(ticker)
@@ -524,6 +541,7 @@ def load_cores_with_auto_fetch(
     db_path: Path,
     auto_fetch: bool = True,
     drop_zero_iv_ret: bool = True,
+    atm_only: bool = True,
 ) -> Dict[str, pd.DataFrame]:
     """
     Load core data with automatic fetching of missing data.
@@ -549,7 +567,7 @@ def load_cores_with_auto_fetch(
         Dictionary mapping ticker to core dataframe
     """
     coordinator = DataCoordinator(db_path)
-    return coordinator.load_cores_with_fetch(tickers, start, end, auto_fetch, drop_zero_iv_ret)
+    return coordinator.load_cores_with_fetch(tickers, start, end, auto_fetch, drop_zero_iv_ret, atm_only)
 
 def validate_cores(
     cores: Dict[str, pd.DataFrame],

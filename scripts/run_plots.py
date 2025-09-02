@@ -66,6 +66,7 @@ from src.feature_engineering import (
     DEFAULT_DB_PATH,
     build_pooled_iv_return_dataset_time_safe,
 )
+from src.rolling_surface_eval import rolling_surface_evaluation
 
 # ----------------------------
 # Global style: clean blues
@@ -450,6 +451,8 @@ def _save_pca_tables_and_plots(
             tolerance=tolerance,
             n_components=n_components,
             include_levels=False,
+            surface_mode=getattr(args, "surface_mode", "atm"),
+            surface_agg=getattr(args, "surface_agg", "median"),
         )
         ivr = res.get("iv_returns", {})
         evr = ivr.get("explained_variance_ratio", [])
@@ -682,6 +685,8 @@ def run(args: argparse.Namespace) -> None:
             end=args.end,
             db_path=db_path,
             tolerance=tolerance,
+            surface_mode=getattr(args, "surface_mode", "atm"),
+            surface_agg=getattr(args, "surface_agg", "median"),
         )
         clip_corr = corrs.get("clip", pd.DataFrame())
         ivret_corr = corrs.get("iv_returns", pd.DataFrame())
@@ -777,9 +782,10 @@ def run(args: argparse.Namespace) -> None:
     if args.rolling_target:
         try:
             cores = load_cores_with_auto_fetch(
-                list(args.tickers), args.start, args.end, db_path
+                list(args.tickers), args.start, args.end, db_path,
+                atm_only=(args.surface_mode != "full")
             )
-            panel = build_iv_panel(cores, tolerance=tolerance) if cores else None
+            panel = build_iv_panel(cores, tolerance=tolerance, agg=getattr(args, "surface_agg", "median")) if cores else None
             if panel is None or panel.empty:
                 print("[WARN] Panel empty — skipping rolling correlations")
             else:
@@ -822,8 +828,105 @@ def run(args: argparse.Namespace) -> None:
 
                     out = plots_dir / f"slide10_rolling_corr_{tgt}.png"
                     _save(out, f"timeframe={timeframe}, tol={tolerance}")
+
+                # Also plot rolling correlations for IV levels (not returns)
+                lvl_tgt_col = f"IV_{tgt}"
+                if lvl_tgt_col not in panel.columns:
+                    print(f"[WARN] Missing target level column: {lvl_tgt_col}")
+                else:
+                    plt.figure(figsize=(10.5, 6.0))
+                    ax = plt.gca()
+                    ax.set_prop_cycle(_blue_line_cycler(n=len(args.tickers)))
+                    for peer in args.tickers:
+                        if peer == tgt:
+                            continue
+                        peer_col = f"IV_{peer}"
+                        if peer_col not in panel.columns:
+                            continue
+                        s = (
+                            panel[lvl_tgt_col]
+                            .rolling(win, min_periods=max(5, win // 4))
+                            .corr(panel[peer_col])
+                            .dropna()
+                        )
+                        if len(s) > 0:
+                            s.rename(peer, inplace=True)
+                            ax.plot(s.index, s.values, label=peer, linewidth=1.4, alpha=0.95)
+
+                    ax.axhline(0, color="#3b4d66", lw=0.8, linestyle="--", alpha=0.9)
+                    ax.set_ylim(-1.05, 1.05)
+                    ax.set_title(f"Rolling {win} bars — Historical IV Level Corr vs {tgt}\n{args.start} → {args.end}")
+                    ax.set_ylabel("Correlation")
+                    ax.set_xlabel("")
+                    ax.legend(title="Peer", ncols=3, frameon=False, loc="upper left")
+
+                    # time-aware x-axis
+                    ax.xaxis.set_major_locator(mdates.AutoDateLocator(minticks=5, maxticks=8))
+                    ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(ax.xaxis.get_major_locator()))
+                    plt.setp(ax.get_xticklabels(), rotation=0, ha="center")
+
+                    out_levels = plots_dir / f"slide10_rolling_corr_levels_{tgt}.png"
+                    _save(out_levels, f"timeframe={timeframe}, tol={tolerance}")
         except Exception as e:
             print(f"[WARN] Rolling correlations failed: {e}")
+
+    # ---------- Rolling surface weights (optional) ----------
+    if getattr(args, "surface_weights_target", None):
+        try:
+            tgt = args.surface_weights_target
+            win = rolling_window
+            eval_df = rolling_surface_evaluation(
+                tickers=args.tickers,
+                target=tgt,
+                start=args.start,
+                end=args.end,
+                db_path=db_path,
+                window=win,
+                surface_mode=getattr(args, "surface_mode", "atm" if timeframe == "1h" else "full"),
+                tolerance=tolerance,
+                ridge_lambda=1e-3,
+                include_weights=True,
+            )
+            if eval_df is None or eval_df.empty:
+                print("[WARN] Rolling surface evaluation returned no rows")
+            else:
+                method = getattr(args, "surface_weights_method", "corr")
+                prefix = {
+                    "corr": "w_corr_",
+                    "pca": "w_pca_",
+                    "pcareg": "w_pcareg_",
+                }.get(method, "w_corr_")
+                weight_cols = [c for c in eval_df.columns if c.startswith(prefix)]
+                if not weight_cols:
+                    print(f"[WARN] No weight columns for method '{method}'")
+                else:
+                    # Choose top-k peers by average weight
+                    k = int(getattr(args, "surface_weights_topk", 5))
+                    means = eval_df[weight_cols].mean().sort_values(ascending=False)
+                    top_cols = list(means.index[:k])
+
+                    plt.figure(figsize=(10.5, 6.0))
+                    ax = plt.gca()
+                    ax.set_prop_cycle(_blue_line_cycler(n=len(top_cols)))
+                    for col in top_cols:
+                        label = col.replace(prefix, "")
+                        ax.plot(eval_df.index, eval_df[col].values, label=label, linewidth=1.4, alpha=0.95)
+                    ax.set_title(f"Rolling {win} bars — {method.upper()} Weights vs {tgt}\n{args.start} → {args.end}")
+                    ax.set_ylabel("Weight")
+                    ax.set_xlabel("")
+                    ax.set_ylim(0, 1.05)
+                    ax.legend(title="Peer", ncols=3, frameon=False, loc="upper left")
+                    ax.xaxis.set_major_locator(mdates.AutoDateLocator(minticks=5, maxticks=8))
+                    ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(ax.xaxis.get_major_locator()))
+                    plt.setp(ax.get_xticklabels(), rotation=0, ha="center")
+
+                    out = plots_dir / f"rolling_surface_weights_{method}_{tgt}.png"
+                    _save(out, f"timeframe={timeframe}, tol={tolerance}")
+
+                if args.save_csv:
+                    eval_df.to_csv(plots_dir / f"rolling_surface_eval_{tgt}.csv")
+        except Exception as e:
+            print(f"[WARN] Rolling surface weights failed: {e}")
 
     # ---------- Slides 12–13 pooled XGB importances ----------
     if not args.skip_pooled:
@@ -994,11 +1097,35 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--export-dpi", type=int, default=300, help="Export DPI for saved figures")
     p.add_argument("--export-formats", default="png", help="Comma-separated formats (e.g., 'png,svg')")
     p.add_argument("--transparent", action="store_true", help="Transparent background for exports")
-    # Surface correlation/weights options
-    p.add_argument("--surface-weights-target", default=None, help="Ticker to compute surface-based weights for")
-    p.add_argument("--surface-k-bins", type=int, default=10, help="Surface moneyness grid bins")
-    p.add_argument("--surface-t-bins", type=int, default=10, help="Surface maturity grid bins")
-    p.add_argument("--surface-agg", choices=["median", "mean"], default="median")
+    p.add_argument(
+        "--surface-agg",
+        choices=["median", "mean"],
+        default="median",
+        help="Aggregate IV across surface per timestamp (median or mean)",
+    )
+    p.add_argument(
+        "--surface-mode",
+        choices=["atm", "full"],
+        default="atm",
+        help="Use ATM-by-expiry only (atm) or full surface (all strikes+expiries)",
+    )
+    p.add_argument(
+        "--surface-weights-target",
+        default=None,
+        help="Ticker to visualize rolling peer weights for surface reconstruction",
+    )
+    p.add_argument(
+        "--surface-weights-method",
+        choices=["corr", "pca", "pcareg"],
+        default="corr",
+        help="Weighting method to visualize (corr, pca, pcareg)",
+    )
+    p.add_argument(
+        "--surface-weights-topk",
+        type=int,
+        default=5,
+        help="Top-k peers by average weight to plot",
+    )
     p.add_argument("--skip-regression", action="store_true", help="Skip baseline regression outputs")
     p.add_argument("--skip-pca", action="store_true", help="Skip baseline PCA outputs")
     p.add_argument(

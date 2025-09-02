@@ -57,9 +57,10 @@ def compute_baseline_correlations(
     """
     if cores is None:
         db = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
-        cores = load_cores_with_auto_fetch(list(tickers), start, end, db)
+        atm_only = (str(surface_mode).lower() != "full")
+        cores = load_cores_with_auto_fetch(list(tickers), start, end, db, atm_only=atm_only)
 
-    panel = build_iv_panel(cores, tolerance=tolerance)
+    panel = build_iv_panel(cores, tolerance=tolerance, agg=surface_agg)
     if panel is None or panel.empty:
         # Surface correlation can still be attempted if cores present
         surface_corr = pd.DataFrame()
