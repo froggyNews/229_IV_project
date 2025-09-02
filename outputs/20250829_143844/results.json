@@ -1,0 +1,503 @@
+{
+  "config": {
+    "tickers": [
+      "QBTS",
+      "IONQ",
+      "RGTI",
+      "QUBT"
+    ],
+    "start": "2025-06-02",
+    "end": "2025-08-06",
+    "forward_steps": 60,
+    "test_frac": 0.2,
+    "timestamp": "20250829_143844",
+    "db_path": "data\\iv_data_1m.db",
+    "output_dir": "outputs",
+    "xgb_params": {
+      "objective": "reg:squarederror",
+      "n_estimators": 350,
+      "learning_rate": 0.05,
+      "max_depth": 6,
+      "subsample": 0.9,
+      "colsample_bytree": 0.9,
+      "random_state": 42,
+      "n_jobs": -1,
+      "tree_method": "hist"
+    },
+    "peer_targets": [
+      "QBTS",
+      "IONQ",
+      "RGTI",
+      "QUBT"
+    ],
+    "peer_target_kinds": [
+      "iv_ret",
+      "iv"
+    ],
+    "tolerance": "30s",
+    "drop_zero_iv_ret": true,
+    "save_per_row": false,
+    "use_surface_features": true,
+    "surface_k_bins": 12,
+    "surface_t_bins": 8,
+    "surface_agg": "median"
+  },
+  "pooled_models": {
+    "iv_ret_fwd": {
+      "rmse": 1.7609027166421087,
+      "r2": -0.05557805012953576,
+      "n_train": 51108,
+      "n_test": 12777
+    }
+  },
+  "peer_effects": {
+    "QBTS_iv_ret": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.6088923123213799,
+        "r2": 0.44171250173878085,
+        "n_train": 77890,
+        "n_test": 19473,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv_ret",
+        "forward_steps": 60,
+        "test_frac": 0.2,
+        "n_samples": 97363,
+        "n_features": 18
+      }
+    },
+    "IONQ_iv_ret": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.30808777364330037,
+        "r2": 0.3502168420142361,
+        "n_train": 76656,
+        "n_test": 19165,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv_ret",
+        "forward_steps": 60,
+        "test_frac": 0.2,
+        "n_samples": 95821,
+        "n_features": 18
+      }
+    },
+    "RGTI_iv_ret": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.5603951917272376,
+        "r2": 0.45159910188553176,
+        "n_train": 84969,
+        "n_test": 21243,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv_ret",
+        "forward_steps": 60,
+        "test_frac": 0.2,
+        "n_samples": 106212,
+        "n_features": 18
+      }
+    },
+    "QUBT_iv_ret": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.679682671545297,
+        "r2": 0.3804638636975817,
+        "n_train": 64571,
+        "n_test": 16143,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv_ret",
+        "forward_steps": 60,
+        "test_frac": 0.2,
+        "n_samples": 80714,
+        "n_features": 18
+      }
+    },
+    "QBTS_iv": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.047197871475899704,
+        "r2": 0.9793818113396547,
+        "n_train": 77938,
+        "n_test": 19485,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv",
+        "forward_steps": 60,
+        "test_frac": 0.2,
+        "n_samples": 97423,
+        "n_features": 18
+      }
+    },
+    "IONQ_iv": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.029377948359956642,
+        "r2": 0.988973184510564,
+        "n_train": 76704,
+        "n_test": 19177,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv",
+        "forward_steps": 60,
+        "test_frac": 0.2,
+        "n_samples": 95881,
+        "n_features": 18
+      }
+    },
+    "RGTI_iv": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.03495287594975831,
+        "r2": 0.981288218578354,
+        "n_train": 85017,
+        "n_test": 21255,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv",
+        "forward_steps": 60,
+        "test_frac": 0.2,
+        "n_samples": 106272,
+        "n_features": 18
+      }
+    },
+    "QUBT_iv": {
+      "status": "success",
+      "metrics": {
+        "rmse": 0.042791530870724,
+        "r2": 0.9795211247387277,
+        "n_train": 64619,
+        "n_test": 16155,
+        "n_features": 18
+      },
+      "feature_names": [
+        "iv_ret_1h",
+        "opt_vol_change_1h",
+        "delta",
+        "gamma",
+        "vega",
+        "hour",
+        "minute",
+        "day_of_week",
+        "opt_volume",
+        "time_to_expiry",
+        "days_to_expiry",
+        "strike_price",
+        "option_type_enc",
+        "sabr_alpha",
+        "sabr_rho",
+        "sabr_nu",
+        "moneyness",
+        "log_moneyness"
+      ],
+      "config": {
+        "target_kind": "iv",
+        "forward_steps": 60,
+        "test_frac": 0.2,
+        "n_samples": 80774,
+        "n_features": 18
+      }
+    }
+  },
+  "baseline_correlations": {
+    "iv_levels": {
+      "correlation_matrix": {
+        "QBTS": {
+          "QBTS": 1.0,
+          "IONQ": 0.06017915632778361,
+          "RGTI": 0.06188268675389383,
+          "QUBT": 0.05459577838782708
+        },
+        "IONQ": {
+          "QBTS": 0.06017915632778361,
+          "IONQ": 1.0,
+          "RGTI": 0.05254545792980442,
+          "QUBT": 0.04317077467792655
+        },
+        "RGTI": {
+          "QBTS": 0.06188268675389383,
+          "IONQ": 0.05254545792980442,
+          "RGTI": 1.0,
+          "QUBT": 0.038654242144169244
+        },
+        "QUBT": {
+          "QBTS": 0.05459577838782708,
+          "IONQ": 0.04317077467792655,
+          "RGTI": 0.038654242144169244,
+          "QUBT": 1.0
+        }
+      },
+      "description": "Historical correlation matrix of IV levels",
+      "n_tickers": 4
+    },
+    "iv_returns": {
+      "correlation_matrix": {
+        "QBTS": {
+          "QBTS": 1.0,
+          "IONQ": -0.0013208468920884572,
+          "RGTI": -0.0003493283764688382,
+          "QUBT": -0.0011534558595494909
+        },
+        "IONQ": {
+          "QBTS": -0.0013208468920884572,
+          "IONQ": 1.0,
+          "RGTI": -3.639204176347355e-05,
+          "QUBT": 0.0032590306618133116
+        },
+        "RGTI": {
+          "QBTS": -0.0003493283764688382,
+          "IONQ": -3.639204176347355e-05,
+          "RGTI": 1.0,
+          "QUBT": 0.009040810428195661
+        },
+        "QUBT": {
+          "QBTS": -0.0011534558595494909,
+          "IONQ": 0.0032590306618133116,
+          "RGTI": 0.009040810428195661,
+          "QUBT": 1.0
+        }
+      },
+      "description": "Historical correlation matrix of IV returns",
+      "n_tickers": 4
+    }
+  },
+  "baseline_regression": {
+    "iv_returns": {
+      "QBTS": {
+        "intercept": -2.046933027364324e-05,
+        "beta": -0.0027728515800284625,
+        "r2": 1.987210910825432e-06,
+        "n": 97649.0
+      },
+      "IONQ": {
+        "intercept": 0.003300242386008968,
+        "beta": 0.0007859380379152107,
+        "r2": 2.078452599363345e-06,
+        "n": 97643.0
+      },
+      "RGTI": {
+        "intercept": 0.01424078414266165,
+        "beta": 0.010093592021285963,
+        "r2": 4.385448727206587e-05,
+        "n": 97495.0
+      },
+      "QUBT": {
+        "intercept": -0.03538978813761746,
+        "beta": 0.015090659386996531,
+        "r2": 2.974251754883639e-05,
+        "n": 97197.0
+      }
+    },
+    "iv_levels": {
+      "QBTS": {
+        "intercept": 0.9526645385338415,
+        "beta": 0.19890392895630712,
+        "r2": 0.00914225731060414,
+        "n": 97650.0
+      },
+      "IONQ": {
+        "intercept": 0.8477636790584901,
+        "beta": 0.1074781478120185,
+        "r2": 0.0072231285188520955,
+        "n": 97643.0
+      },
+      "RGTI": {
+        "intercept": 0.8708780383375588,
+        "beta": 0.10931128734142605,
+        "r2": 0.00692589341016181,
+        "n": 97495.0
+      },
+      "QUBT": {
+        "intercept": 0.9230949487024541,
+        "beta": 0.1461760194538003,
+        "r2": 0.005667522713314166,
+        "n": 97197.0
+      }
+    }
+  },
+  "baseline_pca": {
+    "iv_returns": {
+      "explained_variance_ratio": [
+        0.25246401526517187,
+        0.2502667666960821,
+        0.24969350485589434
+      ],
+      "components": {
+        "PC1": {
+          "QBTS": -0.13850399331486196,
+          "IONQ": 0.25887838522459045,
+          "RGTI": 0.6488124748411273,
+          "QUBT": 0.702026351350059
+        },
+        "PC2": {
+          "QBTS": 0.6670896656468199,
+          "IONQ": -0.6600020134896665,
+          "RGTI": 0.340169615346724,
+          "QUBT": 0.060608192281753064
+        },
+        "PC3": {
+          "QBTS": 0.7314215180805332,
+          "IONQ": 0.6606944632998559,
+          "RGTI": -0.16133289675147755,
+          "QUBT": 0.04977032729910947
+        }
+      },
+      "n_samples": 97034
+    }
+  },
+  "peer_group_analysis": {},
+  "evaluation": {
+    "pooled_iv_ret_fwd": {
+      "error": "surface evaluator unavailable"
+    }
+  }
+}

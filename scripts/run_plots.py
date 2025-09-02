@@ -38,6 +38,7 @@ from matplotlib.colors import Normalize
 from matplotlib import ticker as mticker
 from cycler import cycler
 import seaborn as sns
+import re
 import xgboost as xgb
 
 try:
@@ -59,6 +60,7 @@ from src.baseline_correlation import compute_baseline_correlations
 from src.baseline_regression import compute_baseline_regression
 from src.baseline_pca import compute_baseline_pca
 from src.data_loader_coordinator import load_cores_with_auto_fetch
+from src.surface_correlation import build_features_and_weights
 from src.feature_engineering import (
     build_iv_panel,
     DEFAULT_DB_PATH,
@@ -320,6 +322,61 @@ def _resolve_db_path(arg_db: str | None) -> Path:
     return Path(DEFAULT_DB_PATH)
 
 
+def _load_xgb_gain_importance(model_path: Path) -> pd.DataFrame:
+    """Load an XGBoost JSON model and return gain-based importances."""
+    model = xgb.XGBRegressor()
+    model.load_model(str(model_path))
+    bst = model.get_booster()
+    gain = bst.get_score(importance_type="gain") or {}
+    df = pd.DataFrame(
+        [(k, float(v)) for k, v in gain.items()], columns=["feature", "gain"]
+    ).sort_values("gain", ascending=False)
+    return df
+
+
+def _plot_surface_importance_heatmap(imp_df: pd.DataFrame, out_path: Path, title: str):
+    """Aggregate feature gains back to KxT grid and plot a heatmap.
+
+    Expects features named like K{i}_T{j}. Unknown patterns are ignored.
+    """
+    if imp_df is None or imp_df.empty:
+        print(f"[WARN] No importance data to plot for {title}")
+        return
+    # Parse indices
+    rows = []
+    for _, r in imp_df.iterrows():
+        f = str(r["feature"]) if "feature" in r else str(r.get(0, ""))
+        m = re.match(r"^K(\d+)_T(\d+)$", f)
+        if not m:
+            continue
+        i = int(m.group(1))
+        j = int(m.group(2))
+        rows.append((i, j, float(r["gain"])) )
+    if not rows:
+        print(f"[WARN] No K/T features parsed for {title}")
+        return
+    df = pd.DataFrame(rows, columns=["K", "T", "gain"]).groupby(["T", "K"]).sum().reset_index()
+    k_max = int(df["K"].max())
+    t_max = int(df["T"].max())
+    grid = df.pivot(index="T", columns="K", values="gain").reindex(
+        index=range(t_max + 1), columns=range(k_max + 1)
+    ).fillna(0.0)
+
+    plt.figure(figsize=(9.0, 6.6))
+    ax = sns.heatmap(
+        grid,
+        cmap=_blue_seq_cmap(),
+        cbar_kws={"label": "Gain"},
+        linewidths=0.4,
+        linecolor="white",
+        square=False,
+    )
+    ax.set_title(title)
+    ax.set_xlabel("Moneyness bin K")
+    ax.set_ylabel("Maturity bin T")
+    _save(out_path)
+
+
 def _save_regression_tables_and_plots(
     tickers: Sequence[str],
     start: str,
@@ -422,18 +479,19 @@ def _save_pca_tables_and_plots(
                     "loading", ascending=False
                 )
                 df.to_csv(plots_dir / f"baseline_pca_ivret_{name}_loadings.csv", index=False)
-            if "PC1" in comps:
-                df = pd.DataFrame(list(comps["PC1"].items()), columns=["ticker", "loading"]).sort_values(
-                    "loading", ascending=False
+            if any(pc in comps for pc in ("PC1", "PC2", "PC3")):
+                out = plot_pca_loadings_panel(
+                    comps=comps,
+                    start=start,
+                    end=end,
+                    plots_dir=plots_dir,
+                    pcs=("PC1", "PC2", "PC3"),  # will auto-skip missing
+                    sort_by="PC1",
+                    top_n=None,                 # or e.g. 20
+                    annotate=False,
+                    fname="baseline_pca_ivret_pc123_loadings.png",
                 )
-                plt.figure(figsize=(7.2, 4.2))
-                ax = plt.gca()
-                ax.bar(df["ticker"], df["loading"], color=plt.cm.Blues(0.55))
-                ax.set_title(f"PCA PC1 Loadings (IV Returns)\n{start} – {end}")
-                ax.set_ylabel("Loading")
-                ax.set_xlabel("")
-                plt.xticks(rotation=0)
-                _save(plots_dir / "baseline_pca_ivret_pc1_loadings.png")
+                print("Saved:", out)
 
     except Exception as e:
         print(f"[WARN] Baseline PCA failed: {e}")
@@ -460,6 +518,121 @@ def _export_eval_tables(eval_paths: list[Path], out_dir: Path) -> None:
         except Exception as e:
             print(f"[WARN] Failed to export tables for {p}: {e}")
 
+import math
+from pathlib import Path
+from typing import Dict, Mapping, Iterable, List, Tuple
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+def plot_pca_loadings_panel(
+    comps: Mapping[str, Mapping[str, float]],
+    start: str,
+    end: str,
+    plots_dir: Path,
+    pcs: Iterable[str] = ("PC1", "PC2", "PC3"),
+    sort_by: str = "PC1",               # which PC to use for ticker sort (falls back to abs if missing)
+    top_n: int | None = None,           # limit number of tickers (e.g., 20) or None for all
+    annotate: bool = False,             # add numeric labels to bars
+    fname: str = "pca_ivret_pc123_loadings.png",
+) -> Path:
+    """
+    Create a panel of horizontal bar charts for PCA loadings (PC1–PC3).
+    - comps: dict like {"PC1": {"IONQ": 0.4, ...}, "PC2": {...}, ...}
+    """
+    # Gather available PCs in order
+    pcs = [pc for pc in pcs if pc in comps and isinstance(comps[pc], Mapping) and len(comps[pc]) > 0]
+    if not pcs:
+        raise ValueError("No requested principal components found in `comps`.")
+
+    # Build tidy dataframe of loadings
+    recs: List[Tuple[str, str, float]] = []
+    all_tickers: set[str] = set()
+    for pc in pcs:
+        for t, v in comps[pc].items():
+            recs.append((pc, t, float(v)))
+            all_tickers.add(t)
+    df = pd.DataFrame(recs, columns=["pc", "ticker", "loading"])
+
+    # Choose sort reference
+    sort_ref = sort_by if sort_by in pcs else pcs[0]
+    # Compute sort order using absolute loading on the reference PC (fallback to 0 for missing)
+    ref = (df[df["pc"] == sort_ref]
+           .set_index("ticker")["loading"]
+           .reindex(sorted(all_tickers)))
+    ref_abs = ref.abs().fillna(0.0).sort_values(ascending=False)
+    tickers_sorted = list(ref_abs.index)
+    if top_n is not None:
+        tickers_sorted = tickers_sorted[:int(top_n)]
+
+    # Filter df to tickers in view and pivot-wide for consistent axis limits
+    df = df[df["ticker"].isin(tickers_sorted)]
+    # Find symmetric x-limits across all shown PCs for a clean visual scale
+    lim = float(np.nanmax(np.abs(df["loading"].values))) if not df.empty else 1.0
+    lim = max(lim, 1e-6)
+
+    # Figure layout
+    n = len(pcs)
+    fig_h = max(2.8, 0.35 * len(tickers_sorted))  # scale height with number of tickers
+    fig_w = 9.5
+    fig, axes = plt.subplots(
+        nrows=1, ncols=n, figsize=(fig_w, fig_h), sharey=True, constrained_layout=True
+    )
+    if n == 1:
+        axes = [axes]
+
+    # Colormap for sign (no external libs)
+    # positive -> one color, negative -> another
+    pos_color = plt.cm.Blues(0.65)
+    neg_color = plt.cm.Oranges(0.65)
+
+    # Draw each PC subplot
+    for ax, pc in zip(axes, pcs):
+        sub = (df[df["pc"] == pc]
+               .set_index("ticker")
+               .reindex(tickers_sorted))
+        y = np.arange(len(tickers_sorted))
+
+        # Split +/-
+        vals = sub["loading"].fillna(0.0).to_numpy()
+        colors = [pos_color if v >= 0 else neg_color for v in vals]
+
+        ax.barh(y, vals, height=0.6, color=colors, edgecolor="none")
+        ax.axvline(0, color="0.3", lw=1, alpha=0.8)                  # zero line
+        ax.grid(axis="x", color="0.9", lw=0.8)                       # light x-grid
+        ax.set_xlim(-lim * 1.05, lim * 1.05)
+        ax.set_title(pc, fontsize=12, pad=8)
+        ax.set_xlabel("Loading")
+
+        if ax is axes[0]:
+            ax.set_yticks(y, tickers_sorted, fontsize=10)
+        else:
+            ax.set_yticks([])
+
+        # Optional numeric annotations
+        if annotate:
+            for yi, v in zip(y, vals):
+                ax.text(
+                    v + (0.01 * np.sign(v) if v != 0 else 0.01),
+                    yi,
+                    f"{v:.2f}",
+                    va="center",
+                    ha="left" if v >= 0 else "right",
+                    fontsize=9,
+                    color="0.25",
+                )
+
+    # Super title
+    fig.suptitle(f"PCA Loadings (IV Returns): {start} – {end}", fontsize=13, y=1.02)
+    # Subtle caption
+    fig.text(0.01, 0.005, "Bars colored by sign (blue = +, orange = −). Tick ordering by |{}|.".format(sort_ref),
+             fontsize=9, color="0.35")
+
+    plots_dir.mkdir(parents=True, exist_ok=True)
+    outpath = plots_dir / fname
+    fig.savefig(outpath, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    return outpath
 
 def run(args: argparse.Namespace) -> None:
     plots_dir = _ensure_plots_dir(Path(args.plots_dir))
@@ -512,6 +685,8 @@ def run(args: argparse.Namespace) -> None:
         )
         clip_corr = corrs.get("clip", pd.DataFrame())
         ivret_corr = corrs.get("iv_returns", pd.DataFrame())
+        surface_corr = corrs.get("surface", pd.DataFrame())
+        surface_ret_corr = corrs.get("surface_returns", pd.DataFrame())
 
         _save_heatmap(
             clip_corr,
@@ -529,12 +704,62 @@ def run(args: argparse.Namespace) -> None:
             args.end,
             note=f"timeframe={timeframe}",
         )
+        _save_heatmap(
+            surface_corr,
+            "Historical IV Surface Correlations",
+            plots_dir / "slide10_iv_surface_corr_heatmap.png",
+            args.start,
+            args.end,
+            note=f"timeframe={timeframe}",
+        )
+        _save_heatmap(
+            surface_ret_corr,
+            "Historical IV Surface Return Correlations",
+            plots_dir / "slide10_iv_surface_return_corr_heatmap.png",
+            args.start,
+            args.end,
+            note=f"timeframe={timeframe}",
+        )
 
         if args.save_csv:
             if not clip_corr.empty:
                 clip_corr.to_csv(plots_dir / "slide10_iv_level_corr.csv")
             if not ivret_corr.empty:
                 ivret_corr.to_csv(plots_dir / "slide10_iv_return_corr.csv")
+            if not surface_corr.empty:
+                surface_corr.to_csv(plots_dir / "slide10_iv_surface_corr.csv")
+            if not surface_ret_corr.empty:
+                surface_ret_corr.to_csv(plots_dir / "slide10_iv_surface_return_corr.csv")
+        # Optional: surface-based weights for a target
+        if getattr(args, "surface_weights_target", None):
+            try:
+                feats, weights = build_features_and_weights(
+                    tickers=args.tickers,
+                    start=args.start,
+                    end=args.end,
+                    db_path=db_path,
+                    k_bins=int(getattr(args, "surface_k_bins", 10)),
+                    t_bins=int(getattr(args, "surface_t_bins", 10)),
+                    agg=str(getattr(args, "surface_agg", "median")),
+                    target=args.surface_weights_target,
+                    clip_negative=True,
+                    power=1.0,
+                )
+                if not weights.empty:
+                    w = weights.iloc[0].dropna()
+                    weights.to_csv(plots_dir / f"baseline_surface_weights_{args.surface_weights_target}.csv")
+                    plt.figure(figsize=(8.6, 4.6))
+                    ax = plt.gca()
+                    ax.bar(w.index, w.values, color=plt.cm.Blues(0.6))
+                    ax.set_title(
+                        f"Surface Corr-Derived Weights for {args.surface_weights_target}\n{args.start} to {args.end}"
+                    )
+                    ax.set_ylabel("Weight")
+                    ax.set_ylim(0, max(0.01, float(w.max()) * 1.15))
+                    plt.xticks(rotation=0)
+                    _save(plots_dir / f"baseline_surface_weights_{args.surface_weights_target}.png")
+            except Exception as e2:
+                print(f"[WARN] Surface weight computation failed: {e2}")
     except Exception as e:
         print(f"[WARN] Slide 10 heatmaps failed: {e}")
 
@@ -667,6 +892,91 @@ def run(args: argparse.Namespace) -> None:
     if eval_paths:
         _export_eval_tables(eval_paths, plots_dir)
 
+    # Surface model importances (if provided)
+    if getattr(args, "surface_models", None):
+        for mp in args.surface_models:
+            try:
+                model_path = Path(mp)
+                imp = _load_xgb_gain_importance(model_path)
+                if imp.empty:
+                    print(f"[WARN] No gain importances in {model_path}")
+                    continue
+                # Save raw table
+                imp.to_csv(plots_dir / f"surface_importances_{model_path.stem}.csv", index=False)
+                # Top-N bar
+                topn = int(getattr(args, "surface_top_n", 20))
+                top = imp.head(topn)
+                plt.figure(figsize=(9.5, 5.0))
+                ax = plt.gca()
+                ax.bar(top["feature"], top["gain"], color=plt.cm.Blues(0.6))
+                ax.set_title(f"Surface Model Feature Gain (Top {topn})\n{model_path.name}")
+                ax.set_ylabel("Gain")
+                ax.set_xlabel("")
+                plt.xticks(rotation=90)
+                _save(plots_dir / f"surface_importances_top{topn}_{model_path.stem}.png")
+                # KxT heatmap
+                _plot_surface_importance_heatmap(
+                    imp,
+                    plots_dir / f"surface_importances_grid_{model_path.stem}.png",
+                    title=f"Surface Model Gain Heatmap (K×T)\n{model_path.name}",
+                )
+            except Exception as e:
+                print(f"[WARN] Surface model importance failed for {mp}: {e}")
+
+    # Average surface per ticker (over the selected window)
+    if getattr(args, "plot_surfaces", False):
+        try:
+            feats, _ = build_features_and_weights(
+                tickers=args.tickers,
+                start=args.start,
+                end=args.end,
+                db_path=db_path,
+                k_bins=int(getattr(args, "surface_k_bins", 10)),
+                t_bins=int(getattr(args, "surface_t_bins", 10)),
+                agg=str(getattr(args, "surface_agg", "median")),
+                target=None,
+            )
+            if feats is not None and not feats.empty:
+                # parse K and T indices
+                kt = [c for c in feats.columns if c.startswith("K") and "_T" in c]
+                # infer dims
+                max_k = 0
+                max_t = 0
+                import re
+                for c in kt:
+                    m = re.match(r"^K(\d+)_T(\d+)$", c)
+                    if m:
+                        max_k = max(max_k, int(m.group(1)))
+                        max_t = max(max_t, int(m.group(2)))
+                for ticker in feats.index:
+                    row = feats.loc[ticker]
+                    data = {}
+                    for c in kt:
+                        m = re.match(r"^K(\d+)_T(\d+)$", c)
+                        if not m:
+                            continue
+                        i = int(m.group(1)); j = int(m.group(2))
+                        data[(j, i)] = float(row[c])
+                    # build grid
+                    grid = np.full((max_t + 1, max_k + 1), np.nan)
+                    for (j, i), val in data.items():
+                        grid[j, i] = val
+                    plt.figure(figsize=(9.0, 6.6))
+                    ax = sns.heatmap(
+                        pd.DataFrame(grid),
+                        cmap=_blue_seq_cmap(),
+                        cbar_kws={"label": "IV level"},
+                        linewidths=0.4,
+                        linecolor="white",
+                        square=False,
+                    )
+                    ax.set_title(f"Average IV Surface (K×T) — {ticker}\n{args.start} to {args.end}")
+                    ax.set_xlabel("Moneyness bin K")
+                    ax.set_ylabel("Maturity bin T")
+                    _save(plots_dir / f"avg_surface_{ticker}.png")
+        except Exception as e:
+            print(f"[WARN] Average surface plotting failed: {e}")
+
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Generate plots for Slides 10–13 (1h/1m-aware)")
@@ -684,6 +994,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--export-dpi", type=int, default=300, help="Export DPI for saved figures")
     p.add_argument("--export-formats", default="png", help="Comma-separated formats (e.g., 'png,svg')")
     p.add_argument("--transparent", action="store_true", help="Transparent background for exports")
+    # Surface correlation/weights options
+    p.add_argument("--surface-weights-target", default=None, help="Ticker to compute surface-based weights for")
+    p.add_argument("--surface-k-bins", type=int, default=10, help="Surface moneyness grid bins")
+    p.add_argument("--surface-t-bins", type=int, default=10, help="Surface maturity grid bins")
+    p.add_argument("--surface-agg", choices=["median", "mean"], default="median")
     p.add_argument("--skip-regression", action="store_true", help="Skip baseline regression outputs")
     p.add_argument("--skip-pca", action="store_true", help="Skip baseline PCA outputs")
     p.add_argument(
@@ -704,6 +1019,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--save-csv", action="store_true", help="Also save CSVs of outputs")
     p.add_argument("--eval-files", nargs="*", help="Evaluation JSON file(s) to export tables from")
     p.add_argument("--eval-dir", default="outputs/evaluations", help="Directory to scan for *_evaluation.json")
+    # Surface model importances
+    p.add_argument("--surface-models", nargs="*", help="Path(s) to surface-trained model JSON files")
+    p.add_argument("--surface-top-n", type=int, default=20, help="Top-N features for bar chart")
+    # Average surface plots per ticker
+    p.add_argument("--plot-surfaces", action="store_true", help="Plot average (K×T) surface per ticker")
     return p.parse_args()
 
 

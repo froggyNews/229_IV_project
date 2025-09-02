@@ -31,6 +31,7 @@ from baseline_correlation import compute_baseline_correlations
 from baseline_regression import compute_baseline_regression
 from baseline_pca import compute_baseline_pca
 from peer_group_analyzer import PeerGroupAnalyzer, PeerGroupConfig
+from surface_dataset import build_surface_tensor_dataset
 
 # Try to import model evaluation
 try:
@@ -90,6 +91,12 @@ class RunConfig:
     compute_baseline_correlations: bool = True
     compute_baseline_regression: bool = True
     compute_baseline_pca: bool = True
+    
+    # Surface feature training
+    use_surface_features: bool = False
+    surface_k_bins: int = 10
+    surface_t_bins: int = 10
+    surface_agg: str = "median"  # 'median' or 'mean'
     
     # Peer group analysis settings
     enable_peer_group_analysis: bool = False
@@ -665,6 +672,10 @@ def save_results(
             "tolerance": cfg.tolerance,
             "drop_zero_iv_ret": cfg.drop_zero_iv_ret,
             "save_per_row": cfg.save_per_row,
+            "use_surface_features": getattr(cfg, "use_surface_features", False),
+            "surface_k_bins": getattr(cfg, "surface_k_bins", 10),
+            "surface_t_bins": getattr(cfg, "surface_t_bins", 10),
+            "surface_agg": getattr(cfg, "surface_agg", "median"),
         },
         "pooled_models": pooled_results.get("metrics", {}),
         "peer_effects": peer_results,
@@ -730,6 +741,74 @@ def save_models(cfg: RunConfig, pooled_results: Dict, peer_results: Dict) -> Dic
     return saved_paths
 
 
+def _train_simple_xgb(X: pd.DataFrame, y: pd.Series, test_frac: float, params: Dict[str, Any]) -> Tuple[xgb.XGBRegressor, Dict[str, Any]]:
+    X = X.astype(float)
+    y = y.astype(float)
+    n = len(X)
+    split = int(n * (1 - test_frac)) if n > 1 else 0
+    X_tr, X_te = X.iloc[:split], X.iloc[split:]
+    y_tr, y_te = y.iloc[:split], y.iloc[split:]
+    model = xgb.XGBRegressor(**params)
+    model.fit(X_tr, y_tr)
+    y_pred = model.predict(X_te) if len(X_te) > 0 else np.array([])
+    rmse = float(np.sqrt(mean_squared_error(y_te, y_pred))) if len(y_pred) == len(y_te) and len(y_te) > 0 else float("nan")
+    r2 = float(r2_score(y_te, y_pred)) if len(y_pred) == len(y_te) and len(y_te) > 0 else float("nan")
+    metrics = {"rmse": rmse, "r2": r2, "n_train": len(X_tr), "n_test": len(X_te)}
+    return model, metrics
+
+
+def train_pooled_models_surface(cfg: RunConfig) -> Dict[str, Any]:
+    """Train pooled models using surface-tensor features for targets iv_ret_fwd and iv_clip."""
+    apply_timeframe_defaults(cfg)
+
+    print("\n=== Training Pooled Models (Surface Features) ===")
+    df = build_surface_tensor_dataset(
+        tickers=list(cfg.tickers),
+        start=cfg.start,
+        end=cfg.end,
+        db_path=cfg.db_path,
+        k_bins=cfg.surface_k_bins,
+        t_bins=cfg.surface_t_bins,
+        agg=cfg.surface_agg,
+        forward_steps=cfg.forward_steps,
+        tolerance=cfg.tolerance,
+    )
+    if df is None or df.empty:
+        print("  No surface dataset rows built")
+        return {"models": {}, "metrics": {}}
+
+    # One-hot symbol for pooled learning
+    if "symbol" in df.columns:
+        df = pd.get_dummies(df, columns=["symbol"], prefix="sym", dtype=float)
+
+    # Select features: all K*_T* numeric columns + one-hots
+    drop_cols = {"ts_event"}
+    target_cols = [c for c in ["iv_ret_fwd", "iv_clip"] if c in df.columns]
+    drop_cols.update(target_cols)
+    feat_cols = [c for c in df.columns if c not in drop_cols and pd.api.types.is_numeric_dtype(df[c])]
+    X_all = df[feat_cols].astype(float)
+
+    results_models: Dict[str, xgb.XGBRegressor] = {}
+    results_metrics: Dict[str, Dict[str, Any]] = {}
+
+    params = cfg.xgb_params or get_default_xgb_params()
+
+    for target in target_cols:
+        y = pd.to_numeric(df[target], errors="coerce")
+        valid_mask = y.notna() & np.isfinite(y)
+        X = X_all.loc[valid_mask]
+        yy = y.loc[valid_mask]
+        if len(X) < 50:
+            print(f"  Skipping {target}: too few rows ({len(X)})")
+            continue
+        model, metrics = _train_simple_xgb(X, yy, cfg.test_frac, params)
+        results_models[target] = model
+        results_metrics[target] = metrics
+        print(f"  {target}: rmse={metrics['rmse']:.6f} r2={metrics['r2']:.3f} n={metrics['n_train']}/{metrics['n_test']}")
+
+    return {"models": results_models, "metrics": results_metrics}
+
+
 def run_pipeline(cfg: RunConfig) -> Dict[str, Any]:
     """Run complete training pipeline."""
     # Normalize config for chosen timeframe
@@ -778,8 +857,11 @@ def run_pipeline(cfg: RunConfig) -> Dict[str, Any]:
     # Run comprehensive peer group analysis
     peer_group_results = run_peer_group_analysis_wrapper(cfg, cores)
     
-    # Train pooled models
-    pooled_results = train_pooled_models(cfg, cores)
+    # Train pooled models (optionally using surface features)
+    if cfg.use_surface_features:
+        pooled_results = train_pooled_models_surface(cfg)
+    else:
+        pooled_results = train_pooled_models(cfg, cores)
     
     # Train peer effects models
     peer_results = train_peer_effects(cfg, cores)
@@ -788,8 +870,45 @@ def run_pipeline(cfg: RunConfig) -> Dict[str, Any]:
     model_paths = save_models(cfg, pooled_results, peer_results)
 
     # Evaluate each saved pooled model
-    # Evaluate each saved pooled model
     eval_results = {}
+    if getattr(cfg, "use_surface_features", False) and model_paths:
+        print("\n=== Model Evaluation (Surface Features) ===")
+        try:
+            from surface_evaluation import evaluate_surface_model
+        except Exception as e:
+            print(f"  Failed to import surface evaluator: {e}")
+            evaluate_surface_model = None
+        for name, path in model_paths.items():
+            try:
+                if evaluate_surface_model is None:
+                    raise RuntimeError("surface evaluator unavailable")
+                print(f"Evaluating {name} (surface)...")
+                evaluation = evaluate_surface_model(
+                    model_path=path,
+                    tickers=list(cfg.tickers),
+                    start=cfg.start,
+                    end=cfg.end,
+                    test_frac=cfg.test_frac,
+                    forward_steps=cfg.forward_steps,
+                    tolerance=cfg.tolerance,
+                    k_bins=cfg.surface_k_bins,
+                    t_bins=cfg.surface_t_bins,
+                    agg=cfg.surface_agg,
+                    db_path=cfg.db_path,
+                    metrics_dir=cfg.output_dir / "evaluations",
+                    outputs_prefix=f"{path.stem}_eval",
+                    target_col=name.replace("pooled_", ""),
+                    save_report=True,
+                )
+                evaluation = _strip_per_row_payloads(evaluation)
+                eval_results[name] = evaluation
+                if "metrics" in evaluation:
+                    print(f"   {name}: RMSE={evaluation['metrics']['RMSE']:.6f}, R2={evaluation['metrics']['R2']:.3f}")
+            except Exception as e:
+                print(f"   Failed to evaluate {name}: {e}")
+                eval_results[name] = {"error": str(e)}
+        # Prevent the tabular evaluator from running below
+        model_paths = {}
     if MODEL_EVALUATION_AVAILABLE and model_paths:
         print("\n=== Model Evaluation (NIDEL-style) ===")
         for name, path in model_paths.items():
@@ -898,6 +1017,12 @@ def parse_arguments() -> RunConfig:
     parser.add_argument("--no-baseline-pca", action="store_true",
                         help="Disable baseline PCA computation")
     
+    # Surface feature training options
+    parser.add_argument("--use-surface", action="store_true", help="Train pooled models on surface tensor features")
+    parser.add_argument("--surface-k-bins", type=int, default=10, help="Surface moneyness grid bins")
+    parser.add_argument("--surface-t-bins", type=int, default=10, help="Surface maturity grid bins")
+    parser.add_argument("--surface-agg", choices=["median", "mean"], default="median", help="Aggregation in each grid cell")
+    
     # Peer group analysis settings
     parser.add_argument("--enable-peer-group-analysis", action="store_true",
                         help="Enable comprehensive peer group analysis")
@@ -941,6 +1066,10 @@ def parse_arguments() -> RunConfig:
             enable_peer_group_analysis=args.enable_peer_group_analysis,
             peer_groups=peer_groups,
             timeframe=args.timeframe,
+            use_surface_features=args.use_surface,
+            surface_k_bins=args.surface_k_bins,
+            surface_t_bins=args.surface_t_bins,
+            surface_agg=args.surface_agg,
         )
     apply_timeframe_defaults(cfg)
     return cfg

@@ -1,0 +1,5 @@
+feature,avg_shap,ticker,direction
+sym_VZ,0.0016113811871036887,VZ,↑
+sym_SATS,0.0,SATS,↑
+sym_T,-0.00197241292335093,T,↓
+sym_ASTS,-0.005112380720674992,ASTS,↓

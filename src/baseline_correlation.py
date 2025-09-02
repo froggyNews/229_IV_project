@@ -6,8 +6,11 @@ from pathlib import Path
 from typing import Dict, Iterable, Sequence
 
 import pandas as pd
+import numpy as np
 
 from feature_engineering import build_iv_panel, DEFAULT_DB_PATH
+from surface_correlation import build_surface_feature_matrix
+from surface_dataset import build_surface_tensor_dataset
 from data_loader_coordinator import load_cores_with_auto_fetch
 
 
@@ -18,6 +21,12 @@ def compute_baseline_correlations(
     db_path: str | Path | None = None,
     cores: Dict[str, pd.DataFrame] | None = None,
     tolerance: str = "2s",
+    include_surface: bool = True,
+    k_bins: int = 10,
+    t_bins: int = 10,
+    surface_agg: str = "median",
+    include_surface_returns: bool = True,
+    forward_steps: int = 1,
 ) -> dict:
     """Compute historical correlation matrices for IV level and IV returns.
 
@@ -52,30 +61,147 @@ def compute_baseline_correlations(
 
     panel = build_iv_panel(cores, tolerance=tolerance)
     if panel is None or panel.empty:
-        return {"clip": pd.DataFrame(), "iv_returns": pd.DataFrame()}
+        # Surface correlation can still be attempted if cores present
+        surface_corr = pd.DataFrame()
+        surface_ret_corr = pd.DataFrame()
+        if include_surface and cores:
+            try:
+                feat = build_surface_feature_matrix(
+                    cores=cores,
+                    tickers=list(tickers),
+                    k_bins=k_bins,
+                    t_bins=t_bins,
+                    agg=surface_agg,
+                )
+                if not feat.empty and len(feat.index) >= 2:
+                    surface_corr = feat.T.corr(min_periods=1)
+            except Exception:
+                surface_corr = pd.DataFrame()
+        if include_surface_returns and cores:
+            try:
+                dbp = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
+                surf_df = build_surface_tensor_dataset(
+                    tickers=list(tickers),
+                    start=start,
+                    end=end,
+                    db_path=dbp,
+                    k_bins=k_bins,
+                    t_bins=t_bins,
+                    agg=surface_agg,
+                    forward_steps=forward_steps,
+                    tolerance=tolerance,
+                )
+                if not surf_df.empty:
+                    feat_cols = [c for c in surf_df.columns if c.startswith("K") and "_T" in c]
+                    by_t = {}
+                    for t in tickers:
+                        s = surf_df[surf_df.get("symbol") == t].sort_values("ts_event")
+                        if s.empty:
+                            continue
+                        surf_mean = s[feat_cols].mean(axis=1, skipna=True)
+                        sr = (np.log(surf_mean) - np.log(surf_mean.shift(1))).dropna()
+                        by_t[t] = sr
+                    if by_t:
+                        aligned = pd.concat(by_t, axis=1, join="inner")
+                        if aligned.shape[1] >= 2 and aligned.shape[0] >= 2:
+                            surface_ret_corr = aligned.corr()
+            except Exception:
+                surface_ret_corr = pd.DataFrame()
+        return {"clip": pd.DataFrame(), "iv_returns": pd.DataFrame(), "surface": surface_corr, "surface_returns": surface_ret_corr}
+
+    def _fast_corr(df: pd.DataFrame) -> pd.DataFrame:
+        # Try a fast path using numpy.corrcoef on rows with complete data.
+        if df is None or df.empty or df.shape[1] < 2:
+            return pd.DataFrame()
+        df32 = df.astype(np.float32)
+        no_na = df32.dropna()
+        if no_na.shape[0] >= 2 and no_na.shape[1] >= 2:
+            try:
+                C = np.corrcoef(no_na.values, rowvar=False)
+                return pd.DataFrame(C, index=no_na.columns, columns=no_na.columns)
+            except Exception:
+                pass
+        # Fallback to pandas pairwise-complete correlation
+        try:
+            return df.corr()
+        except Exception:
+            return pd.DataFrame()
 
     iv_cols = [f"IV_{t}" for t in tickers if f"IV_{t}" in panel.columns]
     ret_cols = [f"IVRET_{t}" for t in tickers if f"IVRET_{t}" in panel.columns]
-    print(f"Computing correlations for IV columns: {iv_cols}. sample rows:\n{panel[iv_cols].head()}")
-    print(f"Computing correlations for IV return columns: {ret_cols}. sample rows:\n{panel[ret_cols].head()}")
-    clip_corr = (
-        panel[iv_cols].corr().rename(index=lambda x: x[3:], columns=lambda x: x[3:])
-        if len(iv_cols) >= 2
-        else pd.DataFrame()
-    )
-    ivret_corr = (
-        panel[ret_cols].corr().rename(index=lambda x: x[6:], columns=lambda x: x[6:])
-        if len(ret_cols) >= 2
-        else pd.DataFrame()
-    )
+    if iv_cols:
+        print(f"Computing correlations for IV columns: {iv_cols}. sample rows:\n{panel[iv_cols].head()}")
+    if ret_cols:
+        print(f"Computing correlations for IV return columns: {ret_cols}. sample rows:\n{panel[ret_cols].head()}")
 
-    return {"clip": clip_corr, "iv_returns": ivret_corr}
+    if len(iv_cols) >= 2:
+        corr_iv = _fast_corr(panel[iv_cols])
+        clip_corr = corr_iv.rename(index=lambda x: x[3:], columns=lambda x: x[3:])
+    else:
+        clip_corr = pd.DataFrame()
+
+    if len(ret_cols) >= 2:
+        corr_ret = _fast_corr(panel[ret_cols])
+        ivret_corr = corr_ret.rename(index=lambda x: x[6:], columns=lambda x: x[6:])
+    else:
+        ivret_corr = pd.DataFrame()
+
+    # Surface-based correlation across tickers (flattened KxT features)
+    surface_corr = pd.DataFrame()
+    if include_surface and len(tickers) >= 2:
+        try:
+            feat = build_surface_feature_matrix(
+                cores=cores,
+                tickers=list(tickers),
+                k_bins=k_bins,
+                t_bins=t_bins,
+                agg=surface_agg,
+            )
+            if not feat.empty and len(feat.index) >= 2:
+                surface_corr = feat.T.corr(min_periods=1)
+        except Exception:
+            surface_corr = pd.DataFrame()
+
+    # Surface-based returns correlation (mean across grid -> log diff)
+    surface_ret_corr = pd.DataFrame()
+    if include_surface_returns and len(tickers) >= 2:
+        try:
+            dbp = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
+            surf_df = build_surface_tensor_dataset(
+                tickers=list(tickers),
+                start=start,
+                end=end,
+                db_path=dbp,
+                k_bins=k_bins,
+                t_bins=t_bins,
+                agg=surface_agg,
+                forward_steps=forward_steps,
+                tolerance=tolerance,
+            )
+            if not surf_df.empty:
+                feat_cols = [c for c in surf_df.columns if c.startswith("K") and "_T" in c]
+                by_t = {}
+                for t in tickers:
+                    s = surf_df[surf_df.get("symbol") == t].sort_values("ts_event")
+                    if s.empty:
+                        continue
+                    surf_mean = s[feat_cols].mean(axis=1, skipna=True)
+                    sr = (np.log(surf_mean) - np.log(surf_mean.shift(1))).dropna()
+                    by_t[t] = sr
+                if by_t:
+                    aligned = pd.concat(by_t, axis=1, join="inner")
+                    if aligned.shape[1] >= 2 and aligned.shape[0] >= 2:
+                        surface_ret_corr = aligned.corr()
+        except Exception:
+            surface_ret_corr = pd.DataFrame()
+
+    return {"clip": clip_corr, "iv_returns": ivret_corr, "surface": surface_corr, "surface_returns": surface_ret_corr}
 
 
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(
-        description="Compute baseline historical correlations for 1h ATM slices."
+        description="Compute baseline historical correlations (levels, returns, surfaces)."
     )
     parser.add_argument("tickers", nargs="+", help="Ticker symbols")
     parser.add_argument("--start", type=str, default=None, help="Start timestamp")
@@ -84,6 +210,12 @@ if __name__ == "__main__":
         "--db-path", type=str, default=None, help="Path to SQLite DB (defaults to project DB)"
     )
     parser.add_argument("--tolerance", type=str, default="2s", help="Merge tolerance")
+    parser.add_argument("--no-surface", action="store_true", help="Disable surface correlation")
+    parser.add_argument("--k-bins", type=int, default=10, help="Moneyness grid bins for surfaces")
+    parser.add_argument("--t-bins", type=int, default=10, help="Maturity grid bins for surfaces")
+    parser.add_argument("--surface-agg", choices=["median", "mean"], default="median", help="Aggregation in grid")
+    parser.add_argument("--no-surface-returns", action="store_true", help="Disable surface-returns correlation")
+    parser.add_argument("--forward-steps", type=int, default=1, help="Forward steps for surface returns")
     args = parser.parse_args()
 
     result = compute_baseline_correlations(
@@ -92,6 +224,12 @@ if __name__ == "__main__":
         end=args.end,
         db_path=args.db_path,
         tolerance=args.tolerance,
+        include_surface=not args.no_surface,
+        k_bins=args.k_bins,
+        t_bins=args.t_bins,
+        surface_agg=args.surface_agg,
+        include_surface_returns=not args.no_surface_returns,
+        forward_steps=args.forward_steps,
     )
     if not result["clip"].empty:
         print("IV clip correlation matrix:")
@@ -103,3 +241,15 @@ if __name__ == "__main__":
         print(result["iv_returns"])
     else:
         print("IV returns correlation matrix: <not enough data>")
+    if not args.no_surface:
+        if not result.get("surface", pd.DataFrame()).empty:
+            print("IV surface correlation matrix:")
+            print(result["surface"])
+        else:
+            print("IV surface correlation matrix: <not enough data>")
+    if not args.no_surface_returns:
+        if not result.get("surface_returns", pd.DataFrame()).empty:
+            print("IV surface return correlation matrix:")
+            print(result["surface_returns"])
+        else:
+            print("IV surface return correlation matrix: <not enough data>")
