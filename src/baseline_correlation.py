@@ -3,7 +3,7 @@ from __future__ import annotations
 """Baseline historical correlation calculations for 1h ATM slices."""
 
 from pathlib import Path
-from typing import Dict, Iterable, Sequence
+from typing import Dict, Sequence
 
 import pandas as pd
 import numpy as np
@@ -20,40 +20,19 @@ def compute_baseline_correlations(
     end: str | None = None,
     db_path: str | Path | None = None,
     cores: Dict[str, pd.DataFrame] | None = None,
-    tolerance: str = "2s",
+    tolerance: str = "15s",
+    surface_mode: str = "atm",
     include_surface: bool = True,
     k_bins: int = 10,
     t_bins: int = 10,
     surface_agg: str = "median",
     include_surface_returns: bool = True,
     forward_steps: int = 1,
+    surface_return_method: str = "diff",  # 'diff' | 'log' | 'pct'
 ) -> dict:
     """Compute historical correlation matrices for IV level and IV returns.
 
-    Parameters
-    ----------
-    tickers : Sequence[str]
-        Tickers to include in the analysis.
-    start, end : str | None
-        Optional start and end timestamps for data loading. These are
-        forwarded to :func:`load_cores_with_auto_fetch` when ``cores`` is not
-        provided.
-    db_path : str | Path | None
-        Path to the SQLite database containing 1h ATM slices. Defaults to the
-        project's ``DEFAULT_DB_PATH`` when ``None``.
-    cores : dict | None
-        Optional mapping of ``ticker -> DataFrame``. If provided, data is taken
-        from this mapping instead of loading from disk. Primarily intended for
-        testing.
-    tolerance : str
-        Merge tolerance passed to :func:`build_iv_panel`.
-
-    Returns
-    -------
-    dict
-        Dictionary with two keys:
-        ``"clip"`` – correlation matrix of IV levels.
-        ``"iv_returns"`` – correlation matrix of IV return series.
+    Returns a dict with keys: 'clip', 'iv_returns', 'surface', 'surface_returns'.
     """
     if cores is None:
         db = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
@@ -94,7 +73,7 @@ def compute_baseline_correlations(
                 )
                 if not surf_df.empty:
                     feat_cols = [c for c in surf_df.columns if c.startswith("K") and "_T" in c]
-                    by_t = {}
+                    by_t: dict[str, pd.Series] = {}
                     for t in tickers:
                         s = surf_df[surf_df.get("symbol") == t].sort_values("ts_event")
                         if s.empty:
@@ -150,6 +129,7 @@ def compute_baseline_correlations(
     # Surface-based correlation across tickers (flattened KxT features)
     surface_corr = pd.DataFrame()
     if include_surface and len(tickers) >= 2:
+        print(f"Building surface feature matrix for {len(tickers)} tickers (k_bins={k_bins}, t_bins={t_bins}, agg={surface_agg})...")
         try:
             feat = build_surface_feature_matrix(
                 cores=cores,
@@ -163,9 +143,10 @@ def compute_baseline_correlations(
         except Exception:
             surface_corr = pd.DataFrame()
 
-    # Surface-based returns correlation (mean across grid -> log diff)
+    # Surface-based returns correlation (mean across grid -> configurable diff)
     surface_ret_corr = pd.DataFrame()
     if include_surface_returns and len(tickers) >= 2:
+        print(f"Building surface tensor dataset for returns (k_bins={k_bins}, t_bins={t_bins}, agg={surface_agg})...")
         try:
             dbp = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
             surf_df = build_surface_tensor_dataset(
@@ -181,18 +162,33 @@ def compute_baseline_correlations(
             )
             if not surf_df.empty:
                 feat_cols = [c for c in surf_df.columns if c.startswith("K") and "_T" in c]
-                by_t = {}
+                by_t: dict[str, pd.Series] = {}
                 for t in tickers:
                     s = surf_df[surf_df.get("symbol") == t].sort_values("ts_event")
                     if s.empty:
                         continue
                     surf_mean = s[feat_cols].mean(axis=1, skipna=True)
-                    sr = (np.log(surf_mean) - np.log(surf_mean.shift(1))).dropna()
+                    method = str(surface_return_method).lower()
+                    if method in ("diff", "difference", "delta"):
+                        sr = surf_mean.diff().dropna()
+                    elif method in ("pct", "percent", "percentage"):
+                        with np.errstate(divide='ignore', invalid='ignore'):
+                            sr = (surf_mean / surf_mean.shift(1) - 1.0).replace([np.inf, -np.inf], np.nan).dropna()
+                    else:
+                        sr = (np.log(surf_mean) - np.log(surf_mean.shift(1))).dropna()
+                    # Align to minute grid to increase overlap across tickers
+                    try:
+                        idx = pd.to_datetime(s.loc[sr.index, "ts_event"], utc=True, errors="coerce")
+                    except Exception:
+                        idx = pd.to_datetime(s.loc[sr.index, "ts_event"], errors="coerce")
+                    sr.index = idx
+                    sr = sr.groupby(sr.index.floor("1min")).mean()
                     by_t[t] = sr
                 if by_t:
                     aligned = pd.concat(by_t, axis=1, join="inner")
+                    # Require at least 2 overlapping timestamps across at least 2 tickers
                     if aligned.shape[1] >= 2 and aligned.shape[0] >= 2:
-                        surface_ret_corr = aligned.corr()
+                        surface_ret_corr = aligned.corr(min_periods=1)
         except Exception:
             surface_ret_corr = pd.DataFrame()
 
@@ -210,7 +206,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--db-path", type=str, default=None, help="Path to SQLite DB (defaults to project DB)"
     )
-    parser.add_argument("--tolerance", type=str, default="2s", help="Merge tolerance")
+    parser.add_argument("--tolerance", type=str, default="15s", help="Merge tolerance")
     parser.add_argument("--no-surface", action="store_true", help="Disable surface correlation")
     parser.add_argument("--k-bins", type=int, default=10, help="Moneyness grid bins for surfaces")
     parser.add_argument("--t-bins", type=int, default=10, help="Maturity grid bins for surfaces")
@@ -254,3 +250,4 @@ if __name__ == "__main__":
             print(result["surface_returns"])
         else:
             print("IV surface return correlation matrix: <not enough data>")
+

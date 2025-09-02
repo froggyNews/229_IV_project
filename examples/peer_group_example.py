@@ -49,7 +49,7 @@ def example_standalone_peer_group_analysis():
         target_kinds=["iv_ret", "iv"],
         forward_steps=15,
         test_frac=0.2,
-        tolerance="2s",
+        tolerance="15s",
         r=0.045,
         output_dir=Path("outputs/peer_group_examples"),
         save_detailed_results=True,
@@ -103,7 +103,7 @@ def example_integrated_with_main_runner():
         end="2025-08-06",
         forward_steps=15,
         test_frac=0.2,
-        tolerance="2s",
+        tolerance="15s",
         r=0.045,
         
         # Enable baseline correlations

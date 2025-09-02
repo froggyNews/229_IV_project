@@ -35,7 +35,7 @@ df = build_pooled_iv_return_dataset_time_safe(
     end=None,
     r=0.045,
     forward_steps=1,
-    tolerance="2s",
+    tolerance="15s",
     cores=cores,
 )
 

@@ -164,13 +164,15 @@ def build_features_and_weights(
     target: str | None = None,
     clip_negative: bool = True,
     power: float = 1.0,
+    surface_mode: str = "full",
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Convenience: load cores, build surface features, and (optionally) weights.
 
     Returns feature_df and (if target set) a one-row DataFrame of weights for target.
     """
     db = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
-    cores = load_cores_with_auto_fetch(list(tickers), start, end, db)
+    atm_only = (str(surface_mode).lower() != "full")
+    cores = load_cores_with_auto_fetch(list(tickers), start, end, db, atm_only=atm_only)
     feats = build_surface_feature_matrix(cores, tickers, k_bins=k_bins, t_bins=t_bins, agg=agg)
     if target is None:
         return feats, pd.DataFrame()
@@ -204,12 +206,11 @@ if __name__ == "__main__":
         t_bins=args.t_bins,
         agg=args.agg,
         target=args.target,
-        clip_negative=args.clip_negative,
-        power=args.power,
+        clip_negative=True,
+        power=1.0,
     )
     print("Feature matrix (rows=tickers, cols=KxT cells):")
     print(feats.head())
     if args.target:
         print(f"\nWeights for target {args.target}:")
         print(weights)
-

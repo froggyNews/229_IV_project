@@ -59,7 +59,7 @@ class RunConfig:
     # Model settings
     forward_steps: int = 11
     test_frac: float = 0.2
-    tolerance: str = "2s"
+    tolerance: str = "15s"
     r: float = 0.045
 
     # Peer effects settings
@@ -166,7 +166,7 @@ def apply_timeframe_defaults(cfg: RunConfig) -> None:
         if not db_str or db_str.endswith("iv_data_1h.db"):
             cfg.db_path = Path("data/iv_data_1m.db")
         # Tolerance: allow a bit more slack at minute resolution
-        if cfg.tolerance in {"2s", "5s"}:
+        if cfg.tolerance in {"15s", "5s"}:
             cfg.tolerance = "30s"
         # Forward horizon: if using small hour-based default, bump to ~1h ahead
         if cfg.forward_steps in (11, 15):
@@ -174,8 +174,8 @@ def apply_timeframe_defaults(cfg: RunConfig) -> None:
     else:  # 1h
         if not db_str or db_str.endswith("iv_data_1m.db"):
             cfg.db_path = Path("data/iv_data_1h.db")
-        if cfg.tolerance not in {"1s", "2s", "5s"}:
-            cfg.tolerance = "2s"
+        if cfg.tolerance not in {"1s", "15s", "5s"}:
+            cfg.tolerance = "15s"
 
 
 def train_model(data: pd.DataFrame, target: str, test_frac: float, 
@@ -458,11 +458,11 @@ def compute_baseline_regression_wrapper(cfg: RunConfig, cores: Dict[str, pd.Data
         ivr = res.get("iv_returns", {})
         if ivr:
             betas = [m.get("beta") for m in ivr.values() if m and np.isfinite(m.get("beta", np.nan))]
-            r2s = [m.get("r2") for m in ivr.values() if m and np.isfinite(m.get("r2", np.nan))]
+            r15s = [m.get("r2") for m in ivr.values() if m and np.isfinite(m.get("r2", np.nan))]
             if betas:
                 print(f"  avg beta (IVRET vs market): {np.nanmean(betas):.3f}")
-            if r2s:
-                print(f"  avg R2   (IVRET vs market): {np.nanmean(r2s):.3f}")
+            if r15s:
+                print(f"  avg R2   (IVRET vs market): {np.nanmean(r15s):.3f}")
         else:
             print("  No IV returns regression results available")
 
@@ -986,7 +986,7 @@ def parse_arguments() -> RunConfig:
                         help="Number of forward steps for prediction")
     parser.add_argument("--test-frac", type=float, default=0.2, 
                         help="Fraction of data to use for testing")
-    parser.add_argument("--tolerance", default="2s", help="Time tolerance for merging")
+    parser.add_argument("--tolerance", default="15s", help="Time tolerance for merging")
     parser.add_argument("--r", type=float, default=0.045, help="Risk-free rate")
     
     # Peer effects settings

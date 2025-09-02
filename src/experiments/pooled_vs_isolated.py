@@ -38,7 +38,7 @@ class ExperimentConfig:
     # Model settings
     forward_steps: int = 15
     test_frac: float = 0.2
-    tolerance: str = "2s"
+    tolerance: str = "15s"
     r: float = 0.045
 
     # Data location

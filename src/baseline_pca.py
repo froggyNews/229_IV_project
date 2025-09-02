@@ -53,7 +53,7 @@ def compute_baseline_pca(
     end: str | None = None,
     db_path: str | Path | None = None,
     cores: Dict[str, pd.DataFrame] | None = None,
-    tolerance: str = "2s",
+    tolerance: str = "15s",
     n_components: int = 3,
     include_levels: bool = False,
     surface_mode: str = "atm",   # "atm" or "full"
@@ -100,7 +100,7 @@ if __name__ == "__main__":
     parser.add_argument("--start", type=str, default=None, help="Start timestamp")
     parser.add_argument("--end", type=str, default=None, help="End timestamp")
     parser.add_argument("--db-path", type=str, default=None, help="Path to SQLite DB")
-    parser.add_argument("--tolerance", type=str, default="2s", help="Merge tolerance")
+    parser.add_argument("--tolerance", type=str, default="15s", help="Merge tolerance")
     parser.add_argument("--n-components", type=int, default=3, help="Number of principal components")
     parser.add_argument("--include-levels", action="store_true", help="Also run PCA on IV levels")
     parser.add_argument("--surface-mode", choices=["atm", "full"], default="atm", help="ATM-only or full surface")

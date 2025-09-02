@@ -6,6 +6,8 @@ Generate figures for Slides 10–13 without Jupyter.
 Outputs under `plots/`:
  - slide10_iv_level_corr_heatmap.png
  - slide10_iv_return_corr_heatmap.png
+ - slide10_iv_surface_corr_heatmap.png
+ - slide10_iv_surface_return_corr_heatmap.png
  - slide10_rolling_corr_<TARGET>.png (optional)
  - baseline_regression_ivret_beta.png | baseline_regression_ivret_r2.png
  - baseline_regression_iv_returns.csv | baseline_regression_iv_levels.csv
@@ -47,6 +49,15 @@ try:
 except Exception:
     pass
 
+# Robust stdout/stderr encoding on Windows consoles (avoid emoji crashes)
+try:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 # Ensure project root and src/ on path to import local modules
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -79,12 +90,61 @@ plt.rcParams.update({
     "axes.spines.right": False,
     "axes.grid": True,
     "grid.alpha": 0.25,
-    "font.size": 11,
-    "axes.titlesize": 14,
-    "axes.labelsize": 11,
-    "legend.fontsize": 10,
+    "font.size": 13,
+    "axes.titlesize": 16,
+    "axes.labelsize": 13,
+    "legend.fontsize": 12,
+    "xtick.labelsize": 12,
+    "ytick.labelsize": 12,
 })
 sns.set_theme(style="whitegrid", rc={"axes.facecolor": "white"})
+
+
+def _filter_weekdays_index(idx: pd.DatetimeIndex) -> pd.DatetimeIndex:
+    """Keep Mon-Fri only to avoid weekend gaps in visuals."""
+    try:
+        return idx[idx.dayofweek < 5]
+    except Exception:
+        return idx
+
+def _filter_trading_hours_index(
+    idx: pd.DatetimeIndex,
+    market_tz: str = "America/New_York",
+    start_local: str = "09:30",
+    end_local: str = "16:00",
+) -> pd.DatetimeIndex:
+    """Filter to regular trading hours (09:30–16:00 local market time)."""
+    try:
+        base = idx
+        if not isinstance(idx, pd.DatetimeIndex):
+            return idx
+        if base.tz is None:
+            aware = base.tz_localize("UTC")
+        else:
+            aware = base
+        local = aware.tz_convert(market_tz)
+        pos = local.indexer_between_time(start_local, end_local, include_start=True, include_end=True)
+        return base.take(pos)
+    except Exception:
+        return idx
+
+def _break_lines_at_day_boundaries(
+    s: pd.Series, market_tz: str = "America/New_York"
+) -> pd.Series:
+    """Set first tick of each local day to NaN to break lines across days."""
+    try:
+        idx = s.index
+        if not isinstance(idx, pd.DatetimeIndex) or len(idx) == 0:
+            return s
+        aware = idx.tz_localize("UTC") if idx.tz is None else idx
+        local = aware.tz_convert(market_tz)
+        day = pd.Series(local.date, index=s.index)
+        first_of_day = day != day.shift(1)
+        out = s.copy()
+        out[first_of_day] = np.nan
+        return out
+    except Exception:
+        return s
 
 
 def _ensure_plots_dir(path: Path) -> Path:
@@ -107,7 +167,7 @@ def _blue_line_cycler(n: int = 10):
     return cycler(color=colors)
 
 
-_SAVE_OPTS: dict[str, object] = {"dpi": 240, "formats": ["png"], "transparent": False}
+_SAVE_OPTS: dict[str, object] = {"dpi": 200, "formats": ["png"], "transparent": False}
 
 
 def _add_footer_stamp(title_extras: str = ""):
@@ -440,6 +500,8 @@ def _save_pca_tables_and_plots(
     tolerance: str,
     plots_dir: Path,
     n_components: int = 3,
+    surface_mode: str = "atm",
+    surface_agg: str = "median",
 ) -> None:
     """Run baseline PCA and save EVR + loadings (tables + plots)."""
     try:
@@ -451,8 +513,8 @@ def _save_pca_tables_and_plots(
             tolerance=tolerance,
             n_components=n_components,
             include_levels=False,
-            surface_mode=getattr(args, "surface_mode", "atm"),
-            surface_agg=getattr(args, "surface_agg", "median"),
+            surface_mode=surface_mode,
+            surface_agg=surface_agg,
         )
         ivr = res.get("iv_returns", {})
         evr = ivr.get("explained_variance_ratio", [])
@@ -661,7 +723,7 @@ def run(args: argparse.Namespace) -> None:
     if timeframe == "1m":
         if forward_steps == 15:
             forward_steps = 60
-        if tolerance == "2s":
+        if tolerance == "15s":
             tolerance = "30s"
         if rolling_window is None:
             rolling_window = 23400  # ~60 trading days at 1m
@@ -687,6 +749,12 @@ def run(args: argparse.Namespace) -> None:
             tolerance=tolerance,
             surface_mode=getattr(args, "surface_mode", "atm"),
             surface_agg=getattr(args, "surface_agg", "median"),
+            k_bins=int(getattr(args, "surface_k_bins", 10)),
+            t_bins=int(getattr(args, "surface_t_bins", 10)),
+            include_surface=not getattr(args, "no_surface", False),
+            include_surface_returns=not getattr(args, "no_surface_returns", False),
+            forward_steps=forward_steps,
+            surface_return_method=str(getattr(args, "surface_return_method", "diff")),
         )
         clip_corr = corrs.get("clip", pd.DataFrame())
         ivret_corr = corrs.get("iv_returns", pd.DataFrame())
@@ -746,6 +814,7 @@ def run(args: argparse.Namespace) -> None:
                     k_bins=int(getattr(args, "surface_k_bins", 10)),
                     t_bins=int(getattr(args, "surface_t_bins", 10)),
                     agg=str(getattr(args, "surface_agg", "median")),
+                    surface_mode=str(getattr(args, "surface_mode", "full")),
                     target=args.surface_weights_target,
                     clip_negative=True,
                     power=1.0,
@@ -775,7 +844,15 @@ def run(args: argparse.Namespace) -> None:
         )
     if not getattr(args, "skip_pca", False):
         _save_pca_tables_and_plots(
-            args.tickers, args.start, args.end, db_path, tolerance, plots_dir, n_components=3
+            args.tickers,
+            args.start,
+            args.end,
+            db_path,
+            tolerance,
+            plots_dir,
+            n_components=3,
+            surface_mode=getattr(args, "surface_mode", "atm"),
+            surface_agg=getattr(args, "surface_agg", "median"),
         )
 
     # ---------- Slide 10 rolling correlations (optional) ----------
@@ -810,7 +887,14 @@ def run(args: argparse.Namespace) -> None:
                             .corr(panel[peer_col])
                             .dropna()
                         )
+                        # Filter plotting to weekdays
                         if len(s) > 0:
+                            try:
+                                s = s.loc[_filter_weekdays_index(s.index)]
+                                s = s.loc[_filter_trading_hours_index(s.index)]
+                            except Exception:
+                                pass
+                            s = _break_lines_at_day_boundaries(s)
                             s.rename(peer, inplace=True)
                             ax.plot(s.index, s.values, label=peer, linewidth=1.4, alpha=0.95)
 
@@ -849,7 +933,14 @@ def run(args: argparse.Namespace) -> None:
                             .corr(panel[peer_col])
                             .dropna()
                         )
+                        # Filter plotting to weekdays
                         if len(s) > 0:
+                            try:
+                                s = s.loc[_filter_weekdays_index(s.index)]
+                                s = s.loc[_filter_trading_hours_index(s.index)]
+                            except Exception:
+                                pass
+                            s = _break_lines_at_day_boundaries(s)
                             s.rename(peer, inplace=True)
                             ax.plot(s.index, s.values, label=peer, linewidth=1.4, alpha=0.95)
 
@@ -905,12 +996,21 @@ def run(args: argparse.Namespace) -> None:
                     means = eval_df[weight_cols].mean().sort_values(ascending=False)
                     top_cols = list(means.index[:k])
 
+                    # Weekday-only subset for plotting
+                    try:
+                        idx_weekdays = _filter_weekdays_index(eval_df.index)
+                        idx_hours = _filter_trading_hours_index(idx_weekdays)
+                        plot_df = eval_df.loc[idx_hours, top_cols]
+                    except Exception:
+                        plot_df = eval_df[top_cols]
+
                     plt.figure(figsize=(10.5, 6.0))
                     ax = plt.gca()
                     ax.set_prop_cycle(_blue_line_cycler(n=len(top_cols)))
                     for col in top_cols:
                         label = col.replace(prefix, "")
-                        ax.plot(eval_df.index, eval_df[col].values, label=label, linewidth=1.4, alpha=0.95)
+                        s = _break_lines_at_day_boundaries(plot_df[col])
+                        ax.plot(s.index, s.values, label=label, linewidth=1.4, alpha=0.95)
                     ax.set_title(f"Rolling {win} bars — {method.upper()} Weights vs {tgt}\n{args.start} → {args.end}")
                     ax.set_ylabel("Weight")
                     ax.set_xlabel("")
@@ -986,13 +1086,26 @@ def run(args: argparse.Namespace) -> None:
 
     # Export evaluation tables (feature importance, permutation, SHAP)
     eval_paths: list[Path] = []
+    # Priority 1: explicit files provided
     if getattr(args, "eval_files", None):
         eval_paths.extend([Path(p) for p in args.eval_files])
-    if getattr(args, "eval_dir", None):
-        d = Path(args.eval_dir)
-        if d.exists():
-            eval_paths.extend(sorted(d.glob("*_evaluation.json")))
+    else:
+        # Priority 2: latest file in eval_dir if requested
+        if getattr(args, "eval_dir_latest", False):
+            d = Path(getattr(args, "eval_dir", "outputs/evaluations"))
+            if d.exists():
+                files = sorted(d.glob("*_evaluation.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+                if files:
+                    eval_paths.append(files[0])
+        # Priority 3: all files in eval_dir if explicitly requested
+        elif getattr(args, "export_all_evals", False):
+            d = Path(getattr(args, "eval_dir", "outputs/evaluations"))
+            if d.exists():
+                eval_paths.extend(sorted(d.glob("*_evaluation.json")))
     if eval_paths:
+        print(f"Exporting tables for {len(eval_paths)} evaluation file(s):")
+        for p in eval_paths:
+            print(" -", p)
         _export_eval_tables(eval_paths, plots_dir)
 
     # Surface model importances (if provided)
@@ -1037,6 +1150,7 @@ def run(args: argparse.Namespace) -> None:
                 k_bins=int(getattr(args, "surface_k_bins", 10)),
                 t_bins=int(getattr(args, "surface_t_bins", 10)),
                 agg=str(getattr(args, "surface_agg", "median")),
+                surface_mode=str(getattr(args, "surface_mode", "full")),
                 target=None,
             )
             if feats is not None and not feats.empty:
@@ -1109,6 +1223,20 @@ def parse_args() -> argparse.Namespace:
         default="atm",
         help="Use ATM-by-expiry only (atm) or full surface (all strikes+expiries)",
     )
+    p.add_argument("--no-surface", action="store_true", help="Disable surface correlation heatmap")
+    p.add_argument("--no-surface-returns", action="store_true", help="Disable surface returns correlation heatmap")
+    p.add_argument(
+        "--surface-k-bins",
+        type=int,
+        default=10,
+        help="Number of moneyness bins for surface grids",
+    )
+    p.add_argument(
+        "--surface-t-bins",
+        type=int,
+        default=10,
+        help="Number of maturity bins for surface grids",
+    )
     p.add_argument(
         "--surface-weights-target",
         default=None,
@@ -1126,6 +1254,12 @@ def parse_args() -> argparse.Namespace:
         default=5,
         help="Top-k peers by average weight to plot",
     )
+    p.add_argument(
+        "--surface-return-method",
+        choices=["diff", "log", "pct"],
+        default="diff",
+        help="How to compute surface 'returns': diff (s_t - s_{t-1}), log (ln s_t - ln s_{t-1}), or pct ((s_t/s_{t-1})-1)",
+    )
     p.add_argument("--skip-regression", action="store_true", help="Skip baseline regression outputs")
     p.add_argument("--skip-pca", action="store_true", help="Skip baseline PCA outputs")
     p.add_argument(
@@ -1141,11 +1275,13 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument("--skip-pooled", action="store_true", help="Skip pooled XGB analysis")
     p.add_argument("--forward-steps", type=int, default=15)
-    p.add_argument("--tolerance", default="2s")
+    p.add_argument("--tolerance", default="15s")
     p.add_argument("--test-frac", type=float, default=0.2)
     p.add_argument("--save-csv", action="store_true", help="Also save CSVs of outputs")
     p.add_argument("--eval-files", nargs="*", help="Evaluation JSON file(s) to export tables from")
     p.add_argument("--eval-dir", default="outputs/evaluations", help="Directory to scan for *_evaluation.json")
+    p.add_argument("--eval-dir-latest", action="store_true", help="Export tables only for the most recent *_evaluation.json in --eval-dir")
+    p.add_argument("--export-all-evals", action="store_true", help="Export tables for all *_evaluation.json in --eval-dir")
     # Surface model importances
     p.add_argument("--surface-models", nargs="*", help="Path(s) to surface-trained model JSON files")
     p.add_argument("--surface-top-n", type=int, default=20, help="Top-N features for bar chart")

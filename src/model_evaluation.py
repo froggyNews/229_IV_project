@@ -135,7 +135,7 @@ def evaluate_pooled_model(
     end: str,
     test_frac: float = 0.2,
     forward_steps: int = 15,
-    tolerance: str = "2s",
+    tolerance: str = "15s",
     r: float = 0.045,
     metrics_dir: str | Path | None = "metrics",
     outputs_prefix: str = "iv_returns_pooled_eval",
@@ -364,7 +364,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--end", default="2025-01-06")
     p.add_argument("--test-frac", type=float, default=0.2)
     p.add_argument("--forward-steps", type=int, default=1)
-    p.add_argument("--tolerance", default="2s")
+    p.add_argument("--tolerance", default="15s")
     p.add_argument("--r", type=float, default=0.045)
     p.add_argument("--metrics-dir", default="metrics")
     p.add_argument("--prefix", default="iv_returns_pooled_eval")

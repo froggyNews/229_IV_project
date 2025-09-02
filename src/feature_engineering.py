@@ -360,7 +360,7 @@ def add_all_features(df: pd.DataFrame, forward_steps: int = 1, r: float = 0.045,
 
 def build_iv_panel(
     cores: Dict[str, pd.DataFrame],
-    tolerance: str = "2s",
+    tolerance: str = "15s",
     agg: str = "median",
 ) -> pd.DataFrame:
     """Build a per-timestamp IV panel for all tickers.
@@ -504,7 +504,7 @@ def build_pooled_iv_return_dataset_time_safe(
     end: Optional[pd.Timestamp] = None,
     r: float = 0.045,
     forward_steps: int = 1,
-    tolerance: str = "2s",
+    tolerance: str = "15s",
     db_path: Path | str | None = None,
     cores: Optional[Dict[str, pd.DataFrame]] = None,
     debug: bool = False,
@@ -655,7 +655,7 @@ def build_iv_return_dataset_time_safe(
     end: Optional[pd.Timestamp] = None,
     r: float = 0.045,
     forward_steps: int = 15,
-    tolerance: str = "2s",
+    tolerance: str = "15s",
     db_path: Path | str | None = None,
     cores: Optional[Dict[str, pd.DataFrame]] = None,
     debug: bool = False,
@@ -708,7 +708,7 @@ def build_target_peer_dataset(
     end: Optional[pd.Timestamp] = None,
     r: float = 0.045,
     forward_steps: int = 1,
-    tolerance: str = "2s",
+    tolerance: str = "15s",
     db_path: Path | str | None = None,
     target_kind: str = "iv_ret",
     cores: Optional[Dict[str, pd.DataFrame]] = None,

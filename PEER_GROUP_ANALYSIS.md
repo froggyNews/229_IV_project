@@ -106,7 +106,7 @@ peer_group_results = results["peer_group_results"]
 | `target_kinds` | List[str] | ["iv_ret", "iv"] | Types of targets to analyze |
 | `forward_steps` | int | 15 | Forward prediction steps |
 | `test_frac` | float | 0.2 | Test set fraction |
-| `tolerance` | str | "2s" | Time alignment tolerance |
+| `tolerance` | str | "15s" | Time alignment tolerance |
 | `r` | float | 0.045 | Risk-free rate |
 | `output_dir` | Path | "outputs/peer_groups" | Output directory |
 | `save_detailed_results` | bool | True | Save detailed analysis files |

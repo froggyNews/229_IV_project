@@ -1,0 +1,71 @@
+def _plot_metrics(df: pd.DataFrame, out_dir: Path, target: str, formats: Sequence[str], save_opts: Dict[str, object]):
+    """Plot metrics on separate figures per method (Corr, PCA, PCA-Reg).
+
+    Each figure includes two lines: R^2 (left axis) and Cosine similarity (right axis).
+    Weekends are removed (Mon-Fri only) for cleaner time axes.
+    """
+    if df is None or df.empty:
+        return
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    specs = [
+        ("corr", "#355C7D"),
+        ("pca", "#6C5B7B"),
+        ("pcareg", "#C06C84"),
+    ]
+
+    for method, color in specs:
+        r2_col = f"r2_{method}"
+        cos_col = f"cos_{method}"
+        if r2_col not in df.columns and cos_col not in df.columns:
+            continue
+        sub = df[[c for c in [r2_col, cos_col] if c in df.columns]].copy()
+        if sub.empty:
+            continue
+        # Filter to weekdays and trading hours only
+        sub = sub.loc[_filter_weekdays_index(sub.index)]
+        sub = sub.loc[_filter_trading_hours_index(sub.index)]
+        if sub.empty:
+            continue
+
+        plt.figure(figsize=(10.5, 6.0))
+        ax = plt.gca()
+        # Left axis: R^2
+        if r2_col in sub.columns:
+            r2_series = _break_lines_at_day_boundaries(sub[r2_col])
+            ax.plot(r2_series.index, r2_series.values, label="R^2", color=color, linewidth=1.6, alpha=0.95)
+            ax.set_ylabel("R^2")
+            ax.set_ylim(-0.2, 1.05)
+        ax.set_xlabel("")
+
+        # Right axis: Cosine similarity
+        if cos_col in sub.columns:
+            ax2 = ax.twinx()
+            cos_series = _break_lines_at_day_boundaries(sub[cos_col])
+            ax2.plot(cos_series.index, cos_series.values, label="Cosine sim", color="#2A9D8F", linewidth=1.4, alpha=0.85)
+            ax2.set_ylabel("Cosine sim", rotation=270, labelpad=12)
+            ax2.set_ylim(-1.05, 1.05)
+            ax2.grid(False)
+
+        title_method = {"corr": "Correlation", "pca": "PCA", "pcareg": "PCA-Regression"}.get(method, method.upper())
+        ax.set_title(f"Rolling Surface Reconstruction — {title_method} vs {target}")
+
+        # Build a combined legend
+        handles, labels = [], []
+        h1, l1 = ax.get_legend_handles_labels()
+        handles.extend(h1); labels.extend(l1)
+        if 'ax2' in locals():
+            h2, l2 = ax2.get_legend_handles_labels()
+            handles.extend(h2); labels.extend(l2)
+        if handles:
+            ax.legend(handles, labels, ncols=2, frameon=False, loc="upper left")
+
+        # Time-aware x-axis
+        ax.xaxis.set_major_locator(mdates.AutoDateLocator(minticks=5, maxticks=8))
+        ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(ax.xaxis.get_major_locator()))
+        plt.setp(ax.get_xticklabels(), rotation=0, ha="center")
+
+        _savefig(out_dir / f"rolling_surface_metrics_{method}_{target}", formats, save_opts)
+
+
+

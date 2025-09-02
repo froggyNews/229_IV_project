@@ -1,5 +1,12 @@
 from __future__ import annotations
-
+import sys
+from pathlib import Path
+ROOT = Path(__file__).resolve()
+SRC = ROOT / "src"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
 """
 Rolling surface reconstruction and evaluation on the full vol surface.
 
@@ -24,6 +31,8 @@ from sklearn.preprocessing import StandardScaler
 from scipy.optimize import nnls
 
 from data_loader_coordinator import load_cores_with_auto_fetch
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 
 
 @dataclass
@@ -50,7 +59,11 @@ def _bin_surface(df: pd.DataFrame, grid: SurfaceGrid) -> pd.DataFrame:
 
     tmp = df.copy()
     tmp["ts_event"] = pd.to_datetime(tmp["ts_event"], utc=True, errors="coerce")
-    tmp = tmp.dropna(subset=["ts_event", "iv_clip"]).sort_values("ts_event")
+    # Choose an IV column: prefer iv_clip, else iv
+    iv_col = "iv_clip" if "iv_clip" in tmp.columns else ("iv" if "iv" in tmp.columns else None)
+    if iv_col is None:
+        return pd.DataFrame()
+    tmp = tmp.dropna(subset=["ts_event", iv_col]).sort_values("ts_event")
 
     # Ensure features exist
     if "time_to_expiry" not in tmp.columns:
@@ -74,9 +87,9 @@ def _bin_surface(df: pd.DataFrame, grid: SurfaceGrid) -> pd.DataFrame:
 
     # Aggregate median iv per cell per timestamp
     piv = (
-        tmp.groupby(["ts_event", "_ebin", "_mbin"], as_index=False)["iv_clip"].median()
+        tmp.groupby(["ts_event", "_ebin", "_mbin"], as_index=False)[iv_col].median()
         .assign(col=lambda d: "E" + d["_ebin"].astype(int).astype(str) + "_M" + d["_mbin"].astype(int).astype(str))
-        .pivot(index="ts_event", columns="col", values="iv_clip")
+        .pivot(index="ts_event", columns="col", values=iv_col)
         .sort_index()
     )
 
@@ -242,7 +255,7 @@ def rolling_surface_evaluation(
     window: int,
     surface_mode: str = "full",
     grid: Optional[SurfaceGrid] = None,
-    tolerance: str = "2s",
+    tolerance: str = "15s",
     ridge_lambda: float = 1e-3,
     include_weights: bool = False,
 ) -> pd.DataFrame:
@@ -335,3 +348,264 @@ __all__ = [
     "build_surface_vectors",
     "rolling_surface_evaluation",
 ]
+def _configure_matplotlib(dpi: int = 300, transparent: bool = False):
+    plt.rcParams.update({
+        "figure.dpi": dpi,
+        "savefig.dpi": dpi,
+        "figure.autolayout": True,
+        "axes.spines.top": False,
+        "axes.spines.right": False,
+        "axes.grid": True,
+        "grid.alpha": 0.25,
+        "font.size": 13,
+        "axes.titlesize": 16,
+        "axes.labelsize": 13,
+        "legend.fontsize": 12,
+        "xtick.labelsize": 12,
+        "ytick.labelsize": 12,
+    })
+    return dict(dpi=dpi, transparent=transparent)
+
+
+def _savefig(base: Path, formats: Sequence[str], save_opts: Dict[str, object]) -> None:
+    formats = [str(f).lower().strip() for f in formats if str(f).strip()]
+    for fmt in formats:
+        out = base.with_suffix(f".{fmt}")
+        plt.savefig(out, bbox_inches="tight", **save_opts)
+        print(f"[SAVED] {out}")
+    plt.close()
+
+
+def _filter_weekdays_index(idx: pd.DatetimeIndex) -> pd.DatetimeIndex:
+    """Return index filtered to business weekdays (Mon-Fri).
+
+    Keeps original timezone and ordering. Holidays typically are not present
+    in the index (data not recorded), so a weekday filter suffices to remove
+    non-trading effects from plots.
+    """
+    try:
+        # dayofweek: Monday=0, Sunday=6
+        return idx[idx.dayofweek < 5]
+    except Exception:
+        # Fallback: return as-is if not a DatetimeIndex
+        return idx
+
+
+def _filter_trading_hours_index(
+    idx: pd.DatetimeIndex,
+    market_tz: str = "America/New_York",
+    start_local: str = "09:30",
+    end_local: str = "16:00",
+) -> pd.DatetimeIndex:
+    """Return index filtered to regular US equity trading hours (local time).
+
+    - Converts to `market_tz` (keeps original order and returns positions
+      from the original index).
+    - Keeps both endpoints inclusive (09:30–16:00).
+    """
+    try:
+        base = idx
+        if not isinstance(idx, pd.DatetimeIndex):
+            return idx
+        # Work on a tz-aware copy for time-of-day filtering
+        if base.tz is None:
+            aware = base.tz_localize("UTC")
+        else:
+            aware = base
+        local = aware.tz_convert(market_tz)
+        pos = local.indexer_between_time(start_local, end_local, include_start=True, include_end=True)
+        # Return positions from the original index to preserve tz/naive status
+        return base.take(pos)
+    except Exception:
+        return idx
+
+
+def _break_lines_at_day_boundaries(
+    s: pd.Series, market_tz: str = "America/New_York"
+) -> pd.Series:
+    """Insert visual breaks between trading days by NaN-ing first tick of each day.
+
+    This prevents Matplotlib from drawing slanted lines across overnight gaps
+    even after filtering to trading hours.
+    """
+    try:
+        idx = s.index
+        if not isinstance(idx, pd.DatetimeIndex) or len(idx) == 0:
+            return s
+        aware = idx.tz_localize("UTC") if idx.tz is None else idx
+        local = aware.tz_convert(market_tz)
+        # First tick of each local day
+        day = pd.Series(local.date, index=s.index)
+        first_of_day = day != day.shift(1)
+        out = s.copy()
+        out[first_of_day] = np.nan
+        return out
+    except Exception:
+        return s
+
+
+def _plot_metrics(df: pd.DataFrame, out_dir: Path, target: str, formats: Sequence[str], save_opts: Dict[str, object]):
+    """Plot metrics on separate figures per method (Corr, PCA, PCA-Reg).
+
+    Each figure includes two lines: R^2 (left axis) and Cosine similarity (right axis).
+    Weekends are removed (Mon-Fri only) for cleaner time axes.
+    """
+    if df is None or df.empty:
+        return
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    specs = [
+        ("corr", "#355C7D"),
+        ("pca", "#6C5B7B"),
+        ("pcareg", "#C06C84"),
+    ]
+
+    for method, color in specs:
+        r2_col = f"r2_{method}"
+        cos_col = f"cos_{method}"
+        if r2_col not in df.columns and cos_col not in df.columns:
+            continue
+        sub = df[[c for c in [r2_col, cos_col] if c in df.columns]].copy()
+        if sub.empty:
+            continue
+        # Filter to weekdays and trading hours only
+        sub = sub.loc[_filter_weekdays_index(sub.index)]
+        sub = sub.loc[_filter_trading_hours_index(sub.index)]
+        if sub.empty:
+            continue
+
+        plt.figure(figsize=(10.5, 6.0))
+        ax = plt.gca()
+        # Left axis: R^2 (sequence x-axis)
+        x = np.arange(1, len(sub) + 1)
+        if r2_col in sub.columns:
+            ax.plot(x, sub[r2_col].values, label="R^2", color=color, linewidth=1.6, alpha=0.95)
+            ax.set_ylabel("R^2")
+            ax.set_ylim(-0.2, 1.05)
+        ax.set_xlabel("Sequence")
+
+        # Right axis: Cosine similarity
+        if cos_col in sub.columns:
+            ax2 = ax.twinx()
+            ax2.plot(x, sub[cos_col].values, label="Cosine sim", color="#2A9D8F", linewidth=1.4, alpha=0.85)
+            ax2.set_ylabel("Cosine sim", rotation=270, labelpad=12)
+            ax2.set_ylim(-1.05, 1.05)
+            ax2.grid(False)
+
+        title_method = {"corr": "Correlation", "pca": "PCA", "pcareg": "PCA-Regression"}.get(method, method.upper())
+        ax.set_title(f"Rolling Surface Reconstruction — {title_method} vs {target}")
+
+        # Build a combined legend
+        handles, labels = [], []
+        h1, l1 = ax.get_legend_handles_labels()
+        handles.extend(h1); labels.extend(l1)
+        if 'ax2' in locals():
+            h2, l2 = ax2.get_legend_handles_labels()
+            handles.extend(h2); labels.extend(l2)
+        if handles:
+            ax.legend(handles, labels, ncols=2, frameon=False, loc="upper left")
+
+        # Sequence x-axis ticks
+        from matplotlib.ticker import MaxNLocator
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=8, integer=True))
+        plt.setp(ax.get_xticklabels(), rotation=0, ha="center")
+
+        _savefig(out_dir / f"rolling_surface_metrics_{method}_{target}", formats, save_opts)
+
+
+def _plot_weights(df: pd.DataFrame, method: str, out_dir: Path, target: str, formats: Sequence[str], save_opts: Dict[str, object]):
+    if df is None or df.empty:
+        return
+    prefix = {
+        "corr": "w_corr_",
+        "pca": "w_pca_",
+        "pcareg": "w_pcareg_",
+    }.get(method, "w_corr_")
+    cols = [c for c in df.columns if c.startswith(prefix)]
+    if not cols:
+        return
+    out_dir.mkdir(parents=True, exist_ok=True)
+    # Filter to weekdays and trading hours only for plotting
+    sub = df[cols].copy()
+    sub = sub.loc[_filter_weekdays_index(sub.index)]
+    sub = sub.loc[_filter_trading_hours_index(sub.index)]
+    if sub.empty:
+        return
+
+    plt.figure(figsize=(10.5, 6.0))
+    ax = plt.gca()
+    for c in cols:
+        s = _break_lines_at_day_boundaries(sub[c])
+        ax.plot(s.index, s.values, label=c.replace(prefix, ""), linewidth=1.2, alpha=0.95)
+    ax.set_title(f"Rolling {method.upper()} Weights vs {target}")
+    ax.set_ylabel("Weight")
+    ax.set_xlabel("")
+    ax.set_ylim(0, 1.05)
+    ax.legend(ncols=3, frameon=False, loc="upper left")
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator(minticks=5, maxticks=8))
+    ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(ax.xaxis.get_major_locator()))
+    plt.setp(ax.get_xticklabels(), rotation=0, ha="center")
+    _savefig(out_dir / f"rolling_surface_weights_{method}_{target}", formats, save_opts)
+
+
+def main():
+    import argparse
+
+    ap = argparse.ArgumentParser(description="Rolling surface evaluation with optional plotting")
+    ap.add_argument("--tickers", nargs="+", required=True)
+    ap.add_argument("--target", required=True)
+    ap.add_argument("--start", required=True)
+    ap.add_argument("--end", required=True)
+    ap.add_argument("--db", default="data/iv_data_1m.db")
+    ap.add_argument("--window", type=int, default=390, help="Rolling window size in bars")
+    ap.add_argument("--surface-mode", choices=["atm", "full"], default="full")
+    ap.add_argument("--tolerance", default="15s")
+    ap.add_argument("--ridge-lambda", type=float, default=1e-3)
+    ap.add_argument("--include-weights", action="store_true")
+    # Plotting options
+    ap.add_argument("--plot-metrics", action="store_true")
+    ap.add_argument("--plot-weights", action="store_true")
+    ap.add_argument("--weights-method", choices=["corr", "pca", "pcareg"], default="corr")
+    ap.add_argument("--plots-dir", default="plots")
+    ap.add_argument("--export-dpi", type=int, default=300)
+    ap.add_argument("--export-formats", default="png")
+    ap.add_argument("--transparent", action="store_true")
+    ap.add_argument("--save-csv", action="store_true")
+
+    args = ap.parse_args()
+
+    save_opts = _configure_matplotlib(dpi=int(args.export_dpi), transparent=bool(args.transparent))
+    formats = [s.strip() for s in str(args.export_formats).split(",") if s.strip()]
+    out_dir = Path(args.plots_dir)
+    print(f"[INFO] Rolling surface evaluation for target {args.target} with window {args.window}")
+    df = rolling_surface_evaluation(
+        tickers=args.tickers,
+        target=args.target,
+        start=args.start,
+        end=args.end,
+        db_path=args.db,
+        window=int(args.window),
+        surface_mode=args.surface_mode,
+        tolerance=args.tolerance,
+        ridge_lambda=float(args.ridge_lambda),
+        include_weights=bool(args.include_weights or args.plot_weights),
+    )
+    if df is None or df.empty:
+        print("[WARN] No evaluation rows produced (check data availability and window size)")
+        return
+
+    if args.save_csv:
+        out_csv = out_dir / f"rolling_surface_eval_{args.target}.csv"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        df.to_csv(out_csv)
+        print(f"[SAVED] {out_csv}")
+
+    if args.plot_metrics:
+        _plot_metrics(df, out_dir, args.target, formats, save_opts)
+    if args.plot_weights:
+        _plot_weights(df, args.weights_method, out_dir, args.target, formats, save_opts)
+
+
+if __name__ == "__main__":
+    print("=== Rolling Surface Evaluation ===")
+    main()

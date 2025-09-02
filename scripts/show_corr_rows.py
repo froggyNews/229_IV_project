@@ -29,7 +29,7 @@ def main() -> None:
     p.add_argument("--start", type=str, default=None)
     p.add_argument("--end", type=str, default=None)
     p.add_argument("--db", type=str, default=None, help="Path to SQLite DB (defaults to project setting)")
-    p.add_argument("--tolerance", type=str, default="2s", help="Merge tolerance (e.g., 2s, 30s)")
+    p.add_argument("--tolerance", type=str, default="15s", help="Merge tolerance (e.g., 15s, 30s)")
     args = p.parse_args()
 
     db_path = Path(args.db) if args.db else DEFAULT_DB_PATH

@@ -43,7 +43,7 @@ class ExpConfig:
     target: str = "iv_ret_fwd"  # default target column
     n_splits: int = 4
     r: float = 0.045
-    tolerance: str = "2s"
+    tolerance: str = "15s"
     cores: Optional[Dict[str, pd.DataFrame]] = None
     auto_fetch: bool = True
 

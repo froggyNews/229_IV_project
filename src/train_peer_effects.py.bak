@@ -303,7 +303,7 @@ def run_multi_target_analysis(
     target_kind: str = "iv_ret",
     forward_steps: int = 1,
     test_frac: float = 0.2,
-    tolerance: str = "2s",
+    tolerance: str = "15s",
     db_path: Path = None,
     include_self_lag: bool = True,
     exclude_contemporaneous: bool = True,

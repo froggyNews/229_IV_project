@@ -55,7 +55,7 @@ def compute_baseline_regression(
     end: str | None = None,
     db_path: str | Path | None = None,
     cores: Dict[str, pd.DataFrame] | None = None,
-    tolerance: str = "2s",
+    tolerance: str = "15s",
     include_levels: bool = True,
 ) -> dict:
     """Compute simple market-factor regressions for IV returns and levels.
@@ -122,7 +122,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--db-path", type=str, default=None, help="Path to SQLite DB (defaults to project DB)"
     )
-    parser.add_argument("--tolerance", type=str, default="2s", help="Merge tolerance")
+    parser.add_argument("--tolerance", type=str, default="15s", help="Merge tolerance")
     parser.add_argument("--no-levels", action="store_true", help="Skip IV level regressions")
     args = parser.parse_args()
 
